@@ -26,6 +26,7 @@ from __future__ import annotations
 
 from django.db import transaction
 from django.shortcuts import get_object_or_404, render
+from django_ratelimit.decorators import ratelimit
 from rest_framework import status
 from rest_framework.decorators import (
     api_view,
@@ -42,6 +43,16 @@ from .serializers import (
     SlideshowPatchSerializer,
     SlideWriteSerializer,
 )
+
+# Per-IP rate limits per the handoff. Picked to be generous for
+# legitimate agent runs (200 slides/hour means a slide every 18s,
+# well above any realistic agent throughput) while still blocking
+# the obvious abuse cases of "scriptkiddie hammers create endpoint
+# to seed garbage". block=True returns the standard 429 response.
+RATELIMIT_KEY_IP = 'ip'
+RATELIMIT_CREATE = '20/h'
+RATELIMIT_SLIDE_WRITE = '200/h'
+RATELIMIT_PATCH = '60/h'
 
 # Curated list of share_tokens that render in the home-page gallery.
 # Updated in place rather than database-backed; gallery items are an
@@ -67,6 +78,7 @@ def _client_ip(request) -> str | None:
 
 @api_view(['POST'])
 @parser_classes([JSONParser])
+@ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_CREATE, method='POST', block=True)
 def slideshow_create(request):
     '''Anonymous create. Returns id, share_url, write_token.
 
@@ -90,6 +102,7 @@ def slideshow_create(request):
 @api_view(['POST'])
 @authentication_classes([WriteTokenAuthentication])
 @parser_classes([MultiPartParser, JSONParser])
+@ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_SLIDE_WRITE, method='POST', block=True)
 def slide_add(request, slideshow_id):
     '''Append a slide. Auth: Bearer <write_token>.
 
@@ -128,6 +141,7 @@ def slide_add(request, slideshow_id):
 @api_view(['PATCH'])
 @authentication_classes([WriteTokenAuthentication])
 @parser_classes([MultiPartParser, JSONParser])
+@ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_SLIDE_WRITE, method='PATCH', block=True)
 def slide_update(request, slideshow_id, position):
     '''Replace image and/or caption. Auth: Bearer <write_token>.'''
     slideshow = authorize_slideshow(request, slideshow_id)
@@ -147,6 +161,7 @@ def slide_update(request, slideshow_id, position):
 @api_view(['PATCH'])
 @authentication_classes([WriteTokenAuthentication])
 @parser_classes([JSONParser])
+@ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_PATCH, method='PATCH', block=True)
 def slideshow_patch(request, slideshow_id):
     '''Patch title, description, or summary. Auth: Bearer <write_token>.'''
     slideshow = authorize_slideshow(request, slideshow_id)
