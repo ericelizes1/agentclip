@@ -1,0 +1,189 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}qagent{% endblock %}</title>
+
+  {% block og %}
+  <meta property="og:title" content="{% block og_title %}qagent{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}Turn AI agent QA runs into shareable slideshows.{% endblock %}">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="{% block og_url %}{{ request.build_absolute_uri }}{% endblock %}">
+  {% block og_image %}{% endblock %}
+  <meta name="twitter:card" content="summary_large_image">
+  {% endblock %}
+
+  <style>
+    /* ---------- Reset / system ---------- */
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+    body { margin: 0; }
+    img, picture { max-width: 100%; display: block; }
+    button { font: inherit; cursor: pointer; }
+    a { color: inherit; }
+
+    /* ---------- Design tokens ---------- */
+    :root {
+      --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Inter", sans-serif;
+      --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+      --bg: #fafaf9;
+      --surface: #ffffff;
+      --ink: #1a1a1a;
+      --ink-muted: #5a5a5a;
+      --ink-subtle: #909090;
+      --border: #e8e6e1;
+      --border-strong: #d4d1c9;
+      --accent: #1f6feb;
+      --accent-soft: #eaf2ff;
+      --callout-bg: #fef9e7;
+      --callout-border: #f1d77a;
+      --code-bg: #14171a;
+      --code-ink: #e8eaee;
+
+      --radius: 8px;
+      --radius-lg: 12px;
+      --shadow-sm: 0 1px 2px rgba(20, 23, 28, 0.04);
+      --shadow-md: 0 4px 18px rgba(20, 23, 28, 0.06);
+
+      --measure: 68ch;
+      --max-width: 1080px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #14161a;
+        --surface: #1c1f24;
+        --ink: #ececec;
+        --ink-muted: #b3b3b3;
+        --ink-subtle: #7d7d7d;
+        --border: #2c3036;
+        --border-strong: #3a3f47;
+        --accent: #6ea8fe;
+        --accent-soft: #1e2a40;
+        --callout-bg: #2a2517;
+        --callout-border: #6e5b1d;
+        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+        --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.45);
+      }
+    }
+
+    body {
+      font-family: var(--font-sans);
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* ---------- Layout ---------- */
+    .wrap { max-width: var(--max-width); margin-inline: auto; padding-inline: 24px; }
+    .stack > * + * { margin-top: 16px; }
+    .stack-lg > * + * { margin-top: 32px; }
+
+    /* ---------- Typography ---------- */
+    h1, h2, h3 { line-height: 1.2; letter-spacing: -0.01em; margin: 0; }
+    h1 { font-size: clamp(2rem, 1.6rem + 1.4vw, 2.6rem); font-weight: 700; }
+    h2 { font-size: clamp(1.4rem, 1.25rem + 0.5vw, 1.7rem); font-weight: 650; }
+    h3 { font-size: 1.1rem; font-weight: 600; }
+    p { margin: 0; max-width: var(--measure); }
+
+    code, kbd { font-family: var(--font-mono); font-size: 0.9em; }
+    pre {
+      font-family: var(--font-mono);
+      background: var(--code-bg);
+      color: var(--code-ink);
+      padding: 16px 18px;
+      border-radius: var(--radius);
+      overflow-x: auto;
+      font-size: 0.9rem;
+      line-height: 1.55;
+    }
+    pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+
+    /* ---------- Buttons ---------- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border-strong);
+      background: var(--surface);
+      color: var(--ink);
+      text-decoration: none;
+      font-weight: 500;
+      transition: border-color 120ms ease, background 120ms ease;
+    }
+    .btn:hover { border-color: var(--ink-muted); }
+    .btn-primary {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: var(--bg);
+    }
+    .btn-primary:hover { background: #000; border-color: #000; }
+    @media (prefers-color-scheme: dark) {
+      .btn-primary:hover { background: #fff; border-color: #fff; color: #000; }
+    }
+
+    /* ---------- Header ---------- */
+    .site-header {
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      backdrop-filter: saturate(180%) blur(8px);
+    }
+    .site-header .wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-block: 14px;
+    }
+    .brand {
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      font-size: 1.05rem;
+      color: var(--ink);
+      text-decoration: none;
+    }
+    .brand .dot { color: var(--accent); }
+    .nav { display: flex; gap: 6px; }
+
+    /* ---------- Footer ---------- */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      color: var(--ink-subtle);
+      padding-block: 28px;
+      margin-top: 64px;
+      font-size: 0.9rem;
+    }
+    .site-footer a { color: var(--ink-muted); text-decoration: none; }
+    .site-footer a:hover { color: var(--ink); }
+    .site-footer .wrap { display: flex; gap: 16px; flex-wrap: wrap; justify-content: space-between; }
+  </style>
+
+  {% block head_extra %}{% endblock %}
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="{% url 'home' %}">qagent<span class="dot">.</span></a>
+      <nav class="nav">
+        <a class="btn" href="https://github.com/ericelizes/qagent" rel="noopener">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  {% block content %}{% endblock %}
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span>qagent. Built {% now "F Y" %}.</span>
+      <span><a href="https://github.com/ericelizes/qagent" rel="noopener">github.com/ericelizes/qagent</a></span>
+    </div>
+  </footer>
+
+  {% block body_extra %}{% endblock %}
+</body>
+</html>

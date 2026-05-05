@@ -1,12 +1,209 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>qagent</title>
-</head>
-<body>
-  <h1>qagent</h1>
-  <p>Real landing page lands in the templates commit.</p>
-  <p>Gallery: {{ gallery|length }} slideshow(s).</p>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}qagent | turn AI agent QA runs into shareable slideshows{% endblock %}
+{% block og_title %}qagent{% endblock %}
+{% block og_description %}Turn AI agent QA runs into shareable slideshows. Open-source MCP server + CLI + agent skill.{% endblock %}
+
+{% block head_extra %}
+<style>
+  .hero {
+    padding-block: 80px 48px;
+  }
+  .hero h1 {
+    font-size: clamp(2.2rem, 1.5rem + 2.6vw, 3.4rem);
+    max-width: 22ch;
+  }
+  .hero .lede {
+    font-size: clamp(1.05rem, 1rem + 0.3vw, 1.2rem);
+    color: var(--ink-muted);
+    margin-top: 20px;
+    max-width: var(--measure);
+  }
+  .hero .cta {
+    display: flex;
+    gap: 12px;
+    margin-top: 28px;
+    flex-wrap: wrap;
+  }
+  .hero .install {
+    margin-top: 32px;
+    max-width: 540px;
+  }
+  .hero .install pre { margin: 0; font-size: 0.92rem; }
+  .hero .install .hint {
+    color: var(--ink-subtle);
+    font-size: 0.85rem;
+    margin-top: 8px;
+  }
+
+  .section { padding-block: 56px; border-top: 1px solid var(--border); }
+  .section h2 { margin-bottom: 8px; }
+  .section .section-lede { color: var(--ink-muted); margin-bottom: 32px; max-width: var(--measure); }
+
+  .how {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 24px;
+  }
+  .how-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    box-shadow: var(--shadow-sm);
+  }
+  .how-step .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 14px;
+    background: var(--ink);
+    color: var(--bg);
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .how-step h3 { margin-bottom: 6px; }
+  .how-step p { color: var(--ink-muted); font-size: 0.95rem; }
+
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+  }
+  .gallery-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+    box-shadow: var(--shadow-sm);
+  }
+  .gallery-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--border-strong);
+  }
+  .gallery-thumb {
+    aspect-ratio: 16 / 9;
+    background: linear-gradient(135deg, var(--accent-soft), var(--surface));
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .gallery-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .gallery-body { padding: 18px 20px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .gallery-body h3 { font-size: 1.05rem; }
+  .gallery-body .desc { color: var(--ink-muted); font-size: 0.92rem; line-height: 1.5; }
+  .gallery-body .meta { color: var(--ink-subtle); font-size: 0.82rem; margin-top: 6px; }
+
+  .gallery-empty {
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: 48px 24px;
+    text-align: center;
+    color: var(--ink-muted);
+  }
+  .gallery-empty code { background: var(--accent-soft); color: var(--accent); padding: 2px 6px; border-radius: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="hero wrap">
+  <h1>Turn AI agent QA runs into shareable slideshows.</h1>
+  <p class="lede">
+    Your agent drives the browser. qagent captures the moments that matter
+    and ships you back a single URL anyone can watch. Built for founders,
+    operators, and engineers who want their agents to leave receipts.
+  </p>
+
+  <div class="cta">
+    <a class="btn btn-primary" href="https://github.com/ericelizes/qagent" rel="noopener">View on GitHub</a>
+    <a class="btn" href="#how">How it works</a>
+  </div>
+
+  <div class="install">
+    <pre><code>pip install qagent
+qagent install-skill</code></pre>
+    <p class="hint">Or run with no install: <code>uvx qagent --help</code></p>
+  </div>
+</section>
+
+<section class="section wrap" id="how">
+  <h2>How it works</h2>
+  <p class="section-lede">
+    qagent is an MCP server, a CLI, and a bundled agent skill. Three steps,
+    one shareable artifact.
+  </p>
+
+  <div class="how">
+    <article class="how-step">
+      <div class="step-num">1</div>
+      <h3>Install</h3>
+      <p>
+        <code>pip install qagent</code>, then <code>qagent install-skill</code>
+        to teach your agent how to write good captions and structure a run.
+      </p>
+    </article>
+    <article class="how-step">
+      <div class="step-num">2</div>
+      <h3>Run a QA</h3>
+      <p>
+        Ask your agent to QA a flow. It drives the browser, screenshots the
+        moments that matter, captions each one, and writes a summary at the end.
+      </p>
+    </article>
+    <article class="how-step">
+      <div class="step-num">3</div>
+      <h3>Share</h3>
+      <p>
+        You get a slideshow URL. Drop it in Slack, paste it in a PR, send it
+        to a teammate. Anyone can watch the whole run with no install.
+      </p>
+    </article>
+  </div>
+</section>
+
+<section class="section wrap">
+  <h2>Examples</h2>
+  <p class="section-lede">
+    Real slideshows generated by agents running qagent against shipped
+    products. Hand-curated. More coming as the community grows.
+  </p>
+
+  {% if gallery %}
+    <div class="gallery">
+      {% for show in gallery %}
+        <a class="gallery-card" href="{% url 'slideshow_viewer' show.share_token %}">
+          <div class="gallery-thumb">
+            {% with show.slides.first as first_slide %}
+              {% if first_slide %}
+                <img src="{{ first_slide.image.url }}" alt="">
+              {% endif %}
+            {% endwith %}
+          </div>
+          <div class="gallery-body">
+            <h3>{{ show.title|default:"untitled run" }}</h3>
+            {% if show.description %}
+              <p class="desc">{{ show.description|truncatewords:18 }}</p>
+            {% endif %}
+            <p class="meta">{{ show.slides.count }} slide{{ show.slides.count|pluralize }} • {{ show.created_at|date:"M j, Y" }}</p>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="gallery-empty">
+      <p>Examples landing soon. Run <code>qagent install-skill</code>, post a slideshow, send it our way.</p>
+    </div>
+  {% endif %}
+</section>
+{% endblock %}

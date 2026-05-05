@@ -1,20 +1,193 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>{{ slideshow.title|default:"slideshow" }}</title>
-</head>
-<body>
-  <h1>{{ slideshow.title }}</h1>
-  <p>{{ slideshow.description }}</p>
-  <p><strong>Summary:</strong> {{ slideshow.summary }}</p>
-  <ol>
-    {% for slide in slides %}
-      <li>
-        <img src="{{ slide.image.url }}" alt="slide {{ slide.position }}">
-        <p>{{ slide.caption }}</p>
-      </li>
-    {% endfor %}
-  </ol>
-</body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}{{ slideshow.title|default:"slideshow" }} | qagent{% endblock %}
+{% block og_title %}{{ slideshow.title|default:"slideshow" }}{% endblock %}
+{% block og_description %}{% if slideshow.summary %}{{ slideshow.summary|truncatewords:40 }}{% else %}{{ slideshow.description|default:"An AI agent QA run."|truncatewords:30 }}{% endif %}{% endblock %}
+{% block og_image %}{% if slides %}<meta property="og:image" content="{{ slides.0.image.url }}">{% endif %}{% endblock %}
+
+{% block head_extra %}
+<style>
+  /* ---------- Viewer-specific ---------- */
+  .show-titlebar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter: saturate(180%) blur(10px);
+    border-bottom: 1px solid var(--border);
+    padding-block: 14px;
+  }
+  .show-titlebar .wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .show-titlebar .show-title {
+    font-weight: 600;
+    font-size: 0.98rem;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 70ch;
+  }
+  .show-titlebar .show-meta {
+    color: var(--ink-subtle);
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  .show-hero {
+    padding-block: 64px 32px;
+  }
+  .show-hero h1 {
+    font-size: clamp(2rem, 1.4rem + 2.2vw, 3rem);
+    margin-bottom: 16px;
+  }
+  .show-hero .show-description {
+    color: var(--ink-muted);
+    font-size: 1.1rem;
+    max-width: var(--measure);
+  }
+  .show-hero .show-stats {
+    display: flex;
+    gap: 18px;
+    color: var(--ink-subtle);
+    font-size: 0.9rem;
+    margin-top: 24px;
+  }
+  .show-hero .show-stats span::before { content: "•"; margin-right: 18px; color: var(--border-strong); }
+  .show-hero .show-stats span:first-child::before { content: ""; margin: 0; }
+
+  .show-summary {
+    background: var(--callout-bg);
+    border: 1px solid var(--callout-border);
+    border-radius: var(--radius-lg);
+    padding: 20px 24px;
+    margin-block: 16px 48px;
+    box-shadow: var(--shadow-sm);
+  }
+  .show-summary .label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-muted);
+    margin-bottom: 6px;
+  }
+  .show-summary p {
+    margin: 0;
+    font-size: 1.02rem;
+    color: var(--ink);
+    max-width: var(--measure);
+    white-space: pre-wrap;
+  }
+
+  .slides {
+    display: flex;
+    flex-direction: column;
+    gap: 64px;
+    padding-block: 16px 48px;
+  }
+
+  .slide {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 32px;
+    align-items: start;
+  }
+  @media (max-width: 800px) {
+    .slide { grid-template-columns: 1fr; gap: 16px; }
+    .slides { gap: 48px; }
+  }
+
+  .slide-image {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    background: var(--surface);
+  }
+  .slide-image img { width: 100%; height: auto; display: block; }
+
+  .slide-meta { padding-top: 8px; }
+  .slide-meta .position {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    padding-inline: 8px;
+    border-radius: 14px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 0.78rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .slide-meta .caption {
+    font-size: 1.02rem;
+    color: var(--ink);
+    line-height: 1.65;
+    white-space: pre-wrap;
+    max-width: var(--measure);
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--ink-subtle);
+    padding-block: 64px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="show-titlebar">
+  <div class="wrap">
+    <p class="show-title">{{ slideshow.title|default:"untitled slideshow" }}</p>
+    <span class="show-meta">{{ slides|length }} slide{{ slides|length|pluralize }}</span>
+  </div>
+</div>
+
+<main class="wrap">
+  <section class="show-hero">
+    <h1>{{ slideshow.title|default:"untitled slideshow" }}</h1>
+    {% if slideshow.description %}
+      <p class="show-description">{{ slideshow.description }}</p>
+    {% endif %}
+    <div class="show-stats">
+      <span>{{ slides|length }} slide{{ slides|length|pluralize }}</span>
+      <span>created {{ slideshow.created_at|date:"M j, Y" }}</span>
+    </div>
+  </section>
+
+  {% if slideshow.summary %}
+    <aside class="show-summary" aria-label="Run summary">
+      <div class="label">summary</div>
+      <p>{{ slideshow.summary }}</p>
+    </aside>
+  {% endif %}
+
+  {% if slides %}
+    <section class="slides">
+      {% for slide in slides %}
+        <article class="slide" id="slide-{{ slide.position }}">
+          <a class="slide-image" href="{{ slide.image.url }}" target="_blank" rel="noopener">
+            <img src="{{ slide.image.url }}" alt="slide {{ slide.position }}" loading="lazy">
+          </a>
+          <div class="slide-meta">
+            <div class="position">slide {{ slide.position }}</div>
+            <p class="caption">{{ slide.caption }}</p>
+          </div>
+        </article>
+      {% endfor %}
+    </section>
+  {% else %}
+    <div class="empty">
+      <p>This slideshow has no slides yet.</p>
+    </div>
+  {% endif %}
+</main>
+{% endblock %}
