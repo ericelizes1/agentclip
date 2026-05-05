@@ -1,15 +1,20 @@
 # agentclip-app
 
-Django backend for [agentclip](https://github.com/ericelizes/agentclip): the API
-and public viewer that turn agent QA runs into shareable slideshow URLs.
+The Django backend that powers [agentclip.dev](https://agentclip.dev): the API the SDK posts to and the public viewer where clips render.
+
+[![CI](https://github.com/ericelizes/agentclip-app/actions/workflows/ci.yml/badge.svg)](https://github.com/ericelizes/agentclip-app/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/ericelizes/agentclip-app/blob/main/LICENSE)
+[![Django](https://img.shields.io/badge/django-6.0-092E20.svg)](https://www.djangoproject.com/)
+
+> **Looking for the Python package, CLI, or MCP server?** Those live in the sister repo: [`ericelizes/agentclip`](https://github.com/ericelizes/agentclip).
 
 ## Stack
 
 - Django 6 + Django REST Framework
-- Postgres (sqlite for local dev, zero-config)
-- DigitalOcean Spaces for object storage (S3-compatible via boto3 + django-storages)
-- WhiteNoise for static files
-- django-ratelimit for basic bot protection
+- Postgres in production, sqlite for local dev
+- DigitalOcean Spaces for object storage (S3-compatible via `boto3` + `django-storages`)
+- WhiteNoise for static files, gunicorn for WSGI
+- `django-ratelimit` for per-IP rate limits
 
 ## Run locally
 
@@ -19,61 +24,58 @@ source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 
-python manage.py migrate
-python manage.py createsuperuser
-python manage.py runserver
+DJANGO_DEBUG=true python manage.py migrate
+DJANGO_DEBUG=true python manage.py createsuperuser
+DJANGO_DEBUG=true python manage.py runserver
 ```
 
-The home page is at `http://localhost:8000/`. The admin is at `/admin/`.
-Slideshows render at `/s/<share_token>/`.
+- Home page: `http://localhost:8000/`
+- Admin: `/admin/`
+- Public clip viewer: `/s/<share_token>/`
 
-## API surface
+## API
 
-| Method | Path | Auth |
-|---|---|---|
-| POST | `/api/slideshow/` | none, rate-limited |
-| POST | `/api/slideshow/<id>/slides/` | `Authorization: Bearer <write_token>` |
-| PATCH | `/api/slideshow/<id>/slides/<position>/` | write_token |
-| PATCH | `/api/slideshow/<id>/` | write_token |
+| Method | Path | Auth | Rate limit |
+|---|---|---|---|
+| POST | `/api/slideshow/` | none | 20 / hour / IP |
+| POST | `/api/slideshow/<id>/slides/` | `Authorization: Bearer <write_token>` | 200 / hour / IP |
+| PATCH | `/api/slideshow/<id>/slides/<position>/` | write_token | 200 / hour / IP |
+| PATCH | `/api/slideshow/<id>/` | write_token | 60 / hour / IP |
 
-Documented end-to-end in the [agentclip](https://github.com/ericelizes/agentclip)
-public package README.
+The contract is documented end-to-end in the [agentclip](https://github.com/ericelizes/agentclip) Python package README. The Python tests there assert on these wire shapes; if you change a response, link the matching package PR.
 
 ## Deploy
 
 ### DigitalOcean App Platform (preferred)
 
-Single-service Docker deploy plus managed Postgres plus a Space for media.
+```bash
+# 1. Provision a managed Postgres in your DO account, save its DATABASE_URL.
+# 2. Create a DO Space, generate keys, note the bucket name and endpoint.
+# 3. From this repo:
+doctl apps create --spec .do/app.yaml
+# 4. In the App Platform UI, set the secrets marked SECRET in .do/app.yaml:
+#    DJANGO_SECRET_KEY, DATABASE_URL, DO_SPACES_KEY, DO_SPACES_SECRET, DO_SPACES_BUCKET
+# 5. Add your domain in the Domains tab.
+```
 
-1. Create a managed Postgres database in the same region (`nyc` works).
-   Copy its connection string for `DATABASE_URL`.
-2. Create a DigitalOcean Space in the same region. Generate an access
-   key + secret. Note the bucket name and endpoint.
-3. From this repo:
-   ```bash
-   doctl apps create --spec .do/app.yaml
-   ```
-4. In the App Platform UI, set the secret env vars marked `type: SECRET`
-   in `.do/app.yaml`:
-   - `DJANGO_SECRET_KEY` (generate via `python -c "import secrets; print(secrets.token_urlsafe(50))"`)
-   - `DATABASE_URL` (from step 1)
-   - `DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_BUCKET` (from step 2)
-5. Add your domain in the Domains tab (or use the auto-assigned `*.ondigitalocean.app` URL).
-
-The Dockerfile runs `manage.py migrate` on every container start, so
-schema changes ship with the next deploy with no manual step.
+The Dockerfile runs `manage.py migrate` on every container start, so schema changes ship with the next deploy.
 
 ### Other Docker hosts
 
-Any Docker-compatible platform works. Required env vars:
+Any Docker-compatible platform works. Required env vars are listed in `.env.example`.
 
-| Variable | Notes |
-|---|---|
-| `DJANGO_SECRET_KEY` | Required when `DJANGO_DEBUG=false` |
-| `DJANGO_DEBUG=false` | Default in prod |
-| `DJANGO_ALLOWED_HOSTS` | Comma-separated, must include your domain |
-| `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://your-domain` |
-| `DATABASE_URL` | Postgres URL |
-| `DO_SPACES_KEY` / `DO_SPACES_SECRET` / `DO_SPACES_BUCKET` / `DO_SPACES_ENDPOINT` | Object storage |
+## Tests
 
-See `.env.example` for the full list.
+```bash
+DJANGO_DEBUG=true python manage.py test slideshows
+```
+
+20 integration tests covering API, auth, rate limit, and viewer. CI matrix runs Python 3.11/3.12/3.13 plus a Docker build on every PR.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). The hard rules: mobile-first templates, atomic commits, no model names in user-facing copy, no em dashes.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

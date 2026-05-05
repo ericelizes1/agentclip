@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Package issues (CLI / SDK / MCP)
+    url: https://github.com/ericelizes/agentclip/issues
+    about: For issues with the agentclip Python package, file there. This repo is the backend only.
+  - name: Discussion / question
+    url: https://github.com/ericelizes/agentclip-app/discussions
+    about: Open-ended questions, deployment help, ideas.

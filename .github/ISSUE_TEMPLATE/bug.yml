@@ -1,0 +1,38 @@
+name: Bug report
+description: Something doesn't work as expected on the hosted backend or in self-hosting.
+labels: [bug, triage]
+body:
+  - type: input
+    id: where
+    attributes:
+      label: Where did you see this?
+      placeholder: "agentclip.dev / self-hosted / local dev"
+    validations:
+      required: true
+  - type: input
+    id: clip-url
+    attributes:
+      label: Clip URL (if relevant)
+      placeholder: "https://agentclip.dev/s/xxxxxxxxxxxxxxxx/"
+    validations:
+      required: false
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Be specific. Paste error messages or HTTP statuses verbatim.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected to happen
+    validations:
+      required: false
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Smallest sequence that triggers the bug.
+    validations:
+      required: false
