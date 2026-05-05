@@ -41,10 +41,39 @@ public package README.
 
 ## Deploy
 
-- DigitalOcean App Platform via `.do/app.yaml` (preferred)
-- Or any Docker host via the included `Dockerfile`
+### DigitalOcean App Platform (preferred)
 
-Required env vars in production: `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`,
-`DJANGO_ALLOWED_HOSTS`, `DATABASE_URL`, `DO_SPACES_KEY`, `DO_SPACES_SECRET`,
-`DO_SPACES_BUCKET`, `DO_SPACES_ENDPOINT`. See `.env.example` for the full
-list.
+Single-service Docker deploy plus managed Postgres plus a Space for media.
+
+1. Create a managed Postgres database in the same region (`nyc` works).
+   Copy its connection string for `DATABASE_URL`.
+2. Create a DigitalOcean Space in the same region. Generate an access
+   key + secret. Note the bucket name and endpoint.
+3. From this repo:
+   ```bash
+   doctl apps create --spec .do/app.yaml
+   ```
+4. In the App Platform UI, set the secret env vars marked `type: SECRET`
+   in `.do/app.yaml`:
+   - `DJANGO_SECRET_KEY` (generate via `python -c "import secrets; print(secrets.token_urlsafe(50))"`)
+   - `DATABASE_URL` (from step 1)
+   - `DO_SPACES_KEY`, `DO_SPACES_SECRET`, `DO_SPACES_BUCKET` (from step 2)
+5. Add your domain in the Domains tab (or use the auto-assigned `*.ondigitalocean.app` URL).
+
+The Dockerfile runs `manage.py migrate` on every container start, so
+schema changes ship with the next deploy with no manual step.
+
+### Other Docker hosts
+
+Any Docker-compatible platform works. Required env vars:
+
+| Variable | Notes |
+|---|---|
+| `DJANGO_SECRET_KEY` | Required when `DJANGO_DEBUG=false` |
+| `DJANGO_DEBUG=false` | Default in prod |
+| `DJANGO_ALLOWED_HOSTS` | Comma-separated, must include your domain |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://your-domain` |
+| `DATABASE_URL` | Postgres URL |
+| `DO_SPACES_KEY` / `DO_SPACES_SECRET` / `DO_SPACES_BUCKET` / `DO_SPACES_ENDPOINT` | Object storage |
+
+See `.env.example` for the full list.
