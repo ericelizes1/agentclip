@@ -197,6 +197,9 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.MultiPartParser',
         'rest_framework.parsers.FormParser',
     ],
+    # Convert django-ratelimit's Ratelimited (a PermissionDenied subclass)
+    # into HTTP 429 instead of the default 403.
+    'EXCEPTION_HANDLER': 'slideshows.exceptions.exception_handler',
 }
 
 
