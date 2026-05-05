@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ slideshow.title|default:"slideshow" }}</title>
+</head>
+<body>
+  <h1>{{ slideshow.title }}</h1>
+  <p>{{ slideshow.description }}</p>
+  <p><strong>Summary:</strong> {{ slideshow.summary }}</p>
+  <ol>
+    {% for slide in slides %}
+      <li>
+        <img src="{{ slide.image.url }}" alt="slide {{ slide.position }}">
+        <p>{{ slide.caption }}</p>
+      </li>
+    {% endfor %}
+  </ol>
+</body>
+</html>
