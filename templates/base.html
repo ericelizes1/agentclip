@@ -3,19 +3,30 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}agentclip{% endblock %}</title>
+  <title>{% block title %}AgentClip{% endblock %}</title>
 
   {% block og %}
-  <meta property="og:title" content="{% block og_title %}agentclip{% endblock %}">
-  <meta property="og:description" content="{% block og_description %}Turn AI agent QA runs into shareable slideshows.{% endblock %}">
+  <meta property="og:title" content="{% block og_title %}AgentClip{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}A field journal for AI agents. Turn QA runs into shareable slideshows.{% endblock %}">
   <meta property="og:type" content="website">
   <meta property="og:url" content="{% block og_url %}{{ request.build_absolute_uri }}{% endblock %}">
   {% block og_image %}{% endblock %}
   <meta name="twitter:card" content="summary_large_image">
   {% endblock %}
 
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+
   <style>
-    /* ---------- Reset / system ---------- */
+    /* ============================================================
+       AgentClip — editorial-engineering aesthetic
+       Display: Instrument Serif (with optical italic)
+       Body:    JetBrains Mono
+       Palette: cream paper, ink, vermillion accent
+       ============================================================ */
+
+    /* ---------- Reset ---------- */
     *, *::before, *::after { box-sizing: border-box; }
     html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     body { margin: 0; }
@@ -23,164 +34,309 @@
     button { font: inherit; cursor: pointer; }
     a { color: inherit; }
 
-    /* ---------- Design tokens ---------- */
+    /* ---------- Tokens ---------- */
     :root {
-      --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Inter", sans-serif;
-      --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+      /* Type */
+      --font-display: 'Instrument Serif', 'Times New Roman', serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
-      --bg: #fafaf9;
-      --surface: #ffffff;
-      --ink: #1a1a1a;
-      --ink-muted: #5a5a5a;
-      --ink-subtle: #909090;
-      --border: #e8e6e1;
-      --border-strong: #d4d1c9;
-      --accent: #1f6feb;
-      --accent-soft: #eaf2ff;
-      --callout-bg: #fef9e7;
-      --callout-border: #f1d77a;
-      --code-bg: #14171a;
-      --code-ink: #e8eaee;
+      /* Color — paper edition */
+      --paper: #f3ece0;
+      --paper-tint: #ebe2d1;
+      --ink: #14110d;
+      --ink-soft: #3a342c;
+      --ink-mute: #6a6358;
+      --ink-faint: #a59c8e;
+      --rule: #2a2520;
+      --rule-soft: #c9bfae;
+      --vermillion: #c63f1f;
+      --vermillion-deep: #93281b;
+      --ochre: #d49b32;
 
-      --radius: 8px;
-      --radius-lg: 12px;
-      --shadow-sm: 0 1px 2px rgba(20, 23, 28, 0.04);
-      --shadow-md: 0 4px 18px rgba(20, 23, 28, 0.06);
+      /* Spatial */
+      --measure: 64ch;
+      --max-width: 1180px;
+      --margin: clamp(20px, 5vw, 56px);
 
-      --measure: 68ch;
-      --max-width: 1080px;
+      /* Motion */
+      --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
     }
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #14161a;
-        --surface: #1c1f24;
-        --ink: #ececec;
-        --ink-muted: #b3b3b3;
-        --ink-subtle: #7d7d7d;
-        --border: #2c3036;
-        --border-strong: #3a3f47;
-        --accent: #6ea8fe;
-        --accent-soft: #1e2a40;
-        --callout-bg: #2a2517;
-        --callout-border: #6e5b1d;
-        --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
-        --shadow-md: 0 4px 18px rgba(0, 0, 0, 0.45);
+        --paper: #14110d;
+        --paper-tint: #1c1813;
+        --ink: #f1ead8;
+        --ink-soft: #c9c1ae;
+        --ink-mute: #948a78;
+        --ink-faint: #5e5648;
+        --rule: #d4ccba;
+        --rule-soft: #2f2a23;
+        --vermillion: #e8593a;
+        --vermillion-deep: #c63f1f;
+        --ochre: #e3b153;
       }
     }
 
+    /* ---------- Paper ---------- */
     body {
-      font-family: var(--font-sans);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.6;
       color: var(--ink);
-      background: var(--bg);
-      line-height: 1.55;
+      background-color: var(--paper);
+      /* Subtle paper grain — inline SVG, no network round-trip */
+      background-image:
+        radial-gradient(circle at 30% 20%, rgba(20, 17, 13, 0.025) 0, transparent 60%),
+        radial-gradient(circle at 80% 80%, rgba(20, 17, 13, 0.02) 0, transparent 60%),
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.04 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+      background-attachment: fixed;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
     }
 
-    /* ---------- Layout ---------- */
-    .wrap { max-width: var(--max-width); margin-inline: auto; padding-inline: 24px; }
-    .stack > * + * { margin-top: 16px; }
-    .stack-lg > * + * { margin-top: 32px; }
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-image:
+          radial-gradient(circle at 30% 20%, rgba(241, 234, 216, 0.04) 0, transparent 60%),
+          radial-gradient(circle at 80% 80%, rgba(241, 234, 216, 0.03) 0, transparent 60%),
+          url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 0.92  0 0 0 0.05 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+      }
+    }
+
+    ::selection { background: var(--vermillion); color: var(--paper); }
+
+    /* ---------- Layout primitives ---------- */
+    .wrap {
+      max-width: var(--max-width);
+      margin-inline: auto;
+      padding-inline: var(--margin);
+    }
+
+    .rule {
+      border: 0;
+      border-top: 1px solid var(--rule);
+      margin: 0;
+    }
+    .rule-soft { border-top-color: var(--rule-soft); }
+    .rule-double {
+      border: 0;
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+      height: 4px;
+    }
 
     /* ---------- Typography ---------- */
-    h1, h2, h3 { line-height: 1.2; letter-spacing: -0.01em; margin: 0; }
-    h1 { font-size: clamp(2rem, 1.6rem + 1.4vw, 2.6rem); font-weight: 700; }
-    h2 { font-size: clamp(1.4rem, 1.25rem + 0.5vw, 1.7rem); font-weight: 650; }
-    h3 { font-size: 1.1rem; font-weight: 600; }
+    .display {
+      font-family: var(--font-display);
+      font-weight: 400;
+      line-height: 0.95;
+      letter-spacing: -0.015em;
+      font-feature-settings: 'liga', 'kern';
+    }
+    .display-italic { font-family: var(--font-display); font-style: italic; }
+
+    .label {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+    }
+    .label-accent { color: var(--vermillion); }
+
+    .colno {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      letter-spacing: 0.1em;
+      color: var(--ink-faint);
+    }
+
     p { margin: 0; max-width: var(--measure); }
 
-    code, kbd { font-family: var(--font-mono); font-size: 0.9em; }
+    code, kbd, pre { font-family: var(--font-mono); font-size: 0.9em; }
     pre {
-      font-family: var(--font-mono);
-      background: var(--code-bg);
-      color: var(--code-ink);
-      padding: 16px 18px;
-      border-radius: var(--radius);
+      background: var(--ink);
+      color: var(--paper);
+      padding: 18px 20px;
       overflow-x: auto;
-      font-size: 0.9rem;
-      line-height: 1.55;
+      font-size: 0.85rem;
+      line-height: 1.7;
+      border: 1px solid var(--ink);
+      box-shadow: 6px 6px 0 var(--rule-soft);
+    }
+    @media (prefers-color-scheme: dark) {
+      pre { box-shadow: 6px 6px 0 var(--paper-tint); }
     }
     pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+
+    /* ---------- Inline accents ---------- */
+    .dingbat {
+      display: inline-block;
+      color: var(--vermillion);
+      font-family: var(--font-display);
+      font-style: italic;
+    }
+    .asterism {
+      display: block;
+      text-align: center;
+      letter-spacing: 0.5em;
+      color: var(--vermillion);
+      font-family: var(--font-display);
+      font-size: 1.5rem;
+      margin: 48px 0;
+    }
+    .asterism::before { content: '⁂'; }
+
+    /* ---------- Links ---------- */
+    .underline-link {
+      color: var(--ink);
+      text-decoration: none;
+      background-image: linear-gradient(var(--vermillion), var(--vermillion));
+      background-position: 0 100%;
+      background-repeat: no-repeat;
+      background-size: 100% 1px;
+      transition: background-size 200ms var(--ease), color 200ms var(--ease);
+    }
+    .underline-link:hover { color: var(--vermillion); background-size: 100% 2px; }
 
     /* ---------- Buttons ---------- */
     .btn {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 8px 14px;
-      border-radius: var(--radius);
-      border: 1px solid var(--border-strong);
-      background: var(--surface);
-      color: var(--ink);
-      text-decoration: none;
+      gap: 8px;
+      padding: 10px 18px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
       font-weight: 500;
-      transition: border-color 120ms ease, background 120ms ease;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-decoration: none;
+      border: 1px solid var(--ink);
+      background: transparent;
+      color: var(--ink);
+      cursor: pointer;
+      transition: background 160ms var(--ease), color 160ms var(--ease), transform 160ms var(--ease);
     }
-    .btn:hover { border-color: var(--ink-muted); }
-    .btn-primary {
-      background: var(--ink);
-      border-color: var(--ink);
-      color: var(--bg);
-    }
-    .btn-primary:hover { background: #000; border-color: #000; }
-    @media (prefers-color-scheme: dark) {
-      .btn-primary:hover { background: #fff; border-color: #fff; color: #000; }
-    }
+    .btn:hover { background: var(--ink); color: var(--paper); transform: translateY(-1px); }
 
-    /* ---------- Header ---------- */
-    .site-header {
-      border-bottom: 1px solid var(--border);
-      background: var(--surface);
-      backdrop-filter: saturate(180%) blur(8px);
+    .btn-accent { border-color: var(--vermillion); color: var(--vermillion); }
+    .btn-accent:hover { background: var(--vermillion); color: var(--paper); }
+
+    .btn-solid { background: var(--ink); color: var(--paper); }
+    .btn-solid:hover { background: var(--vermillion); border-color: var(--vermillion); color: var(--paper); }
+
+    /* ---------- Site frame ---------- */
+    .masthead {
+      border-bottom: 1px solid var(--rule);
+      padding-block: 18px;
+      background: var(--paper);
+      position: relative;
+      z-index: 5;
     }
-    .site-header .wrap {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding-block: 14px;
+    .masthead::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0; bottom: -4px;
+      height: 1px;
+      background: var(--rule);
     }
-    .brand {
-      font-weight: 700;
-      letter-spacing: -0.01em;
-      font-size: 1.05rem;
+    .masthead .wrap {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: baseline;
+      gap: 24px;
+    }
+    .masthead .left { text-align: left; }
+    .masthead .right { text-align: right; }
+    .masthead .meta {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+    }
+    .masthead .brand {
+      font-family: var(--font-display);
+      font-size: clamp(1.6rem, 1.4rem + 0.6vw, 1.9rem);
+      font-style: italic;
+      letter-spacing: -0.015em;
       color: var(--ink);
       text-decoration: none;
+      line-height: 1;
     }
-    .brand .dot { color: var(--accent); }
-    .nav { display: flex; gap: 6px; }
+    .masthead .brand .ampersand { color: var(--vermillion); }
+    .masthead .brand:hover .ampersand { color: var(--ink); }
 
-    /* ---------- Footer ---------- */
-    .site-footer {
-      border-top: 1px solid var(--border);
-      color: var(--ink-subtle);
-      padding-block: 28px;
-      margin-top: 64px;
-      font-size: 0.9rem;
+    @media (max-width: 720px) {
+      .masthead .wrap { grid-template-columns: auto 1fr; }
+      .masthead .left { display: none; }
+      .masthead .right { text-align: right; }
     }
-    .site-footer a { color: var(--ink-muted); text-decoration: none; }
-    .site-footer a:hover { color: var(--ink); }
-    .site-footer .wrap { display: flex; gap: 16px; flex-wrap: wrap; justify-content: space-between; }
+
+    .colophon {
+      border-top: 1px solid var(--rule);
+      padding-block: 32px;
+      margin-top: 96px;
+      color: var(--ink-mute);
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+    }
+    .colophon .wrap {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+      align-items: baseline;
+    }
+    .colophon .imprint {
+      font-family: var(--font-display);
+      font-style: italic;
+      font-size: 1.05rem;
+      color: var(--ink-soft);
+    }
+    .colophon a { color: var(--ink-soft); text-decoration: none; border-bottom: 1px solid var(--rule-soft); }
+    .colophon a:hover { color: var(--vermillion); border-bottom-color: var(--vermillion); }
+
+    /* ---------- Page-load motion (subtle) ---------- */
+    @keyframes fade-up {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes draw-rule {
+      from { transform: scaleX(0); }
+      to   { transform: scaleX(1); }
+    }
+
+    .reveal { animation: fade-up 700ms var(--ease) both; }
+    .reveal-1 { animation-delay: 60ms; }
+    .reveal-2 { animation-delay: 140ms; }
+    .reveal-3 { animation-delay: 220ms; }
+    .reveal-4 { animation-delay: 320ms; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .reveal, .reveal-1, .reveal-2, .reveal-3, .reveal-4 { animation: none; }
+    }
   </style>
 
   {% block head_extra %}{% endblock %}
 </head>
 <body>
-  <header class="site-header">
+  <header class="masthead">
     <div class="wrap">
-      <a class="brand" href="{% url 'home' %}">agentclip<span class="dot">.</span></a>
-      <nav class="nav">
-        <a class="btn" href="https://github.com/ericelizes/agentclip" rel="noopener">GitHub</a>
-      </nav>
+      <span class="left meta">{% block masthead_left %}Vol. I &nbsp;·&nbsp; No. 001{% endblock %}</span>
+      <a class="brand" href="{% url 'home' %}">AgentClip<span class="ampersand">.</span></a>
+      <span class="right meta">{% block masthead_right %}<a class="underline-link" href="https://github.com/ericelizes/agentclip" rel="noopener">github</a> &nbsp;·&nbsp; agentclip.dev{% endblock %}</span>
     </div>
   </header>
 
   {% block content %}{% endblock %}
 
-  <footer class="site-footer">
+  <footer class="colophon">
     <div class="wrap">
-      <span>agentclip. Built {% now "F Y" %}.</span>
-      <span><a href="https://github.com/ericelizes/agentclip" rel="noopener">github.com/ericelizes/agentclip</a></span>
+      <span class="imprint">AgentClip,&nbsp;<span style="font-style: normal; font-family: var(--font-mono); font-size: 0.85rem;">established {% now "Y" %}</span></span>
+      <span>Set in <span class="display-italic">Instrument Serif</span> &amp; JetBrains Mono &nbsp;·&nbsp; <a href="https://github.com/ericelizes/agentclip" rel="noopener">github.com/ericelizes/agentclip</a></span>
     </div>
   </footer>
 

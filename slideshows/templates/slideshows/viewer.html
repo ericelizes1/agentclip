@@ -1,193 +1,393 @@
 {% extends "base.html" %}
 
-{% block title %}{{ slideshow.title|default:"slideshow" }} | agentclip{% endblock %}
-{% block og_title %}{{ slideshow.title|default:"slideshow" }}{% endblock %}
+{% block title %}{{ slideshow.title|default:"Untitled run" }} · AgentClip{% endblock %}
+{% block og_title %}{{ slideshow.title|default:"Untitled run" }}{% endblock %}
 {% block og_description %}{% if slideshow.summary %}{{ slideshow.summary|truncatewords:40 }}{% else %}{{ slideshow.description|default:"An AI agent QA run."|truncatewords:30 }}{% endif %}{% endblock %}
 {% block og_image %}{% if slides %}<meta property="og:image" content="{{ slides.0.image.url }}">{% endif %}{% endblock %}
+{% block masthead_left %}<span style="font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-mute);">File №&nbsp;{{ slideshow.id|slice:":8"|upper }}</span>{% endblock %}
+{% block masthead_right %}<span style="font-family: var(--font-mono); font-size: 0.7rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-mute);">{{ slides|length }} plate{{ slides|length|pluralize }} &nbsp;·&nbsp; {{ slideshow.created_at|date:"j M Y" }}</span>{% endblock %}
 
 {% block head_extra %}
 <style>
-  /* ---------- Viewer-specific ---------- */
-  .show-titlebar {
+  /* ============================================================
+     Viewer — typeset document
+     - Sticky title bar that remembers where you are in the run
+     - Magazine-style hero with display headline + dateline
+     - Pull-quote summary with hung quotation marks
+     - Slides as numbered spreads with margin-anchored numerals
+     - Drop-cap on the first slide caption
+     ============================================================ */
+
+  /* ---------- Sticky title strip ---------- */
+  .titlestrip {
     position: sticky;
     top: 0;
-    z-index: 5;
-    background: color-mix(in srgb, var(--surface) 92%, transparent);
-    backdrop-filter: saturate(180%) blur(10px);
-    border-bottom: 1px solid var(--border);
-    padding-block: 14px;
+    z-index: 4;
+    background: color-mix(in srgb, var(--paper) 94%, transparent);
+    backdrop-filter: saturate(160%) blur(8px);
+    border-bottom: 1px solid var(--rule);
+    padding-block: 12px;
   }
-  .show-titlebar .wrap {
+  .titlestrip .wrap {
     display: flex;
-    align-items: center;
     justify-content: space-between;
+    align-items: baseline;
     gap: 16px;
   }
-  .show-titlebar .show-title {
-    font-weight: 600;
-    font-size: 0.98rem;
-    margin: 0;
+  .titlestrip .running-title {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 1rem;
+    color: var(--ink);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     max-width: 70ch;
   }
-  .show-titlebar .show-meta {
-    color: var(--ink-subtle);
-    font-size: 0.85rem;
+  .titlestrip .meta {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
     white-space: nowrap;
   }
 
-  .show-hero {
-    padding-block: 64px 32px;
+  /* ---------- Hero ---------- */
+  .hero {
+    padding-block: clamp(48px, 7vw, 96px) 32px;
   }
-  .show-hero h1 {
-    font-size: clamp(2rem, 1.4rem + 2.2vw, 3rem);
-    margin-bottom: 16px;
-  }
-  .show-hero .show-description {
-    color: var(--ink-muted);
-    font-size: 1.1rem;
-    max-width: var(--measure);
-  }
-  .show-hero .show-stats {
+  .hero-meta {
     display: flex;
-    gap: 18px;
-    color: var(--ink-subtle);
-    font-size: 0.9rem;
-    margin-top: 24px;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
   }
-  .show-hero .show-stats span::before { content: "•"; margin-right: 18px; color: var(--border-strong); }
-  .show-hero .show-stats span:first-child::before { content: ""; margin: 0; }
-
-  .show-summary {
-    background: var(--callout-bg);
-    border: 1px solid var(--callout-border);
-    border-radius: var(--radius-lg);
-    padding: 20px 24px;
-    margin-block: 16px 48px;
-    box-shadow: var(--shadow-sm);
-  }
-  .show-summary .label {
-    font-size: 0.78rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--ink-muted);
-    margin-bottom: 6px;
-  }
-  .show-summary p {
+  .hero-meta .label { color: var(--vermillion); }
+  .hero-headline {
+    font-family: var(--font-display);
+    font-size: clamp(2.6rem, 1.8rem + 4vw, 5.8rem);
+    line-height: 1;
+    letter-spacing: -0.015em;
+    color: var(--ink);
     margin: 0;
-    font-size: 1.02rem;
-    color: var(--ink);
-    max-width: var(--measure);
-    white-space: pre-wrap;
+    max-width: 22ch;
+  }
+  .hero-description {
+    margin-top: 28px;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: clamp(1.15rem, 1rem + 0.5vw, 1.45rem);
+    line-height: 1.4;
+    color: var(--ink-soft);
+    max-width: 56ch;
   }
 
-  .slides {
-    display: flex;
-    flex-direction: column;
-    gap: 64px;
-    padding-block: 16px 48px;
-  }
-
-  .slide {
+  .hero-rule {
+    margin-top: 44px;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 32px;
-    align-items: start;
-  }
-  @media (max-width: 800px) {
-    .slide { grid-template-columns: 1fr; gap: 16px; }
-    .slides { gap: 48px; }
-  }
-
-  .slide-image {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    box-shadow: var(--shadow-md);
-    background: var(--surface);
-  }
-  .slide-image img { width: 100%; height: auto; display: block; }
-
-  .slide-meta { padding-top: 8px; }
-  .slide-meta .position {
-    display: inline-flex;
+    grid-template-columns: auto 1fr auto;
+    gap: 24px;
     align-items: center;
-    justify-content: center;
-    min-width: 28px;
-    height: 28px;
-    padding-inline: 8px;
-    border-radius: 14px;
-    background: var(--accent-soft);
-    color: var(--accent);
-    font-size: 0.78rem;
-    font-weight: 600;
-    margin-bottom: 12px;
-    font-variant-numeric: tabular-nums;
+    padding-block: 12px;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
   }
-  .slide-meta .caption {
-    font-size: 1.02rem;
-    color: var(--ink);
-    line-height: 1.65;
-    white-space: pre-wrap;
-    max-width: var(--measure);
+  .hero-rule .label { white-space: nowrap; }
+  .hero-rule .ornament {
+    color: var(--vermillion);
+    font-family: var(--font-display);
+    font-style: italic;
+    text-align: center;
+    letter-spacing: 0.4em;
+  }
+  .hero-rule .meta {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    white-space: nowrap;
+  }
+  @media (max-width: 600px) {
+    .hero-rule { grid-template-columns: 1fr; gap: 8px; text-align: center; }
   }
 
-  .empty {
+  /* ---------- Pull-quote summary ---------- */
+  .summary-block {
+    padding-block: clamp(40px, 6vw, 80px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .summary {
+    position: relative;
+    max-width: 60ch;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+  .summary::before {
+    content: '“';
+    position: absolute;
+    top: -0.3em;
+    left: -0.55em;
+    font-family: var(--font-display);
+    font-size: clamp(7rem, 5rem + 6vw, 14rem);
+    line-height: 0.8;
+    color: var(--vermillion);
+    pointer-events: none;
+    user-select: none;
+  }
+  @media (max-width: 720px) {
+    .summary::before { left: -0.05em; top: -0.4em; font-size: 5rem; }
+  }
+  .summary-label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin-bottom: 14px;
+  }
+  .summary-body {
+    font-family: var(--font-display);
+    font-size: clamp(1.45rem, 1.1rem + 1vw, 2rem);
+    line-height: 1.35;
+    color: var(--ink);
+    white-space: pre-wrap;
+  }
+  .summary-attr {
+    margin-top: 18px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.1em;
+    color: var(--ink-mute);
+  }
+
+  /* ---------- Slides as spreads ---------- */
+  .plates-strip {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding-block: 32px 16px;
+  }
+  .plates-strip .label { color: var(--vermillion); }
+  .plates-strip .meta {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+
+  .spread {
+    display: grid;
+    grid-template-columns: 56px minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: clamp(20px, 3vw, 48px);
+    align-items: start;
+    padding-block: clamp(32px, 5vw, 64px);
+    border-top: 1px solid var(--rule);
+  }
+  .spread:first-of-type { border-top: 1px solid var(--ink); }
+  @media (max-width: 820px) {
+    .spread { grid-template-columns: 40px 1fr; }
+    .spread .spread-image { grid-column: 1 / -1; }
+  }
+
+  .spread-numeral {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: clamp(2.4rem, 1.6rem + 2vw, 3.4rem);
+    color: var(--vermillion);
+    line-height: 0.9;
+    text-align: right;
+    padding-top: 4px;
+    font-variant-numeric: oldstyle-nums;
+  }
+
+  .spread-image {
+    border: 1px solid var(--rule);
+    overflow: hidden;
+    background: var(--paper-tint);
+    box-shadow: 8px 8px 0 var(--rule-soft);
+    display: block;
+  }
+  .spread-image img { width: 100%; height: auto; display: block; }
+
+  .spread-copy { padding-top: 4px; }
+  .spread-copy .plate-no {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin-bottom: 12px;
+    display: block;
+  }
+  .spread-copy .caption {
+    font-family: var(--font-display);
+    font-size: clamp(1.1rem, 0.95rem + 0.4vw, 1.4rem);
+    line-height: 1.45;
+    color: var(--ink);
+    white-space: pre-wrap;
+    margin: 0;
+  }
+
+  /* Drop-cap on the first slide's caption */
+  .spread:first-of-type .spread-copy .caption::first-letter {
+    font-size: 3.6em;
+    float: left;
+    line-height: 0.85;
+    padding-right: 10px;
+    padding-top: 6px;
+    color: var(--vermillion);
+    font-style: italic;
+  }
+
+  .spread .spread-foot {
+    margin-top: 18px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--rule-soft);
+    padding-top: 10px;
+  }
+
+  /* ---------- End mark ---------- */
+  .endmark {
     text-align: center;
-    color: var(--ink-subtle);
-    padding-block: 64px;
+    padding-block: 88px;
+    border-top: 1px solid var(--rule);
+  }
+  .endmark .mark {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 4rem;
+    color: var(--vermillion);
+    line-height: 1;
+  }
+  .endmark p {
+    margin-top: 20px;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 1.4rem;
+    color: var(--ink-soft);
+    max-width: 36ch;
+    margin-inline: auto;
+  }
+  .endmark .signed {
+    margin-top: 16px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+
+  .empty-spread {
+    text-align: center;
+    padding-block: 96px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--font-display);
+    font-style: italic;
+    color: var(--ink-mute);
+    font-size: 1.4rem;
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="show-titlebar">
+
+<!-- ============================================================
+     STICKY TITLE STRIP
+     ============================================================ -->
+<div class="titlestrip">
   <div class="wrap">
-    <p class="show-title">{{ slideshow.title|default:"untitled slideshow" }}</p>
-    <span class="show-meta">{{ slides|length }} slide{{ slides|length|pluralize }}</span>
+    <span class="running-title">{{ slideshow.title|default:"Untitled run" }}</span>
+    <span class="meta">{{ slides|length }} plate{{ slides|length|pluralize }}</span>
   </div>
 </div>
 
-<main class="wrap">
-  <section class="show-hero">
-    <h1>{{ slideshow.title|default:"untitled slideshow" }}</h1>
-    {% if slideshow.description %}
-      <p class="show-description">{{ slideshow.description }}</p>
-    {% endif %}
-    <div class="show-stats">
-      <span>{{ slides|length }} slide{{ slides|length|pluralize }}</span>
-      <span>created {{ slideshow.created_at|date:"M j, Y" }}</span>
-    </div>
-  </section>
+<!-- ============================================================
+     HERO
+     ============================================================ -->
+<section class="hero wrap">
+  <div class="hero-meta reveal reveal-1">
+    <span class="label label-accent">A field run</span>
+    <span class="label">filed {{ slideshow.created_at|date:"j M Y" }}</span>
+    <span class="label">file №&nbsp;{{ slideshow.id|slice:":8"|upper }}</span>
+  </div>
 
-  {% if slideshow.summary %}
-    <aside class="show-summary" aria-label="Run summary">
-      <div class="label">summary</div>
-      <p>{{ slideshow.summary }}</p>
-    </aside>
+  <h1 class="hero-headline reveal reveal-2">{{ slideshow.title|default:"Untitled run" }}</h1>
+
+  {% if slideshow.description %}
+    <p class="hero-description reveal reveal-3">{{ slideshow.description }}</p>
   {% endif %}
+
+  <div class="hero-rule reveal reveal-4">
+    <span class="label">The Brief</span>
+    <span class="ornament">⁂</span>
+    <span class="meta">{{ slides|length }} plate{{ slides|length|pluralize }} captured</span>
+  </div>
+</section>
+
+<!-- ============================================================
+     PULL-QUOTE SUMMARY
+     ============================================================ -->
+{% if slideshow.summary %}
+<section class="summary-block">
+  <div class="wrap">
+    <figure class="summary reveal">
+      <span class="summary-label">Editor's note</span>
+      <blockquote class="summary-body">{{ slideshow.summary }}</blockquote>
+      <figcaption class="summary-attr">— summary set by the agent at end of run</figcaption>
+    </figure>
+  </div>
+</section>
+{% endif %}
+
+<!-- ============================================================
+     PLATES (spreads)
+     ============================================================ -->
+<section class="wrap">
+  <div class="plates-strip">
+    <span class="label">The Plates</span>
+    <span class="meta">in order of appearance</span>
+  </div>
 
   {% if slides %}
-    <section class="slides">
-      {% for slide in slides %}
-        <article class="slide" id="slide-{{ slide.position }}">
-          <a class="slide-image" href="{{ slide.image.url }}" target="_blank" rel="noopener">
-            <img src="{{ slide.image.url }}" alt="slide {{ slide.position }}" loading="lazy">
-          </a>
-          <div class="slide-meta">
-            <div class="position">slide {{ slide.position }}</div>
-            <p class="caption">{{ slide.caption }}</p>
+    {% for slide in slides %}
+      <article class="spread" id="plate-{{ slide.position }}">
+        <div class="spread-numeral">{{ slide.position }}.</div>
+
+        <a class="spread-image" href="{{ slide.image.url }}" target="_blank" rel="noopener" aria-label="open plate {{ slide.position }} in new tab">
+          <img src="{{ slide.image.url }}" alt="plate {{ slide.position }}" loading="lazy">
+        </a>
+
+        <div class="spread-copy">
+          <span class="plate-no">Plate №&nbsp;{{ slide.position|stringformat:"03d" }}</span>
+          <p class="caption">{{ slide.caption }}</p>
+          <div class="spread-foot">
+            captured {{ slide.created_at|date:"j M Y, H:i" }} UTC
           </div>
-        </article>
-      {% endfor %}
-    </section>
+        </div>
+      </article>
+    {% endfor %}
   {% else %}
-    <div class="empty">
-      <p>This slideshow has no slides yet.</p>
+    <div class="empty-spread">
+      No plates have been filed for this run.
     </div>
   {% endif %}
-</main>
+</section>
+
+<!-- ============================================================
+     END MARK
+     ============================================================ -->
+<section class="endmark">
+  <div class="mark">⁂</div>
+  <p>End of run. Filed {{ slideshow.created_at|date:"j F Y" }} from <span style="font-style: normal; font-family: var(--font-mono); font-size: 0.85rem; letter-spacing: 0.04em;">agentclip.dev</span>.</p>
+  <div class="signed">File №&nbsp;{{ slideshow.id|slice:":8"|upper }}</div>
+</section>
+
 {% endblock %}

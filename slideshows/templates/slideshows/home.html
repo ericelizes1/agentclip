@@ -1,209 +1,483 @@
 {% extends "base.html" %}
 
-{% block title %}agentclip | turn AI agent QA runs into shareable slideshows{% endblock %}
-{% block og_title %}agentclip{% endblock %}
-{% block og_description %}Turn AI agent QA runs into shareable slideshows. Open-source MCP server + CLI + agent skill.{% endblock %}
+{% block title %}AgentClip · A field journal for AI agents{% endblock %}
+{% block og_title %}AgentClip{% endblock %}
+{% block og_description %}A field journal for AI agents. Turn QA runs into shareable slideshows. Open-source MCP server, CLI, and agent skill.{% endblock %}
 
 {% block head_extra %}
 <style>
-  .hero {
-    padding-block: 80px 48px;
+  /* ============================================================
+     Home — magazine cover spread
+     Asymmetric grid, oversized display headline, plate gallery,
+     numbered editorial chapters for "how it works"
+     ============================================================ */
+
+  .cover {
+    padding-block: clamp(56px, 8vw, 120px) 64px;
+    border-bottom: 1px solid var(--rule);
   }
-  .hero h1 {
-    font-size: clamp(2.2rem, 1.5rem + 2.6vw, 3.4rem);
-    max-width: 22ch;
+  .cover-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.42fr);
+    gap: clamp(32px, 6vw, 88px);
+    align-items: end;
   }
-  .hero .lede {
-    font-size: clamp(1.05rem, 1rem + 0.3vw, 1.2rem);
-    color: var(--ink-muted);
-    margin-top: 20px;
-    max-width: var(--measure);
+  @media (max-width: 920px) {
+    .cover-grid { grid-template-columns: 1fr; gap: 40px; }
   }
-  .hero .cta {
-    display: flex;
-    gap: 12px;
+
+  .cover-headline {
+    font-size: clamp(3.4rem, 2.4rem + 5vw, 8.5rem);
+    color: var(--ink);
+  }
+  .cover-headline .em { font-style: italic; }
+  .cover-headline .ornament { color: var(--vermillion); padding: 0 0.05em; }
+
+  .cover-byline {
     margin-top: 28px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
     flex-wrap: wrap;
   }
-  .hero .install {
-    margin-top: 32px;
-    max-width: 540px;
-  }
-  .hero .install pre { margin: 0; font-size: 0.92rem; }
-  .hero .install .hint {
-    color: var(--ink-subtle);
-    font-size: 0.85rem;
-    margin-top: 8px;
+  .cover-byline .label { color: var(--ink-mute); }
+  .cover-byline .author {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 1.15rem;
+    color: var(--ink);
   }
 
-  .section { padding-block: 56px; border-top: 1px solid var(--border); }
-  .section h2 { margin-bottom: 8px; }
-  .section .section-lede { color: var(--ink-muted); margin-bottom: 32px; max-width: var(--measure); }
+  .cover-aside {
+    border-left: 1px solid var(--rule);
+    padding-left: clamp(20px, 3vw, 36px);
+    padding-block: 8px;
+    color: var(--ink-soft);
+  }
+  @media (max-width: 920px) {
+    .cover-aside {
+      border-left: 0;
+      border-top: 1px solid var(--rule);
+      padding-left: 0;
+      padding-top: 32px;
+    }
+  }
+  .cover-aside .lede {
+    font-family: var(--font-display);
+    font-size: clamp(1.15rem, 0.95rem + 0.6vw, 1.55rem);
+    line-height: 1.35;
+    color: var(--ink);
+    max-width: 38ch;
+  }
+  .cover-aside .lede .first {
+    font-size: 1.15em;
+    color: var(--vermillion);
+    font-style: italic;
+  }
+  .cover-aside .filed-under {
+    margin-top: 28px;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    color: var(--ink-mute);
+    line-height: 1.7;
+  }
+  .cover-aside .filed-under strong {
+    display: block;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--vermillion);
+    margin-bottom: 4px;
+  }
 
-  .how {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 24px;
-  }
-  .how-step {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    padding: 24px;
-    box-shadow: var(--shadow-sm);
-  }
-  .how-step .step-num {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 14px;
-    background: var(--ink);
-    color: var(--bg);
-    font-weight: 600;
-    font-size: 0.85rem;
-    margin-bottom: 14px;
-    font-variant-numeric: tabular-nums;
-  }
-  .how-step h3 { margin-bottom: 6px; }
-  .how-step p { color: var(--ink-muted); font-size: 0.95rem; }
-
-  .gallery {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 24px;
-  }
-  .gallery-card {
+  .cover-cta {
+    margin-top: 48px;
     display: flex;
-    flex-direction: column;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg);
-    overflow: hidden;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* ---------- Install plate ---------- */
+  .install-plate {
+    margin-top: 48px;
+    max-width: 620px;
+    position: relative;
+  }
+  .install-plate .install-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+  }
+  .install-plate pre {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+  .install-plate .hint {
+    margin-top: 12px;
+    font-size: 0.78rem;
+    color: var(--ink-mute);
+    letter-spacing: 0.04em;
+  }
+  .install-plate .hint code {
+    background: var(--paper-tint);
+    border: 1px solid var(--rule-soft);
+    padding: 1px 6px;
+  }
+
+  /* ---------- Chapter sections ---------- */
+  .chapter {
+    padding-block: clamp(48px, 7vw, 96px);
+    border-bottom: 1px solid var(--rule);
+  }
+  .chapter-head {
+    display: grid;
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: 32px;
+    align-items: baseline;
+    margin-bottom: 48px;
+  }
+  @media (max-width: 720px) {
+    .chapter-head { grid-template-columns: 60px 1fr; gap: 20px; }
+  }
+  .chapter-roman {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: clamp(2.2rem, 1.6rem + 1.6vw, 3rem);
+    color: var(--vermillion);
+    line-height: 1;
+  }
+  .chapter-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.8rem, 1.4rem + 1.5vw, 2.6rem);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    margin: 0;
+  }
+  .chapter-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin-bottom: 8px;
+  }
+
+  /* ---------- How it works ---------- */
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    border-top: 1px solid var(--rule);
+  }
+  @media (max-width: 820px) {
+    .steps { grid-template-columns: 1fr; }
+  }
+  .step {
+    padding: 32px clamp(20px, 2.5vw, 36px);
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    position: relative;
+  }
+  .step:last-child { border-right: 0; }
+  @media (max-width: 820px) {
+    .step { border-right: 0; }
+    .step:last-child { border-bottom: 0; }
+  }
+  .step-num {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 3rem;
+    color: var(--vermillion);
+    line-height: 1;
+  }
+  .step h3 {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    line-height: 1.1;
+    margin: 14px 0 12px;
+    color: var(--ink);
+  }
+  .step p {
+    color: var(--ink-soft);
+    font-size: 0.92rem;
+    line-height: 1.65;
+  }
+  .step code {
+    background: var(--paper-tint);
+    border: 1px solid var(--rule-soft);
+    padding: 1px 6px;
+    font-size: 0.85rem;
+  }
+
+  /* ---------- Plates / examples gallery ---------- */
+  .plates {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 0;
+    border-top: 1px solid var(--rule);
+    border-left: 1px solid var(--rule);
+  }
+  .plate {
+    position: relative;
     text-decoration: none;
     color: inherit;
-    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
-    box-shadow: var(--shadow-sm);
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: 24px;
+    transition: background 200ms var(--ease);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
   }
-  .gallery-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-    border-color: var(--border-strong);
-  }
-  .gallery-thumb {
-    aspect-ratio: 16 / 9;
-    background: linear-gradient(135deg, var(--accent-soft), var(--surface));
+  .plate:hover { background: var(--paper-tint); }
+  .plate:hover .plate-title { color: var(--vermillion); }
+  .plate-thumb {
+    aspect-ratio: 4 / 3;
     overflow: hidden;
+    background: var(--paper-tint);
+    border: 1px solid var(--rule);
+    box-shadow: 4px 4px 0 var(--rule-soft);
+  }
+  .plate-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .plate-thumb-empty {
+    width: 100%; height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-family: var(--font-display);
+    font-style: italic;
+    color: var(--ink-faint);
+    font-size: 1.5rem;
   }
-  .gallery-thumb img { width: 100%; height: 100%; object-fit: cover; }
-  .gallery-body { padding: 18px 20px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
-  .gallery-body h3 { font-size: 1.05rem; }
-  .gallery-body .desc { color: var(--ink-muted); font-size: 0.92rem; line-height: 1.5; }
-  .gallery-body .meta { color: var(--ink-subtle); font-size: 0.82rem; margin-top: 6px; }
+  .plate-no {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--vermillion);
+  }
+  .plate-title {
+    font-family: var(--font-display);
+    font-size: 1.45rem;
+    line-height: 1.15;
+    color: var(--ink);
+    transition: color 160ms var(--ease);
+    margin: 0;
+  }
+  .plate-desc {
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--ink-soft);
+  }
+  .plate-foot {
+    margin-top: auto;
+    padding-top: 8px;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    border-top: 1px solid var(--rule-soft);
+    display: flex;
+    justify-content: space-between;
+  }
 
   .gallery-empty {
-    border: 1px dashed var(--border-strong);
-    border-radius: var(--radius-lg);
-    padding: 48px 24px;
+    border: 1px dashed var(--rule);
+    padding: 64px 32px;
     text-align: center;
-    color: var(--ink-muted);
+    color: var(--ink-soft);
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 1.4rem;
+    line-height: 1.4;
+    max-width: 56ch;
+    margin: 0 auto;
   }
-  .gallery-empty code { background: var(--accent-soft); color: var(--accent); padding: 2px 6px; border-radius: 4px; }
+  .gallery-empty code {
+    font-style: normal;
+    font-family: var(--font-mono);
+    background: var(--paper-tint);
+    border: 1px solid var(--rule-soft);
+    padding: 1px 6px;
+    font-size: 0.85rem;
+  }
+
+  /* ---------- Closing colophon block ---------- */
+  .credo {
+    padding-block: clamp(64px, 9vw, 120px);
+    text-align: center;
+  }
+  .credo .credo-mark {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 5rem;
+    color: var(--vermillion);
+    line-height: 0.9;
+    margin-bottom: 16px;
+  }
+  .credo p {
+    font-family: var(--font-display);
+    font-size: clamp(1.5rem, 1.1rem + 1vw, 2.2rem);
+    line-height: 1.25;
+    color: var(--ink);
+    max-width: 38ch;
+    margin: 0 auto;
+  }
+  .credo .signed {
+    margin-top: 32px;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<section class="hero wrap">
-  <h1>Turn AI agent QA runs into shareable slideshows.</h1>
-  <p class="lede">
-    Your agent drives the browser. agentclip captures the moments that matter
-    and ships you back a single URL anyone can watch. Built for founders,
-    operators, and engineers who want their agents to leave receipts.
-  </p>
 
-  <div class="cta">
-    <a class="btn btn-primary" href="https://github.com/ericelizes/agentclip" rel="noopener">View on GitHub</a>
-    <a class="btn" href="#how">How it works</a>
-  </div>
+<!-- ====================================================
+     COVER
+     ==================================================== -->
+<section class="cover wrap">
+  <div class="cover-grid">
+    <div>
+      <div class="reveal reveal-1">
+        <span class="label label-accent">Issue 001 &nbsp;·&nbsp; Open Source &nbsp;·&nbsp; v0.1</span>
+      </div>
 
-  <div class="install">
-    <pre><code>pip install agentclip
-agentclip install-skill</code></pre>
-    <p class="hint">Or run with no install: <code>uvx agentclip --help</code></p>
-  </div>
-</section>
+      <h1 class="display cover-headline reveal reveal-2" style="margin-top: 24px;">
+        A field journal<br>
+        for <span class="em">AI agents<span class="ornament">.</span></span>
+      </h1>
 
-<section class="section wrap" id="how">
-  <h2>How it works</h2>
-  <p class="section-lede">
-    agentclip is an MCP server, a CLI, and a bundled agent skill. Three steps,
-    one shareable artifact.
-  </p>
+      <div class="cover-byline reveal reveal-3">
+        <span class="label">Filed by</span>
+        <span class="author">Eric Elizes,</span>
+        <span class="label">May MMXXVI</span>
+      </div>
 
-  <div class="how">
-    <article class="how-step">
-      <div class="step-num">1</div>
-      <h3>Install</h3>
-      <p>
-        <code>pip install agentclip</code>, then <code>agentclip install-skill</code>
-        to teach your agent how to write good captions and structure a run.
+      <div class="cover-cta reveal reveal-4">
+        <a class="btn btn-solid" href="https://github.com/ericelizes/agentclip" rel="noopener">View on GitHub →</a>
+        <a class="btn btn-accent" href="#how">How it works</a>
+      </div>
+
+      <div class="install-plate reveal reveal-4">
+        <div class="install-meta">
+          <span class="label">Installation</span>
+          <span class="colno">/usr/local/bin</span>
+        </div>
+<pre><code>$ pip install agentclip
+$ agentclip install-skill</code></pre>
+        <p class="hint">Or, no install: <code>uvx agentclip --help</code></p>
+      </div>
+    </div>
+
+    <aside class="cover-aside reveal reveal-3">
+      <span class="label">The Pitch</span>
+      <p class="lede" style="margin-top: 12px;">
+        <span class="first">Y</span>our agent drives the browser. AgentClip captures the moments that matter, screenshots, captions, a closing summary, and ships you back a single URL anyone can watch.
       </p>
-    </article>
-    <article class="how-step">
-      <div class="step-num">2</div>
-      <h3>Run a QA</h3>
-      <p>
-        Ask your agent to QA a flow. It drives the browser, screenshots the
-        moments that matter, captions each one, and writes a summary at the end.
-      </p>
-    </article>
-    <article class="how-step">
-      <div class="step-num">3</div>
-      <h3>Share</h3>
-      <p>
-        You get a slideshow URL. Drop it in Slack, paste it in a PR, send it
-        to a teammate. Anyone can watch the whole run with no install.
-      </p>
-    </article>
+      <div class="filed-under">
+        <strong>Filed Under</strong>
+        Open Source · MCP · Agent Skills · Quality Assurance · Founders &amp; Operators · Engineers leaving receipts
+      </div>
+    </aside>
   </div>
 </section>
 
-<section class="section wrap">
-  <h2>Examples</h2>
-  <p class="section-lede">
-    Real slideshows generated by agents running agentclip against shipped
-    products. Hand-curated. More coming as the community grows.
-  </p>
+<!-- ====================================================
+     CHAPTER I — How it works
+     ==================================================== -->
+<section class="chapter wrap" id="how">
+  <header class="chapter-head">
+    <div class="chapter-roman">I.</div>
+    <div>
+      <div class="chapter-kicker">Chapter One</div>
+      <h2 class="chapter-title">How it works, in three movements.</h2>
+    </div>
+  </header>
+
+  <div class="steps">
+    <article class="step">
+      <div class="step-num">i</div>
+      <h3>Install the skill</h3>
+      <p>
+        <code>pip install agentclip</code>, then <code>agentclip install-skill</code> writes the prompt guidance to your agent runtime. The skill teaches your agent <em>when</em> to screenshot, <em>how</em> to caption, and what makes a summary worth reading.
+      </p>
+    </article>
+    <article class="step">
+      <div class="step-num">ii</div>
+      <h3>Ask your agent to QA</h3>
+      <p>
+        Point it at a flow on staging or in production. The agent drives the browser through its existing tools, captures the moments that matter, and writes captions in active voice as it goes.
+      </p>
+    </article>
+    <article class="step">
+      <div class="step-num">iii</div>
+      <h3>Share the URL</h3>
+      <p>
+        You get a slideshow URL. Drop it in Slack, paste it into a PR, send it cold to a recruiter. Anyone can watch the entire run with no install, no login, no tracking.
+      </p>
+    </article>
+  </div>
+</section>
+
+<!-- ====================================================
+     CHAPTER II — Plates / Examples gallery
+     ==================================================== -->
+<section class="chapter wrap">
+  <header class="chapter-head">
+    <div class="chapter-roman">II.</div>
+    <div>
+      <div class="chapter-kicker">Chapter Two &nbsp;·&nbsp; The Plates</div>
+      <h2 class="chapter-title">Real runs, hand-curated.</h2>
+    </div>
+  </header>
 
   {% if gallery %}
-    <div class="gallery">
+    <div class="plates">
       {% for show in gallery %}
-        <a class="gallery-card" href="{% url 'slideshow_viewer' show.share_token %}">
-          <div class="gallery-thumb">
+        <a class="plate" href="{% url 'slideshow_viewer' show.share_token %}">
+          <div class="plate-thumb">
             {% with show.slides.first as first_slide %}
               {% if first_slide %}
                 <img src="{{ first_slide.image.url }}" alt="">
+              {% else %}
+                <div class="plate-thumb-empty">no plate</div>
               {% endif %}
             {% endwith %}
           </div>
-          <div class="gallery-body">
-            <h3>{{ show.title|default:"untitled run" }}</h3>
-            {% if show.description %}
-              <p class="desc">{{ show.description|truncatewords:18 }}</p>
-            {% endif %}
-            <p class="meta">{{ show.slides.count }} slide{{ show.slides.count|pluralize }} • {{ show.created_at|date:"M j, Y" }}</p>
+          <span class="plate-no">Plate №&nbsp;{{ forloop.counter|stringformat:"03d" }}</span>
+          <h3 class="plate-title">{{ show.title|default:"Untitled run" }}</h3>
+          {% if show.description %}
+            <p class="plate-desc">{{ show.description|truncatewords:24 }}</p>
+          {% endif %}
+          <div class="plate-foot">
+            <span>{{ show.slides.count }} slide{{ show.slides.count|pluralize }}</span>
+            <span>{{ show.created_at|date:"j M Y" }}</span>
           </div>
         </a>
       {% endfor %}
     </div>
   {% else %}
     <div class="gallery-empty">
-      <p>Examples landing soon. Run <code>agentclip install-skill</code>, post a slideshow, send it our way.</p>
+      The gallery is being printed.<br>
+      Run <code>agentclip install-skill</code>, post your first run, and send us the URL.
     </div>
   {% endif %}
 </section>
+
+<!-- ====================================================
+     CREDO
+     ==================================================== -->
+<section class="credo wrap">
+  <div class="credo-mark">⁂</div>
+  <p>An <em>open-source</em> field journal for the work agents quietly do. So the receipts always survive the run.</p>
+  <div class="signed">filed in May 2026 ·  v0.1</div>
+</section>
+
 {% endblock %}
