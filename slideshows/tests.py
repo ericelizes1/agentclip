@@ -1,3 +1,260 @@
-from django.test import TestCase
+'''Integration tests for the slideshow API.
 
-# Create your tests here.
+Uses Django's test client through DRF's APIClient because we want
+the full request path (URL routing, auth class, parser, ratelimit
+decorators) to fire — not the view function in isolation. The wire
+contract these endpoints expose is the contract the SDK depends on,
+so the tests assert on response shapes the SDK actually parses.
+
+Rate-limit tests override the in-memory cache to make limits
+predictable per-test; without that override the limit state would
+leak between tests via the default LocMemCache.
+'''
+
+from __future__ import annotations
+
+import io
+
+from django.core.cache import cache
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
+from PIL import Image
+from rest_framework.test import APIClient
+
+from slideshows.models import Slide, Slideshow
+
+
+def _png_bytes(color: str = 'red') -> bytes:
+    '''Smallest valid PNG so ImageField validation does not reject it.'''
+    buf = io.BytesIO()
+    Image.new('RGB', (8, 8), color).save(buf, format='PNG')
+    return buf.getvalue()
+
+
+def _png_upload(name: str = 'shot.png', color: str = 'red') -> SimpleUploadedFile:
+    return SimpleUploadedFile(name, _png_bytes(color), content_type='image/png')
+
+
+@override_settings(
+    CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
+)
+class SlideshowAPITests(TestCase):
+    def setUp(self) -> None:
+        cache.clear()
+        self.client = APIClient()
+
+    # ----- POST /api/slideshow/ -----
+
+    def test_create_returns_id_share_url_write_token(self):
+        response = self.client.post(
+            '/api/slideshow/',
+            {'title': 'Signup QA', 'description': 'walking through signup'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        # The SDK depends on these three keys verbatim.
+        self.assertIn('id', body)
+        self.assertIn('share_url', body)
+        self.assertIn('write_token', body)
+        self.assertTrue(body['share_url'].endswith('/'))
+        self.assertEqual(len(body['write_token']), 32)
+
+    def test_create_with_no_body_succeeds(self):
+        response = self.client.post('/api/slideshow/', {}, format='json')
+        self.assertEqual(response.status_code, 201)
+
+    def test_create_records_client_ip(self):
+        self.client.post(
+            '/api/slideshow/',
+            {'title': 'forensics test'},
+            format='json',
+            REMOTE_ADDR='198.51.100.7',
+        )
+        slideshow = Slideshow.objects.get(title='forensics test')
+        self.assertEqual(slideshow.created_ip, '198.51.100.7')
+
+    def test_create_honors_x_forwarded_for(self):
+        '''DO App Platform sets X-Forwarded-For; REMOTE_ADDR alone is the proxy.'''
+        self.client.post(
+            '/api/slideshow/',
+            {'title': 'forwarded'},
+            format='json',
+            HTTP_X_FORWARDED_FOR='203.0.113.42, 10.0.0.1',
+            REMOTE_ADDR='10.0.0.1',
+        )
+        slideshow = Slideshow.objects.get(title='forwarded')
+        self.assertEqual(slideshow.created_ip, '203.0.113.42')
+
+    # ----- POST /api/slideshow/<id>/slides/ -----
+
+    def test_add_slide_with_valid_token_succeeds(self):
+        show = Slideshow.objects.create(title='show')
+        response = self.client.post(
+            f'/api/slideshow/{show.id}/slides/',
+            {'image': _png_upload(), 'caption': 'first'},
+            format='multipart',
+            HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()['position'], 1)
+
+    def test_add_slide_assigns_sequential_positions(self):
+        show = Slideshow.objects.create(title='show')
+        for n in range(1, 4):
+            response = self.client.post(
+                f'/api/slideshow/{show.id}/slides/',
+                {'image': _png_upload(f'shot{n}.png'), 'caption': f'slide {n}'},
+                format='multipart',
+                HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+            )
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(response.json()['position'], n)
+
+    def test_add_slide_without_auth_returns_401(self):
+        show = Slideshow.objects.create(title='show')
+        response = self.client.post(
+            f'/api/slideshow/{show.id}/slides/',
+            {'image': _png_upload(), 'caption': 'x'},
+            format='multipart',
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response['WWW-Authenticate'], 'Bearer')
+
+    def test_add_slide_with_bad_token_returns_401(self):
+        show = Slideshow.objects.create(title='show')
+        response = self.client.post(
+            f'/api/slideshow/{show.id}/slides/',
+            {'image': _png_upload(), 'caption': 'x'},
+            format='multipart',
+            HTTP_AUTHORIZATION='Bearer wrong-token',
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_add_slide_with_missing_image_returns_400(self):
+        show = Slideshow.objects.create(title='show')
+        response = self.client.post(
+            f'/api/slideshow/{show.id}/slides/',
+            {'caption': 'no image'},
+            format='multipart',
+            HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_add_slide_for_nonexistent_slideshow_returns_404(self):
+        response = self.client.post(
+            '/api/slideshow/00000000-0000-0000-0000-000000000000/slides/',
+            {'image': _png_upload(), 'caption': 'x'},
+            format='multipart',
+            HTTP_AUTHORIZATION='Bearer anything',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_add_slide_with_other_slideshows_token_returns_401(self):
+        '''Token from slideshow A must not authorize mutations on slideshow B.'''
+        a = Slideshow.objects.create(title='A')
+        b = Slideshow.objects.create(title='B')
+        response = self.client.post(
+            f'/api/slideshow/{b.id}/slides/',
+            {'image': _png_upload(), 'caption': 'x'},
+            format='multipart',
+            HTTP_AUTHORIZATION=f'Bearer {a.write_token}',
+        )
+        self.assertEqual(response.status_code, 401)
+
+    # ----- PATCH /api/slideshow/<id>/slides/<position>/ -----
+
+    def test_update_slide_caption_only(self):
+        show = Slideshow.objects.create(title='show')
+        slide = Slide.objects.create(
+            slideshow=show, position=1, image=_png_upload(), caption='old'
+        )
+        response = self.client.patch(
+            f'/api/slideshow/{show.id}/slides/1/',
+            {'caption': 'new'},
+            format='json',
+            HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+        )
+        self.assertEqual(response.status_code, 200)
+        slide.refresh_from_db()
+        self.assertEqual(slide.caption, 'new')
+
+    def test_update_slide_with_bad_position_returns_404(self):
+        show = Slideshow.objects.create(title='show')
+        response = self.client.patch(
+            f'/api/slideshow/{show.id}/slides/99/',
+            {'caption': 'new'},
+            format='json',
+            HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    # ----- PATCH /api/slideshow/<id>/ -----
+
+    def test_set_summary(self):
+        show = Slideshow.objects.create(title='show')
+        response = self.client.patch(
+            f'/api/slideshow/{show.id}/',
+            {'summary': 'wrap up'},
+            format='json',
+            HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+        )
+        self.assertEqual(response.status_code, 200)
+        show.refresh_from_db()
+        self.assertEqual(show.summary, 'wrap up')
+
+    def test_patch_slideshow_can_update_title_and_description(self):
+        show = Slideshow.objects.create(title='show', description='old')
+        self.client.patch(
+            f'/api/slideshow/{show.id}/',
+            {'title': 'new title', 'description': 'new desc'},
+            format='json',
+            HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+        )
+        show.refresh_from_db()
+        self.assertEqual(show.title, 'new title')
+        self.assertEqual(show.description, 'new desc')
+
+
+@override_settings(
+    CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
+)
+class RateLimitTests(TestCase):
+    def setUp(self) -> None:
+        cache.clear()
+        self.client = APIClient()
+
+    def test_create_rate_limit_eventually_returns_429(self):
+        '''20/h on the create endpoint; 21st call from same IP gets 429.'''
+        for n in range(20):
+            r = self.client.post('/api/slideshow/', {'title': f'r{n}'}, format='json')
+            self.assertEqual(r.status_code, 201, msg=f'request {n} should pass')
+        r = self.client.post('/api/slideshow/', {'title': 'over'}, format='json')
+        self.assertEqual(r.status_code, 429)
+
+
+class PublicViewerTests(TestCase):
+    def test_viewer_renders_slideshow_by_share_token(self):
+        show = Slideshow.objects.create(title='Public test', summary='everything passed')
+        Slide.objects.create(
+            slideshow=show, position=1, image=_png_upload(), caption='one'
+        )
+        response = self.client.get(f'/s/{show.share_token}/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Public test')
+        self.assertContains(response, 'everything passed')
+
+    def test_viewer_unknown_token_returns_404(self):
+        response = self.client.get('/s/does-not-exist/')
+        self.assertEqual(response.status_code, 404)
+
+    def test_home_renders(self):
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'qagent')
+
+    def test_share_token_does_not_leak_write_token(self):
+        '''The viewer must never put write_token into the rendered page.'''
+        show = Slideshow.objects.create(title='leaktest')
+        response = self.client.get(f'/s/{show.share_token}/')
+        self.assertNotIn(show.write_token, response.content.decode())
