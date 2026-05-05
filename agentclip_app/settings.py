@@ -1,4 +1,4 @@
-'''Django settings for the qagent backend.
+'''Django settings for the agentclip backend.
 
 Single-file settings driven by environment variables, the same way
 the deploy target (DigitalOcean App Platform) wants them. There is
@@ -80,7 +80,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'qagent_app.urls'
+ROOT_URLCONF = 'agentclip_app.urls'
 
 TEMPLATES = [
     {
@@ -97,7 +97,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'qagent_app.wsgi.application'
+WSGI_APPLICATION = 'agentclip_app.wsgi.application'
 
 
 # ----- Database -----
@@ -174,7 +174,7 @@ if os.environ.get('DO_SPACES_KEY'):
     AWS_DEFAULT_ACL = 'public-read'
     AWS_QUERYSTRING_AUTH = False
     AWS_S3_FILE_OVERWRITE = False
-    # Custom domain (e.g. cdn.qagent.app pointing at Spaces CDN) lets us
+    # Custom domain (e.g. cdn.agentclip.dev pointing at Spaces CDN) lets us
     # serve images under our own URL space without exposing the
     # digitaloceanspaces.com hostname to slideshow viewers.
     if os.environ.get('DO_SPACES_CUSTOM_DOMAIN'):

@@ -1,12 +1,12 @@
-# Single-service container for qagent-app.
+# Single-service container for agentclip-app.
 #
 # Boring on purpose: one stage, one CMD, no nginx sidecar (WhiteNoise
 # serves static files in-process). DigitalOcean App Platform handles
 # the front door (TLS, edge caching, X-Forwarded-For); we run gunicorn
 # behind it.
 #
-# Build: docker build -t qagent-app .
-# Run:   docker run -p 8000:8000 --env-file .env qagent-app
+# Build: docker build -t agentclip-app .
+# Run:   docker run -p 8000:8000 --env-file .env agentclip-app
 
 FROM python:3.12-slim
 
@@ -48,4 +48,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 # `sh -c` so $PORT expansion works under platforms that override it.
 # Two workers is right for a $5-12/mo droplet; raise as needed.
-CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn qagent_app.wsgi:application --bind 0.0.0.0:${PORT} --workers 2 --timeout 60 --access-logfile - --error-logfile -"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && gunicorn agentclip_app.wsgi:application --bind 0.0.0.0:${PORT} --workers 2 --timeout 60 --access-logfile - --error-logfile -"]

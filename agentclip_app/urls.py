@@ -1,4 +1,4 @@
-'''Top-level URL config for the qagent backend.
+'''Top-level URL config for the agentclip backend.
 
 The slideshows app owns both the API surface (under /api/) and the
 public-facing routes (the / landing page and /s/<token> viewer).

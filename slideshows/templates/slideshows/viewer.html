@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ slideshow.title|default:"slideshow" }} | qagent{% endblock %}
+{% block title %}{{ slideshow.title|default:"slideshow" }} | agentclip{% endblock %}
 {% block og_title %}{{ slideshow.title|default:"slideshow" }}{% endblock %}
 {% block og_description %}{% if slideshow.summary %}{{ slideshow.summary|truncatewords:40 }}{% else %}{{ slideshow.description|default:"An AI agent QA run."|truncatewords:30 }}{% endif %}{% endblock %}
 {% block og_image %}{% if slides %}<meta property="og:image" content="{{ slides.0.image.url }}">{% endif %}{% endblock %}

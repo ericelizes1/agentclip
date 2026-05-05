@@ -251,7 +251,7 @@ class PublicViewerTests(TestCase):
     def test_home_renders(self):
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'qagent')
+        self.assertContains(response, 'agentclip')
 
     def test_share_token_does_not_leak_write_token(self):
         '''The viewer must never put write_token into the rendered page.'''

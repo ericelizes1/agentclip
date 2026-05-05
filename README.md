@@ -1,6 +1,6 @@
-# qagent-app
+# agentclip-app
 
-Django backend for [qagent](https://github.com/ericelizes/qagent): the API
+Django backend for [agentclip](https://github.com/ericelizes/agentclip): the API
 and public viewer that turn agent QA runs into shareable slideshow URLs.
 
 ## Stack
@@ -36,7 +36,7 @@ Slideshows render at `/s/<share_token>/`.
 | PATCH | `/api/slideshow/<id>/slides/<position>/` | write_token |
 | PATCH | `/api/slideshow/<id>/` | write_token |
 
-Documented end-to-end in the [qagent](https://github.com/ericelizes/qagent)
+Documented end-to-end in the [agentclip](https://github.com/ericelizes/agentclip)
 public package README.
 
 ## Deploy

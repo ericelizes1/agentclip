@@ -1,4 +1,4 @@
-# DigitalOcean App Platform spec for qagent-app.
+# DigitalOcean App Platform spec for agentclip-app.
 #
 # Update `github.repo` to point at your fork or rename, then
 # `doctl apps create --spec .do/app.yaml` to deploy.
@@ -12,7 +12,7 @@
 # Everything else is captured below so the spec is reproducible:
 # `doctl apps update <id> --spec .do/app.yaml` reapplies changes.
 
-name: qagent-app
+name: agentclip-app
 region: nyc
 
 services:
@@ -23,7 +23,7 @@ services:
     instance_count: 1
 
     github:
-      repo: ericelizes/qagent-app
+      repo: ericelizes/agentclip-app
       branch: main
       deploy_on_push: true
 
@@ -70,10 +70,10 @@ services:
         scope: RUN_TIME
       - key: DJANGO_ALLOWED_HOSTS
         scope: RUN_TIME
-        value: "qagent.app,${APP_DOMAIN}"
+        value: "agentclip.dev,${APP_DOMAIN}"
       - key: DJANGO_CSRF_TRUSTED_ORIGINS
         scope: RUN_TIME
-        value: "https://qagent.app,${APP_URL}"
+        value: "https://agentclip.dev,${APP_URL}"
       - key: DATABASE_URL
         type: SECRET
         scope: RUN_TIME
@@ -88,5 +88,5 @@ services:
 
 domains:
   # Replace once you have a domain.
-  # - domain: qagent.app
+  # - domain: agentclip.dev
   #   type: PRIMARY

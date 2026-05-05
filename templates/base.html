@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}qagent{% endblock %}</title>
+  <title>{% block title %}agentclip{% endblock %}</title>
 
   {% block og %}
-  <meta property="og:title" content="{% block og_title %}qagent{% endblock %}">
+  <meta property="og:title" content="{% block og_title %}agentclip{% endblock %}">
   <meta property="og:description" content="{% block og_description %}Turn AI agent QA runs into shareable slideshows.{% endblock %}">
   <meta property="og:type" content="website">
   <meta property="og:url" content="{% block og_url %}{{ request.build_absolute_uri }}{% endblock %}">
@@ -168,9 +168,9 @@
 <body>
   <header class="site-header">
     <div class="wrap">
-      <a class="brand" href="{% url 'home' %}">qagent<span class="dot">.</span></a>
+      <a class="brand" href="{% url 'home' %}">agentclip<span class="dot">.</span></a>
       <nav class="nav">
-        <a class="btn" href="https://github.com/ericelizes/qagent" rel="noopener">GitHub</a>
+        <a class="btn" href="https://github.com/ericelizes/agentclip" rel="noopener">GitHub</a>
       </nav>
     </div>
   </header>
@@ -179,8 +179,8 @@
 
   <footer class="site-footer">
     <div class="wrap">
-      <span>qagent. Built {% now "F Y" %}.</span>
-      <span><a href="https://github.com/ericelizes/qagent" rel="noopener">github.com/ericelizes/qagent</a></span>
+      <span>agentclip. Built {% now "F Y" %}.</span>
+      <span><a href="https://github.com/ericelizes/agentclip" rel="noopener">github.com/ericelizes/agentclip</a></span>
     </div>
   </footer>
 
