@@ -35,6 +35,18 @@
   }
   .clip-meta .label.live::before { background: var(--accent); }
 
+  .clip-meta .credit a {
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid var(--ink-3);
+    padding-bottom: 1px;
+    transition: color 140ms var(--ease), border-color 140ms var(--ease);
+  }
+  .clip-meta .credit a:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
   .clip-title {
     font-size: clamp(1.875rem, 1.4rem + 3vw, 3.25rem);
     line-height: 1.05;
@@ -248,6 +260,16 @@
     <span class="label live">A FIELD RUN</span>
     <span class="label dot">{{ slides|length }} CLIP{{ slides|length|pluralize }}</span>
     <span class="label dot">{{ slideshow.created_at|date:"M j, Y" }}</span>
+    {% if slideshow.created_by %}
+      <span class="label dot credit">
+        FILED BY
+        {% if slideshow.created_by_url %}
+          <a href="{{ slideshow.created_by_url }}" target="_blank" rel="noopener nofollow">{{ slideshow.created_by }}</a>
+        {% else %}
+          {{ slideshow.created_by }}
+        {% endif %}
+      </span>
+    {% endif %}
   </div>
 
   <h1 class="clip-title reveal reveal-2">{{ slideshow.title|default:"Untitled clip" }}</h1>

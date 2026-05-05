@@ -397,3 +397,32 @@ class PublicViewerTests(TestCase):
         show = Slideshow.objects.create(title='leaktest')
         response = self.client.get(f'/s/{show.share_token}/')
         self.assertNotIn(show.write_token, response.content.decode())
+
+    # ----- creator credit rendering -----
+
+    def test_viewer_renders_filed_by_with_link_when_url_set(self):
+        show = Slideshow.objects.create(
+            title='credited',
+            created_by='Eric Elizes',
+            created_by_url='https://elizes.dev',
+        )
+        body = self.client.get(f'/s/{show.share_token}/').content.decode()
+        self.assertIn('FILED BY', body)
+        self.assertIn('Eric Elizes', body)
+        self.assertIn('href="https://elizes.dev"', body)
+        self.assertIn('rel="noopener nofollow"', body)
+
+    def test_viewer_renders_filed_by_as_plain_text_when_no_url(self):
+        show = Slideshow.objects.create(title='credited', created_by='Plain Name')
+        body = self.client.get(f'/s/{show.share_token}/').content.decode()
+        self.assertIn('FILED BY', body)
+        self.assertIn('Plain Name', body)
+        # Slice the chunk around the name and confirm no <a href="..."> wraps it.
+        idx = body.index('Plain Name')
+        nearby = body[max(0, idx - 80):idx + 20]
+        self.assertNotIn('href=', nearby)
+
+    def test_viewer_omits_filed_by_block_when_credit_blank(self):
+        show = Slideshow.objects.create(title='no credit')
+        body = self.client.get(f'/s/{show.share_token}/').content.decode()
+        self.assertNotIn('FILED BY', body)
