@@ -2,12 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)">
   <title>{% block title %}AgentClip{% endblock %}</title>
 
   {% block og %}
   <meta property="og:title" content="{% block og_title %}AgentClip{% endblock %}">
-  <meta property="og:description" content="{% block og_description %}A field journal for AI agents. Turn QA runs into shareable slideshows.{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}Capture your AI agent's QA runs as shareable clips.{% endblock %}">
   <meta property="og:type" content="website">
   <meta property="og:url" content="{% block og_url %}{{ request.build_absolute_uri }}{% endblock %}">
   {% block og_image %}{% endblock %}
@@ -16,327 +18,285 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 
   <style>
     /* ============================================================
-       AgentClip — editorial-engineering aesthetic
-       Display: Instrument Serif (with optical italic)
-       Body:    JetBrains Mono
-       Palette: cream paper, ink, vermillion accent
+       AgentClip — clean modern, mobile-first
+       Type:    Geist (sans) + Geist Mono
+       Palette: near-white surface, near-black ink, vermillion accent
+       Built mobile-first: base styles target 375px, breakpoints scale up
        ============================================================ */
 
     /* ---------- Reset ---------- */
     *, *::before, *::after { box-sizing: border-box; }
     html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
     body { margin: 0; }
-    img, picture { max-width: 100%; display: block; }
-    button { font: inherit; cursor: pointer; }
+    img, picture, video { max-width: 100%; display: block; }
+    button { font: inherit; cursor: pointer; border: 0; background: none; color: inherit; }
     a { color: inherit; }
 
     /* ---------- Tokens ---------- */
     :root {
-      /* Type */
-      --font-display: 'Instrument Serif', 'Times New Roman', serif;
-      --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+      --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
-      /* Color — paper edition */
-      --paper: #f3ece0;
-      --paper-tint: #ebe2d1;
-      --ink: #14110d;
-      --ink-soft: #3a342c;
-      --ink-mute: #6a6358;
-      --ink-faint: #a59c8e;
-      --rule: #2a2520;
-      --rule-soft: #c9bfae;
-      --vermillion: #c63f1f;
-      --vermillion-deep: #93281b;
-      --ochre: #d49b32;
+      /* Light */
+      --bg: #fafaf9;
+      --surface: #ffffff;
+      --surface-2: #f4f4f3;
+      --ink: #0a0a0a;
+      --ink-1: #1f1f1f;
+      --ink-2: #525252;
+      --ink-3: #8a8a8a;
+      --ink-4: #b8b8b8;
+      --border: #ebeae8;
+      --border-2: #d8d6d2;
+      --accent: #d94824;
+      --accent-soft: #fdf0eb;
 
-      /* Spatial */
-      --measure: 64ch;
-      --max-width: 1180px;
-      --margin: clamp(20px, 5vw, 56px);
+      /* Geometry */
+      --radius-sm: 6px;
+      --radius: 10px;
+      --radius-lg: 14px;
+      --radius-xl: 20px;
+
+      /* Type scale */
+      --fs-xs: 0.75rem;
+      --fs-sm: 0.875rem;
+      --fs-base: 1rem;
+      --fs-md: 1.125rem;
+      --fs-lg: 1.375rem;
+      --fs-xl: 2rem;
+      --fs-2xl: 2.75rem;
+      --fs-3xl: 3.5rem;
 
       /* Motion */
       --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+      --ease-out: cubic-bezier(0, 0, 0.15, 1);
+
+      /* Layout */
+      --max-content: 1080px;
+      --gutter: 20px;
+    }
+
+    @media (min-width: 720px) {
+      :root { --gutter: 32px; }
+    }
+    @media (min-width: 1024px) {
+      :root { --gutter: 48px; }
     }
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --paper: #14110d;
-        --paper-tint: #1c1813;
-        --ink: #f1ead8;
-        --ink-soft: #c9c1ae;
-        --ink-mute: #948a78;
-        --ink-faint: #5e5648;
-        --rule: #d4ccba;
-        --rule-soft: #2f2a23;
-        --vermillion: #e8593a;
-        --vermillion-deep: #c63f1f;
-        --ochre: #e3b153;
+        --bg: #0a0a0a;
+        --surface: #151515;
+        --surface-2: #1d1d1d;
+        --ink: #ededed;
+        --ink-1: #d4d4d4;
+        --ink-2: #a3a3a3;
+        --ink-3: #737373;
+        --ink-4: #525252;
+        --border: #262626;
+        --border-2: #333333;
+        --accent: #ff5a30;
+        --accent-soft: #2a1410;
       }
     }
 
-    /* ---------- Paper ---------- */
     body {
-      font-family: var(--font-mono);
-      font-size: 14px;
-      line-height: 1.6;
+      font-family: var(--font-sans);
+      font-size: var(--fs-base);
+      line-height: 1.55;
       color: var(--ink);
-      background-color: var(--paper);
-      /* Subtle paper grain — inline SVG, no network round-trip */
-      background-image:
-        radial-gradient(circle at 30% 20%, rgba(20, 17, 13, 0.025) 0, transparent 60%),
-        radial-gradient(circle at 80% 80%, rgba(20, 17, 13, 0.02) 0, transparent 60%),
-        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.04 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
-      background-attachment: fixed;
+      background: var(--bg);
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
+      font-feature-settings: 'cv11', 'ss01', 'ss03';
+      letter-spacing: -0.011em;
     }
 
-    @media (prefers-color-scheme: dark) {
-      body {
-        background-image:
-          radial-gradient(circle at 30% 20%, rgba(241, 234, 216, 0.04) 0, transparent 60%),
-          radial-gradient(circle at 80% 80%, rgba(241, 234, 216, 0.03) 0, transparent 60%),
-          url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 0.92  0 0 0 0.05 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
-      }
-    }
-
-    ::selection { background: var(--vermillion); color: var(--paper); }
+    ::selection { background: var(--accent); color: var(--bg); }
 
     /* ---------- Layout primitives ---------- */
     .wrap {
-      max-width: var(--max-width);
+      max-width: var(--max-content);
       margin-inline: auto;
-      padding-inline: var(--margin);
+      padding-inline: var(--gutter);
     }
 
-    .rule {
-      border: 0;
-      border-top: 1px solid var(--rule);
-      margin: 0;
-    }
-    .rule-soft { border-top-color: var(--rule-soft); }
-    .rule-double {
-      border: 0;
-      border-top: 1px solid var(--rule);
-      border-bottom: 1px solid var(--rule);
-      height: 4px;
-    }
+    /* ---------- Type ---------- */
+    h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.022em; line-height: 1.1; }
+    h1 { font-size: var(--fs-2xl); font-weight: 600; letter-spacing: -0.03em; }
+    @media (min-width: 720px) { h1 { font-size: var(--fs-3xl); } }
+    h2 { font-size: var(--fs-xl); }
+    h3 { font-size: var(--fs-lg); }
+    p { margin: 0; }
 
-    /* ---------- Typography ---------- */
-    .display {
-      font-family: var(--font-display);
-      font-weight: 400;
-      line-height: 0.95;
-      letter-spacing: -0.015em;
-      font-feature-settings: 'liga', 'kern';
-    }
-    .display-italic { font-family: var(--font-display); font-style: italic; }
+    .mono { font-family: var(--font-mono); font-feature-settings: 'zero', 'ss03'; }
 
     .label {
       font-family: var(--font-mono);
-      font-size: 0.72rem;
+      font-size: var(--fs-xs);
+      letter-spacing: 0.04em;
+      color: var(--ink-3);
       font-weight: 500;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--ink-mute);
     }
-    .label-accent { color: var(--vermillion); }
 
-    .colno {
+    code, kbd {
       font-family: var(--font-mono);
-      font-size: 0.72rem;
-      letter-spacing: 0.1em;
-      color: var(--ink-faint);
+      font-size: 0.92em;
     }
-
-    p { margin: 0; max-width: var(--measure); }
-
-    code, kbd, pre { font-family: var(--font-mono); font-size: 0.9em; }
     pre {
+      font-family: var(--font-mono);
       background: var(--ink);
-      color: var(--paper);
-      padding: 18px 20px;
+      color: var(--bg);
+      padding: 16px 18px;
       overflow-x: auto;
-      font-size: 0.85rem;
-      line-height: 1.7;
-      border: 1px solid var(--ink);
-      box-shadow: 6px 6px 0 var(--rule-soft);
+      font-size: var(--fs-sm);
+      line-height: 1.65;
+      border-radius: var(--radius);
+      margin: 0;
     }
     @media (prefers-color-scheme: dark) {
-      pre { box-shadow: 6px 6px 0 var(--paper-tint); }
+      pre { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border); }
     }
     pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
-
-    /* ---------- Inline accents ---------- */
-    .dingbat {
-      display: inline-block;
-      color: var(--vermillion);
-      font-family: var(--font-display);
-      font-style: italic;
-    }
-    .asterism {
-      display: block;
-      text-align: center;
-      letter-spacing: 0.5em;
-      color: var(--vermillion);
-      font-family: var(--font-display);
-      font-size: 1.5rem;
-      margin: 48px 0;
-    }
-    .asterism::before { content: '⁂'; }
-
-    /* ---------- Links ---------- */
-    .underline-link {
-      color: var(--ink);
-      text-decoration: none;
-      background-image: linear-gradient(var(--vermillion), var(--vermillion));
-      background-position: 0 100%;
-      background-repeat: no-repeat;
-      background-size: 100% 1px;
-      transition: background-size 200ms var(--ease), color 200ms var(--ease);
-    }
-    .underline-link:hover { color: var(--vermillion); background-size: 100% 2px; }
 
     /* ---------- Buttons ---------- */
     .btn {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      padding: 10px 18px;
-      font-family: var(--font-mono);
-      font-size: 0.78rem;
+      gap: 6px;
+      padding: 10px 16px;
+      font-family: var(--font-sans);
+      font-size: var(--fs-sm);
       font-weight: 500;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
+      letter-spacing: -0.01em;
       text-decoration: none;
-      border: 1px solid var(--ink);
-      background: transparent;
-      color: var(--ink);
+      border-radius: var(--radius);
+      transition: background 140ms var(--ease), color 140ms var(--ease), transform 120ms var(--ease);
+      white-space: nowrap;
+      min-height: 40px;
       cursor: pointer;
-      transition: background 160ms var(--ease), color 160ms var(--ease), transform 160ms var(--ease);
     }
-    .btn:hover { background: var(--ink); color: var(--paper); transform: translateY(-1px); }
+    .btn-primary {
+      background: var(--ink);
+      color: var(--bg);
+    }
+    .btn-primary:hover { transform: translateY(-1px); background: var(--accent); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--ink-1);
+      border: 1px solid var(--border-2);
+    }
+    .btn-ghost:hover { background: var(--surface-2); border-color: var(--ink-3); color: var(--ink); }
+    .btn-tiny { padding: 6px 12px; font-size: var(--fs-xs); min-height: 32px; }
 
-    .btn-accent { border-color: var(--vermillion); color: var(--vermillion); }
-    .btn-accent:hover { background: var(--vermillion); color: var(--paper); }
-
-    .btn-solid { background: var(--ink); color: var(--paper); }
-    .btn-solid:hover { background: var(--vermillion); border-color: var(--vermillion); color: var(--paper); }
-
-    /* ---------- Site frame ---------- */
-    .masthead {
-      border-bottom: 1px solid var(--rule);
-      padding-block: 18px;
-      background: var(--paper);
-      position: relative;
-      z-index: 5;
+    /* ---------- Header ---------- */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      background: color-mix(in srgb, var(--bg) 85%, transparent);
+      backdrop-filter: saturate(180%) blur(12px);
+      -webkit-backdrop-filter: saturate(180%) blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding-block: 12px;
     }
-    .masthead::after {
-      content: '';
-      position: absolute;
-      left: 0; right: 0; bottom: -4px;
-      height: 1px;
-      background: var(--rule);
+    .nav .wrap {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
     }
-    .masthead .wrap {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: baseline;
-      gap: 24px;
-    }
-    .masthead .left { text-align: left; }
-    .masthead .right { text-align: right; }
-    .masthead .meta {
-      font-family: var(--font-mono);
-      font-size: 0.7rem;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-      color: var(--ink-mute);
-    }
-    .masthead .brand {
-      font-family: var(--font-display);
-      font-size: clamp(1.6rem, 1.4rem + 0.6vw, 1.9rem);
-      font-style: italic;
-      letter-spacing: -0.015em;
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: var(--fs-md);
+      letter-spacing: -0.025em;
       color: var(--ink);
       text-decoration: none;
-      line-height: 1;
     }
-    .masthead .brand .ampersand { color: var(--vermillion); }
-    .masthead .brand:hover .ampersand { color: var(--ink); }
-
-    @media (max-width: 720px) {
-      .masthead .wrap { grid-template-columns: auto 1fr; }
-      .masthead .left { display: none; }
-      .masthead .right { text-align: right; }
+    .brand .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
     }
+    .nav-links { display: flex; gap: 8px; align-items: center; }
 
-    .colophon {
-      border-top: 1px solid var(--rule);
+    /* ---------- Footer ---------- */
+    .foot {
+      border-top: 1px solid var(--border);
       padding-block: 32px;
-      margin-top: 96px;
-      color: var(--ink-mute);
-      font-size: 0.78rem;
-      letter-spacing: 0.04em;
+      margin-top: 80px;
+      color: var(--ink-3);
+      font-size: var(--fs-sm);
     }
-    .colophon .wrap {
+    .foot .wrap {
       display: flex;
-      justify-content: space-between;
-      gap: 24px;
-      flex-wrap: wrap;
-      align-items: baseline;
+      flex-direction: column;
+      gap: 12px;
     }
-    .colophon .imprint {
-      font-family: var(--font-display);
-      font-style: italic;
-      font-size: 1.05rem;
-      color: var(--ink-soft);
+    @media (min-width: 720px) {
+      .foot .wrap { flex-direction: row; justify-content: space-between; align-items: center; }
     }
-    .colophon a { color: var(--ink-soft); text-decoration: none; border-bottom: 1px solid var(--rule-soft); }
-    .colophon a:hover { color: var(--vermillion); border-bottom-color: var(--vermillion); }
+    .foot a { color: var(--ink-2); text-decoration: none; }
+    .foot a:hover { color: var(--accent); }
+    .foot .dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      vertical-align: middle;
+      margin: 0 6px;
+    }
 
-    /* ---------- Page-load motion (subtle) ---------- */
+    /* ---------- Reveal motion ---------- */
     @keyframes fade-up {
-      from { opacity: 0; transform: translateY(6px); }
-      to   { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
     }
-    @keyframes draw-rule {
-      from { transform: scaleX(0); }
-      to   { transform: scaleX(1); }
-    }
-
-    .reveal { animation: fade-up 700ms var(--ease) both; }
-    .reveal-1 { animation-delay: 60ms; }
-    .reveal-2 { animation-delay: 140ms; }
-    .reveal-3 { animation-delay: 220ms; }
-    .reveal-4 { animation-delay: 320ms; }
+    .reveal { animation: fade-up 600ms var(--ease-out) both; }
+    .reveal-1 { animation-delay: 40ms; }
+    .reveal-2 { animation-delay: 100ms; }
+    .reveal-3 { animation-delay: 180ms; }
+    .reveal-4 { animation-delay: 260ms; }
 
     @media (prefers-reduced-motion: reduce) {
       .reveal, .reveal-1, .reveal-2, .reveal-3, .reveal-4 { animation: none; }
+    }
+
+    /* ---------- Tap targets / touch ---------- */
+    @media (hover: none) {
+      .btn-primary:hover { transform: none; }
     }
   </style>
 
   {% block head_extra %}{% endblock %}
 </head>
 <body>
-  <header class="masthead">
+  <header class="nav">
     <div class="wrap">
-      <span class="left meta">{% block masthead_left %}Vol. I &nbsp;·&nbsp; No. 001{% endblock %}</span>
-      <a class="brand" href="{% url 'home' %}">AgentClip<span class="ampersand">.</span></a>
-      <span class="right meta">{% block masthead_right %}<a class="underline-link" href="https://github.com/ericelizes/agentclip" rel="noopener">github</a> &nbsp;·&nbsp; agentclip.dev{% endblock %}</span>
+      <a class="brand" href="{% url 'home' %}">
+        <span class="dot"></span>
+        AgentClip
+      </a>
+      <div class="nav-links">
+        <a class="btn btn-ghost btn-tiny" href="https://github.com/ericelizes/agentclip" rel="noopener">GitHub</a>
+      </div>
     </div>
   </header>
 
   {% block content %}{% endblock %}
 
-  <footer class="colophon">
+  <footer class="foot">
     <div class="wrap">
-      <span class="imprint">AgentClip,&nbsp;<span style="font-style: normal; font-family: var(--font-mono); font-size: 0.85rem;">established {% now "Y" %}</span></span>
-      <span>Set in <span class="display-italic">Instrument Serif</span> &amp; JetBrains Mono &nbsp;·&nbsp; <a href="https://github.com/ericelizes/agentclip" rel="noopener">github.com/ericelizes/agentclip</a></span>
+      <span>AgentClip <span class="dot"></span> open source <span class="dot"></span> {% now "Y" %}</span>
+      <span><a href="https://github.com/ericelizes/agentclip" rel="noopener">github.com/ericelizes/agentclip</a></span>
     </div>
   </footer>
 

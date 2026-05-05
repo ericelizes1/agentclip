@@ -1,483 +1,427 @@
 {% extends "base.html" %}
 
-{% block title %}AgentClip · A field journal for AI agents{% endblock %}
+{% block title %}AgentClip — Capture your AI agent's QA runs as shareable clips{% endblock %}
 {% block og_title %}AgentClip{% endblock %}
-{% block og_description %}A field journal for AI agents. Turn QA runs into shareable slideshows. Open-source MCP server, CLI, and agent skill.{% endblock %}
+{% block og_description %}Capture your AI agent's QA runs as shareable clips. Open-source MCP server, CLI, and agent skill.{% endblock %}
 
 {% block head_extra %}
 <style>
   /* ============================================================
-     Home — magazine cover spread
-     Asymmetric grid, oversized display headline, plate gallery,
-     numbered editorial chapters for "how it works"
+     Home — clean modern, mobile-first
      ============================================================ */
 
-  .cover {
-    padding-block: clamp(56px, 8vw, 120px) 64px;
-    border-bottom: 1px solid var(--rule);
+  /* ---------- Hero ---------- */
+  .hero {
+    padding-block: 56px 64px;
   }
-  .cover-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.42fr);
-    gap: clamp(32px, 6vw, 88px);
-    align-items: end;
+  @media (min-width: 720px) { .hero { padding-block: 96px 80px; } }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    margin-bottom: 24px;
   }
-  @media (max-width: 920px) {
-    .cover-grid { grid-template-columns: 1fr; gap: 40px; }
+  .pill::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
   }
 
-  .cover-headline {
-    font-size: clamp(3.4rem, 2.4rem + 5vw, 8.5rem);
-    color: var(--ink);
+  .hero h1 {
+    font-size: clamp(2.25rem, 1.6rem + 4vw, 4.25rem);
+    line-height: 1.04;
+    letter-spacing: -0.035em;
+    max-width: 16ch;
   }
-  .cover-headline .em { font-style: italic; }
-  .cover-headline .ornament { color: var(--vermillion); padding: 0 0.05em; }
+  .hero h1 em {
+    font-style: normal;
+    color: var(--accent);
+  }
 
-  .cover-byline {
-    margin-top: 28px;
+  .hero-lede {
+    margin-top: 20px;
+    font-size: var(--fs-md);
+    color: var(--ink-2);
+    max-width: 52ch;
+    line-height: 1.55;
+  }
+  @media (min-width: 720px) {
+    .hero-lede { font-size: var(--fs-lg); }
+  }
+
+  .hero-cta {
+    margin-top: 32px;
     display: flex;
-    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .hero-cta .btn { min-height: 44px; padding-inline: 18px; }
+
+  /* ---------- Install ---------- */
+  .install {
+    margin-top: 40px;
+    max-width: 520px;
+  }
+  .install-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .install pre {
+    font-size: var(--fs-sm);
+  }
+  .install-hint {
+    margin-top: 12px;
+    font-size: var(--fs-xs);
+    color: var(--ink-3);
+    font-family: var(--font-mono);
+  }
+  .install-hint code {
+    color: var(--ink-1);
+    background: var(--surface-2);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  /* ---------- Feature row ---------- */
+  .features {
+    padding-block: 56px;
+    border-top: 1px solid var(--border);
+  }
+  @media (min-width: 720px) { .features { padding-block: 96px; } }
+
+  .features-head {
+    margin-bottom: 40px;
+    max-width: 64ch;
+  }
+  .features-head h2 {
+    font-size: clamp(1.75rem, 1.4rem + 1.6vw, 2.25rem);
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+  }
+  .features-head p {
+    margin-top: 12px;
+    color: var(--ink-2);
+    font-size: var(--fs-md);
+  }
+
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  @media (min-width: 720px) {
+    .feature-grid { grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  }
+
+  .feature {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 24px 22px;
+    transition: border-color 200ms var(--ease), transform 200ms var(--ease);
+  }
+  .feature:hover { border-color: var(--border-2); }
+  .feature .step-no {
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    color: var(--accent);
+    font-weight: 500;
+    margin-bottom: 14px;
+    letter-spacing: 0.04em;
+  }
+  .feature h3 {
+    font-size: var(--fs-md);
+    font-weight: 600;
+    margin-bottom: 8px;
+    letter-spacing: -0.018em;
+  }
+  .feature p {
+    color: var(--ink-2);
+    font-size: var(--fs-sm);
+    line-height: 1.6;
+  }
+  .feature code {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+
+  /* ---------- Gallery ---------- */
+  .gallery-section {
+    padding-block: 56px;
+    border-top: 1px solid var(--border);
+  }
+  @media (min-width: 720px) { .gallery-section { padding-block: 96px; } }
+
+  .gallery-head {
+    margin-bottom: 32px;
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
     gap: 16px;
     flex-wrap: wrap;
   }
-  .cover-byline .label { color: var(--ink-mute); }
-  .cover-byline .author {
-    font-family: var(--font-display);
-    font-style: italic;
-    font-size: 1.15rem;
-    color: var(--ink);
+  .gallery-head h2 {
+    font-size: clamp(1.5rem, 1.2rem + 1.4vw, 2rem);
+    letter-spacing: -0.025em;
   }
+  .gallery-head .label { white-space: nowrap; }
 
-  .cover-aside {
-    border-left: 1px solid var(--rule);
-    padding-left: clamp(20px, 3vw, 36px);
-    padding-block: 8px;
-    color: var(--ink-soft);
-  }
-  @media (max-width: 920px) {
-    .cover-aside {
-      border-left: 0;
-      border-top: 1px solid var(--rule);
-      padding-left: 0;
-      padding-top: 32px;
-    }
-  }
-  .cover-aside .lede {
-    font-family: var(--font-display);
-    font-size: clamp(1.15rem, 0.95rem + 0.6vw, 1.55rem);
-    line-height: 1.35;
-    color: var(--ink);
-    max-width: 38ch;
-  }
-  .cover-aside .lede .first {
-    font-size: 1.15em;
-    color: var(--vermillion);
-    font-style: italic;
-  }
-  .cover-aside .filed-under {
-    margin-top: 28px;
-    font-size: 0.78rem;
-    letter-spacing: 0.08em;
-    color: var(--ink-mute);
-    line-height: 1.7;
-  }
-  .cover-aside .filed-under strong {
-    display: block;
-    font-family: var(--font-mono);
-    font-weight: 500;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--vermillion);
-    margin-bottom: 4px;
-  }
-
-  .cover-cta {
-    margin-top: 48px;
-    display: flex;
+  .gallery {
+    display: grid;
+    grid-template-columns: 1fr;
     gap: 12px;
-    flex-wrap: wrap;
   }
+  @media (min-width: 560px) { .gallery { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1024px) { .gallery { grid-template-columns: repeat(3, 1fr); gap: 16px; } }
 
-  /* ---------- Install plate ---------- */
-  .install-plate {
-    margin-top: 48px;
-    max-width: 620px;
-    position: relative;
-  }
-  .install-plate .install-meta {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 10px;
-  }
-  .install-plate pre {
-    margin: 0;
-    font-size: 0.9rem;
-  }
-  .install-plate .hint {
-    margin-top: 12px;
-    font-size: 0.78rem;
-    color: var(--ink-mute);
-    letter-spacing: 0.04em;
-  }
-  .install-plate .hint code {
-    background: var(--paper-tint);
-    border: 1px solid var(--rule-soft);
-    padding: 1px 6px;
-  }
-
-  /* ---------- Chapter sections ---------- */
-  .chapter {
-    padding-block: clamp(48px, 7vw, 96px);
-    border-bottom: 1px solid var(--rule);
-  }
-  .chapter-head {
-    display: grid;
-    grid-template-columns: 84px minmax(0, 1fr);
-    gap: 32px;
-    align-items: baseline;
-    margin-bottom: 48px;
-  }
-  @media (max-width: 720px) {
-    .chapter-head { grid-template-columns: 60px 1fr; gap: 20px; }
-  }
-  .chapter-roman {
-    font-family: var(--font-display);
-    font-style: italic;
-    font-size: clamp(2.2rem, 1.6rem + 1.6vw, 3rem);
-    color: var(--vermillion);
-    line-height: 1;
-  }
-  .chapter-title {
-    font-family: var(--font-display);
-    font-size: clamp(1.8rem, 1.4rem + 1.5vw, 2.6rem);
-    line-height: 1.05;
-    letter-spacing: -0.01em;
-    color: var(--ink);
-    margin: 0;
-  }
-  .chapter-kicker {
-    font-family: var(--font-mono);
-    font-size: 0.74rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--ink-mute);
-    margin-bottom: 8px;
-  }
-
-  /* ---------- How it works ---------- */
-  .steps {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0;
-    border-top: 1px solid var(--rule);
-  }
-  @media (max-width: 820px) {
-    .steps { grid-template-columns: 1fr; }
-  }
-  .step {
-    padding: 32px clamp(20px, 2.5vw, 36px);
-    border-right: 1px solid var(--rule);
-    border-bottom: 1px solid var(--rule);
-    position: relative;
-  }
-  .step:last-child { border-right: 0; }
-  @media (max-width: 820px) {
-    .step { border-right: 0; }
-    .step:last-child { border-bottom: 0; }
-  }
-  .step-num {
-    font-family: var(--font-display);
-    font-style: italic;
-    font-size: 3rem;
-    color: var(--vermillion);
-    line-height: 1;
-  }
-  .step h3 {
-    font-family: var(--font-display);
-    font-size: 1.6rem;
-    line-height: 1.1;
-    margin: 14px 0 12px;
-    color: var(--ink);
-  }
-  .step p {
-    color: var(--ink-soft);
-    font-size: 0.92rem;
-    line-height: 1.65;
-  }
-  .step code {
-    background: var(--paper-tint);
-    border: 1px solid var(--rule-soft);
-    padding: 1px 6px;
-    font-size: 0.85rem;
-  }
-
-  /* ---------- Plates / examples gallery ---------- */
-  .plates {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 0;
-    border-top: 1px solid var(--rule);
-    border-left: 1px solid var(--rule);
-  }
-  .plate {
-    position: relative;
-    text-decoration: none;
-    color: inherit;
-    border-right: 1px solid var(--rule);
-    border-bottom: 1px solid var(--rule);
-    padding: 24px;
-    transition: background 200ms var(--ease);
+  .clip-card {
     display: flex;
     flex-direction: column;
-    gap: 14px;
-  }
-  .plate:hover { background: var(--paper-tint); }
-  .plate:hover .plate-title { color: var(--vermillion); }
-  .plate-thumb {
-    aspect-ratio: 4 / 3;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
     overflow: hidden;
-    background: var(--paper-tint);
-    border: 1px solid var(--rule);
-    box-shadow: 4px 4px 0 var(--rule-soft);
+    text-decoration: none;
+    color: inherit;
+    transition: transform 220ms var(--ease), border-color 220ms var(--ease), box-shadow 220ms var(--ease);
   }
-  .plate-thumb img { width: 100%; height: 100%; object-fit: cover; }
-  .plate-thumb-empty {
-    width: 100%; height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: var(--font-display);
-    font-style: italic;
-    color: var(--ink-faint);
-    font-size: 1.5rem;
+  .clip-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-2);
+    box-shadow: 0 8px 30px -12px rgba(0, 0, 0, 0.12);
   }
-  .plate-no {
+  .clip-thumb {
+    aspect-ratio: 16 / 10;
+    background: var(--surface-2);
+    overflow: hidden;
+    position: relative;
+  }
+  .clip-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .clip-thumb .play {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
     font-family: var(--font-mono);
-    font-size: 0.7rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--vermillion);
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    padding: 4px 9px;
+    border-radius: 6px;
+    backdrop-filter: blur(8px);
   }
-  .plate-title {
-    font-family: var(--font-display);
-    font-size: 1.45rem;
-    line-height: 1.15;
-    color: var(--ink);
-    transition: color 160ms var(--ease);
-    margin: 0;
+  .clip-body {
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
   }
-  .plate-desc {
-    font-size: 0.85rem;
-    line-height: 1.6;
-    color: var(--ink-soft);
+  .clip-body h3 {
+    font-size: var(--fs-md);
+    font-weight: 600;
+    letter-spacing: -0.018em;
   }
-  .plate-foot {
+  .clip-body .desc {
+    color: var(--ink-2);
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+  }
+  .clip-body .meta {
     margin-top: auto;
-    padding-top: 8px;
-    font-size: 0.72rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ink-mute);
-    border-top: 1px solid var(--rule-soft);
+    padding-top: 10px;
+    color: var(--ink-3);
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
     display: flex;
     justify-content: space-between;
   }
 
   .gallery-empty {
-    border: 1px dashed var(--rule);
-    padding: 64px 32px;
+    background: var(--surface);
+    border: 1px dashed var(--border-2);
+    border-radius: var(--radius-lg);
+    padding: 48px 24px;
     text-align: center;
-    color: var(--ink-soft);
-    font-family: var(--font-display);
-    font-style: italic;
-    font-size: 1.4rem;
-    line-height: 1.4;
-    max-width: 56ch;
-    margin: 0 auto;
+    color: var(--ink-2);
+  }
+  .gallery-empty p {
+    font-size: var(--fs-md);
+    color: var(--ink-1);
+  }
+  .gallery-empty .hint {
+    margin-top: 12px;
+    color: var(--ink-3);
+    font-size: var(--fs-sm);
   }
   .gallery-empty code {
-    font-style: normal;
-    font-family: var(--font-mono);
-    background: var(--paper-tint);
-    border: 1px solid var(--rule-soft);
-    padding: 1px 6px;
-    font-size: 0.85rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--ink-1);
   }
 
-  /* ---------- Closing colophon block ---------- */
-  .credo {
-    padding-block: clamp(64px, 9vw, 120px);
-    text-align: center;
+  /* ---------- Quote / closing ---------- */
+  .closing {
+    padding-block: 80px 16px;
   }
-  .credo .credo-mark {
-    font-family: var(--font-display);
-    font-style: italic;
-    font-size: 5rem;
-    color: var(--vermillion);
-    line-height: 0.9;
-    margin-bottom: 16px;
-  }
-  .credo p {
-    font-family: var(--font-display);
-    font-size: clamp(1.5rem, 1.1rem + 1vw, 2.2rem);
-    line-height: 1.25;
+  @media (min-width: 720px) { .closing { padding-block: 120px 32px; } }
+
+  .closing p {
+    font-size: clamp(1.5rem, 1.1rem + 1.8vw, 2.25rem);
+    line-height: 1.2;
+    letter-spacing: -0.025em;
     color: var(--ink);
-    max-width: 38ch;
+    max-width: 24ch;
     margin: 0 auto;
+    text-align: center;
+    font-weight: 500;
   }
-  .credo .signed {
-    margin-top: 32px;
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--ink-mute);
+  .closing p em {
+    color: var(--accent);
+    font-style: normal;
   }
 </style>
 {% endblock %}
 
 {% block content %}
 
-<!-- ====================================================
-     COVER
-     ==================================================== -->
-<section class="cover wrap">
-  <div class="cover-grid">
-    <div>
-      <div class="reveal reveal-1">
-        <span class="label label-accent">Issue 001 &nbsp;·&nbsp; Open Source &nbsp;·&nbsp; v0.1</span>
-      </div>
+<!-- ============================================================
+     HERO
+     ============================================================ -->
+<section class="hero wrap">
+  <span class="pill reveal reveal-1">v0.1 · open source · MCP</span>
 
-      <h1 class="display cover-headline reveal reveal-2" style="margin-top: 24px;">
-        A field journal<br>
-        for <span class="em">AI agents<span class="ornament">.</span></span>
-      </h1>
+  <h1 class="reveal reveal-2">
+    Capture your agent's<br>
+    QA runs as <em>shareable clips</em>.
+  </h1>
 
-      <div class="cover-byline reveal reveal-3">
-        <span class="label">Filed by</span>
-        <span class="author">Eric Elizes,</span>
-        <span class="label">May MMXXVI</span>
-      </div>
+  <p class="hero-lede reveal reveal-3">
+    Your AI agent drives the browser. AgentClip captures the moments
+    that matter, screenshots and short clips with captions, and ships
+    you back a single URL anyone can watch.
+  </p>
 
-      <div class="cover-cta reveal reveal-4">
-        <a class="btn btn-solid" href="https://github.com/ericelizes/agentclip" rel="noopener">View on GitHub →</a>
-        <a class="btn btn-accent" href="#how">How it works</a>
-      </div>
+  <div class="hero-cta reveal reveal-4">
+    <a class="btn btn-primary" href="https://github.com/ericelizes/agentclip" rel="noopener">View on GitHub →</a>
+    <a class="btn btn-ghost" href="#how">How it works</a>
+  </div>
 
-      <div class="install-plate reveal reveal-4">
-        <div class="install-meta">
-          <span class="label">Installation</span>
-          <span class="colno">/usr/local/bin</span>
-        </div>
+  <div class="install reveal reveal-4">
+    <div class="install-meta">
+      <span class="label">Install</span>
+      <span class="label">~ 60 seconds</span>
+    </div>
 <pre><code>$ pip install agentclip
 $ agentclip install-skill</code></pre>
-        <p class="hint">Or, no install: <code>uvx agentclip --help</code></p>
-      </div>
-    </div>
-
-    <aside class="cover-aside reveal reveal-3">
-      <span class="label">The Pitch</span>
-      <p class="lede" style="margin-top: 12px;">
-        <span class="first">Y</span>our agent drives the browser. AgentClip captures the moments that matter, screenshots, captions, a closing summary, and ships you back a single URL anyone can watch.
-      </p>
-      <div class="filed-under">
-        <strong>Filed Under</strong>
-        Open Source · MCP · Agent Skills · Quality Assurance · Founders &amp; Operators · Engineers leaving receipts
-      </div>
-    </aside>
+    <p class="install-hint">No install? <code>uvx agentclip --help</code></p>
   </div>
 </section>
 
-<!-- ====================================================
-     CHAPTER I — How it works
-     ==================================================== -->
-<section class="chapter wrap" id="how">
-  <header class="chapter-head">
-    <div class="chapter-roman">I.</div>
-    <div>
-      <div class="chapter-kicker">Chapter One</div>
-      <h2 class="chapter-title">How it works, in three movements.</h2>
-    </div>
+<!-- ============================================================
+     HOW IT WORKS
+     ============================================================ -->
+<section class="features wrap" id="how">
+  <header class="features-head">
+    <span class="label" style="color: var(--accent);">HOW IT WORKS</span>
+    <h2 style="margin-top: 8px;">Three steps. No accounts. No tracking.</h2>
+    <p>AgentClip is an MCP server, a CLI, and a bundled agent skill. Install once, then your agent can post clips from any QA run.</p>
   </header>
 
-  <div class="steps">
-    <article class="step">
-      <div class="step-num">i</div>
-      <h3>Install the skill</h3>
+  <div class="feature-grid">
+    <article class="feature">
+      <div class="step-no">01 / install</div>
+      <h3>Add the skill</h3>
       <p>
-        <code>pip install agentclip</code>, then <code>agentclip install-skill</code> writes the prompt guidance to your agent runtime. The skill teaches your agent <em>when</em> to screenshot, <em>how</em> to caption, and what makes a summary worth reading.
+        <code>pip install agentclip</code>, then <code>agentclip install-skill</code>. The skill teaches your agent when to clip, how to caption, and what makes a good summary.
       </p>
     </article>
-    <article class="step">
-      <div class="step-num">ii</div>
+    <article class="feature">
+      <div class="step-no">02 / run</div>
       <h3>Ask your agent to QA</h3>
       <p>
-        Point it at a flow on staging or in production. The agent drives the browser through its existing tools, captures the moments that matter, and writes captions in active voice as it goes.
+        Point it at any flow. The agent drives the browser, captures the meaningful moments, writes captions in active voice, and wraps with a TL;DR.
       </p>
     </article>
-    <article class="step">
-      <div class="step-num">iii</div>
-      <h3>Share the URL</h3>
+    <article class="feature">
+      <div class="step-no">03 / share</div>
+      <h3>Send the URL</h3>
       <p>
-        You get a slideshow URL. Drop it in Slack, paste it into a PR, send it cold to a recruiter. Anyone can watch the entire run with no install, no login, no tracking.
+        You get a single shareable URL. Drop it in Slack, paste it in a PR, send it cold to a recruiter. Anyone can watch. No login.
       </p>
     </article>
   </div>
 </section>
 
-<!-- ====================================================
-     CHAPTER II — Plates / Examples gallery
-     ==================================================== -->
-<section class="chapter wrap">
-  <header class="chapter-head">
-    <div class="chapter-roman">II.</div>
+<!-- ============================================================
+     GALLERY
+     ============================================================ -->
+<section class="gallery-section wrap">
+  <header class="gallery-head">
     <div>
-      <div class="chapter-kicker">Chapter Two &nbsp;·&nbsp; The Plates</div>
-      <h2 class="chapter-title">Real runs, hand-curated.</h2>
+      <span class="label" style="color: var(--accent);">CLIPS</span>
+      <h2 style="margin-top: 8px;">Real runs from real agents.</h2>
     </div>
+    {% if gallery %}
+      <span class="label">{{ gallery|length }} clip{{ gallery|length|pluralize }}</span>
+    {% endif %}
   </header>
 
   {% if gallery %}
-    <div class="plates">
+    <div class="gallery">
       {% for show in gallery %}
-        <a class="plate" href="{% url 'slideshow_viewer' show.share_token %}">
-          <div class="plate-thumb">
+        <a class="clip-card" href="{% url 'slideshow_viewer' show.share_token %}">
+          <div class="clip-thumb">
             {% with show.slides.first as first_slide %}
               {% if first_slide %}
                 <img src="{{ first_slide.image.url }}" alt="">
-              {% else %}
-                <div class="plate-thumb-empty">no plate</div>
               {% endif %}
             {% endwith %}
+            <span class="play">▸ {{ show.slides.count }}</span>
           </div>
-          <span class="plate-no">Plate №&nbsp;{{ forloop.counter|stringformat:"03d" }}</span>
-          <h3 class="plate-title">{{ show.title|default:"Untitled run" }}</h3>
-          {% if show.description %}
-            <p class="plate-desc">{{ show.description|truncatewords:24 }}</p>
-          {% endif %}
-          <div class="plate-foot">
-            <span>{{ show.slides.count }} slide{{ show.slides.count|pluralize }}</span>
-            <span>{{ show.created_at|date:"j M Y" }}</span>
+          <div class="clip-body">
+            <h3>{{ show.title|default:"Untitled run" }}</h3>
+            {% if show.description %}
+              <p class="desc">{{ show.description|truncatewords:18 }}</p>
+            {% endif %}
+            <div class="meta">
+              <span>{{ show.slides.count }} slide{{ show.slides.count|pluralize }}</span>
+              <span>{{ show.created_at|date:"M j" }}</span>
+            </div>
           </div>
         </a>
       {% endfor %}
     </div>
   {% else %}
     <div class="gallery-empty">
-      The gallery is being printed.<br>
-      Run <code>agentclip install-skill</code>, post your first run, and send us the URL.
+      <p>No clips yet.</p>
+      <p class="hint">Run <code>agentclip install-skill</code>, post your first run, and send us the URL.</p>
     </div>
   {% endif %}
 </section>
 
-<!-- ====================================================
-     CREDO
-     ==================================================== -->
-<section class="credo wrap">
-  <div class="credo-mark">⁂</div>
-  <p>An <em>open-source</em> field journal for the work agents quietly do. So the receipts always survive the run.</p>
-  <div class="signed">filed in May 2026 ·  v0.1</div>
+<!-- ============================================================
+     CLOSING
+     ============================================================ -->
+<section class="closing wrap">
+  <p>Open source. <em>Receipts</em> for the work agents quietly do.</p>
 </section>
 
 {% endblock %}
