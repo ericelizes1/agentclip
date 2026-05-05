@@ -54,6 +54,8 @@ class SlideshowPublicSerializer(serializers.ModelSerializer):
             'title',
             'description',
             'summary',
+            'created_by',
+            'created_by_url',
             'created_at',
             'updated_at',
             'share_url',
@@ -77,7 +79,15 @@ class SlideshowCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Slideshow
-        fields = ('id', 'title', 'description', 'share_url', 'write_token')
+        fields = (
+            'id',
+            'title',
+            'description',
+            'created_by',
+            'created_by_url',
+            'share_url',
+            'write_token',
+        )
         read_only_fields = ('id', 'share_url', 'write_token')
 
     def get_share_url(self, obj: Slideshow) -> str:
@@ -89,11 +99,18 @@ class SlideshowCreateSerializer(serializers.ModelSerializer):
 
 
 class SlideshowPatchSerializer(serializers.ModelSerializer):
-    '''Patch shape. Title, description, summary all optional.'''
+    '''Patch shape. Title, description, summary, and creator credit all optional.'''
 
     class Meta:
         model = Slideshow
-        fields = ('id', 'title', 'description', 'summary')
+        fields = (
+            'id',
+            'title',
+            'description',
+            'summary',
+            'created_by',
+            'created_by_url',
+        )
         read_only_fields = ('id',)
 
 

@@ -111,6 +111,23 @@ class Slideshow(models.Model):
     description = models.TextField(blank=True, default='')
     summary = models.TextField(blank=True, default='')
 
+    # Optional creator credit, set at create time and rendered on the
+    # public viewer. Text-based now, future-compatible with a real
+    # owner FK once accounts ship; the two coexist (text = display
+    # credit, FK = authorization). See plan 2026-05-05-001.
+    created_by = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text='Display credit for the run, e.g. "Eric Elizes". Optional.',
+    )
+    created_by_url = models.URLField(
+        max_length=200,
+        blank=True,
+        default='',
+        help_text='Optional URL the creator credit links to (portfolio, GitHub, etc.).',
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -220,6 +220,65 @@ class SlideshowAPITests(TestCase):
         show.refresh_from_db()
         self.assertEqual(show.summary, 'wrap up')
 
+    # ----- creator credit (created_by / created_by_url) -----
+
+    def test_create_with_created_by_returns_credit_in_response(self):
+        '''SDK depends on these field names; do not change without updating qagent.'''
+        response = self.client.post(
+            '/api/slideshow/',
+            {
+                'title': 'credited',
+                'created_by': 'Eric Elizes',
+                'created_by_url': 'https://elizes.dev',
+            },
+            format='json',
+        )
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        self.assertEqual(body['created_by'], 'Eric Elizes')
+        self.assertEqual(body['created_by_url'], 'https://elizes.dev')
+
+    def test_create_without_credit_persists_empty_strings(self):
+        '''Default values are empty strings, not NULL, so template logic stays simple.'''
+        response = self.client.post('/api/slideshow/', {'title': 'no credit'}, format='json')
+        self.assertEqual(response.status_code, 201)
+        slideshow = Slideshow.objects.get(title='no credit')
+        self.assertEqual(slideshow.created_by, '')
+        self.assertEqual(slideshow.created_by_url, '')
+
+    def test_patch_can_update_created_by(self):
+        show = Slideshow.objects.create(title='show', created_by='Old Name')
+        response = self.client.patch(
+            f'/api/slideshow/{show.id}/',
+            {'created_by': 'New Name', 'created_by_url': 'https://new.example'},
+            format='json',
+            HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+        )
+        self.assertEqual(response.status_code, 200)
+        show.refresh_from_db()
+        self.assertEqual(show.created_by, 'New Name')
+        self.assertEqual(show.created_by_url, 'https://new.example')
+
+    def test_patch_with_malformed_url_returns_400(self):
+        show = Slideshow.objects.create(title='show')
+        response = self.client.patch(
+            f'/api/slideshow/{show.id}/',
+            {'created_by_url': 'not-a-real-url'},
+            format='json',
+            HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('created_by_url', response.json())
+
+    def test_create_rejects_overlong_created_by(self):
+        response = self.client.post(
+            '/api/slideshow/',
+            {'title': 'x', 'created_by': 'a' * 101},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('created_by', response.json())
+
     def test_patch_slideshow_can_update_title_and_description(self):
         show = Slideshow.objects.create(title='show', description='old')
         self.client.patch(

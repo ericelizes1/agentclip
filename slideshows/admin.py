@@ -51,6 +51,10 @@ class SlideshowAdmin(admin.ModelAdmin):
     fieldsets = (
         (None, {'fields': ('title', 'description', 'summary')}),
         (
+            'Creator credit',
+            {'fields': ('created_by', 'created_by_url')},
+        ),
+        (
             'Tokens (read-only)',
             {
                 'classes': ('collapse',),
