@@ -426,3 +426,37 @@ class PublicViewerTests(TestCase):
         show = Slideshow.objects.create(title='no credit')
         body = self.client.get(f'/s/{show.share_token}/').content.decode()
         self.assertNotIn('FILED BY', body)
+
+
+class SeedGalleryTests(TestCase):
+    '''Cover the seed_gallery management command.
+
+    The command runs in the production environment to populate the
+    home-page gallery; we verify behavior here so a misconfiguration
+    surfaces in CI rather than mid-deploy.
+    '''
+
+    def test_seed_gallery_creates_five_slideshows(self):
+        from io import StringIO
+        from django.core.management import call_command
+
+        out = StringIO()
+        call_command('seed_gallery', stdout=out)
+
+        # 5 demo clips, regardless of whether fixture images are present.
+        self.assertEqual(Slideshow.objects.count(), 5)
+
+        # All seed clips carry the AgentClip credit pair so the gallery
+        # links back to the project on every card.
+        for slideshow in Slideshow.objects.all():
+            self.assertEqual(slideshow.created_by, 'AgentClip')
+            self.assertEqual(
+                slideshow.created_by_url,
+                'https://github.com/ericelizes/agentclip',
+            )
+
+        # Output ends with a paste-ready _GALLERY_TOKENS block so the
+        # operator can drop it straight into views.py.
+        output = out.getvalue()
+        self.assertIn('_GALLERY_TOKENS', output)
+        self.assertIn('tuple[str, ...]', output)
