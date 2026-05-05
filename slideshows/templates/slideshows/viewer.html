@@ -3,7 +3,7 @@
 {% block title %}{{ slideshow.title|default:"Untitled clip" }} — AgentClip{% endblock %}
 {% block og_title %}{{ slideshow.title|default:"Untitled clip" }}{% endblock %}
 {% block og_description %}{% if slideshow.summary %}{{ slideshow.summary|truncatewords:40 }}{% else %}{{ slideshow.description|default:"An AI agent QA run."|truncatewords:30 }}{% endif %}{% endblock %}
-{% block og_image %}{% if slides %}<meta property="og:image" content="{{ slides.0.image.url }}">{% endif %}{% endblock %}
+{% block og_image %}{% if slides %}{% with slides.0 as first %}{% if not first.is_video %}<meta property="og:image" content="{{ first.media.url }}">{% endif %}{% endwith %}{% endif %}{% endblock %}
 
 {% block head_extra %}
 <style>
@@ -278,12 +278,23 @@
       {% for slide in slides %}
         <article class="clip" id="clip-{{ slide.position }}">
           <div class="clip-frame">
-            <span class="badge">▸ {{ slide.position|stringformat:"02d" }}</span>
-            <img src="{{ slide.image.url }}" alt="clip {{ slide.position }}" loading="lazy">
-            <a class="expand" href="{{ slide.image.url }}" target="_blank" rel="noopener" aria-label="open full size">expand ↗</a>
+            <span class="badge">{% if slide.is_video %}▶{% else %}▸{% endif %} {{ slide.position|stringformat:"02d" }}</span>
+            {% if slide.is_video %}
+              <video
+                src="{{ slide.media.url }}"
+                controls
+                preload="metadata"
+                playsinline
+                muted
+                loop
+                aria-label="clip {{ slide.position }}"></video>
+            {% else %}
+              <img src="{{ slide.media.url }}" alt="clip {{ slide.position }}" loading="lazy">
+            {% endif %}
+            <a class="expand" href="{{ slide.media.url }}" target="_blank" rel="noopener" aria-label="open full size">expand ↗</a>
           </div>
           <div class="clip-body">
-            <span class="position">CLIP / {{ slide.position|stringformat:"02d" }}</span>
+            <span class="position">{% if slide.is_video %}VIDEO{% else %}CLIP{% endif %} / {{ slide.position|stringformat:"02d" }}</span>
             <p class="caption">{{ slide.caption }}</p>
             <div class="timestamp">{{ slide.created_at|date:"M j, Y · H:i" }} UTC</div>
           </div>

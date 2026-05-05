@@ -37,12 +37,40 @@ from rest_framework.parsers import JSONParser, MultiPartParser
 from rest_framework.response import Response
 
 from .auth import WriteTokenAuthentication, authorize_slideshow
-from .models import Slide, Slideshow
+from .models import (
+    ALLOWED_IMAGE_TYPES,
+    ALLOWED_MEDIA_TYPES,
+    MAX_MEDIA_BYTES,
+    MediaKind,
+    Slide,
+    Slideshow,
+)
 from .serializers import (
     SlideshowCreateSerializer,
     SlideshowPatchSerializer,
     SlideWriteSerializer,
 )
+
+
+def _validate_media_upload(uploaded):
+    '''Validate an incoming media upload and classify it as image or video.
+
+    Returns (media_kind, content_type). Raises ValueError with a
+    user-readable message on rejection so callers translate to 400.
+    '''
+    if uploaded.size > MAX_MEDIA_BYTES:
+        raise ValueError(
+            f'media file too large ({uploaded.size} bytes); '
+            f'max is {MAX_MEDIA_BYTES // (1024 * 1024)}MB.'
+        )
+    content_type = (uploaded.content_type or '').lower()
+    if content_type not in ALLOWED_MEDIA_TYPES:
+        raise ValueError(
+            f'unsupported media type {content_type!r}. '
+            f'allowed: {sorted(ALLOWED_MEDIA_TYPES)}.'
+        )
+    kind = MediaKind.IMAGE if content_type in ALLOWED_IMAGE_TYPES else MediaKind.VIDEO
+    return kind, content_type
 
 # Per-IP rate limits per the handoff. Picked to be generous for
 # legitimate agent runs (200 slides/hour means a slide every 18s,
@@ -113,8 +141,13 @@ def slide_add(request, slideshow_id):
     '''
     slideshow = authorize_slideshow(request, slideshow_id)
 
-    if 'image' not in request.FILES:
-        return Response({'image': ['this field is required.']}, status=400)
+    if 'media' not in request.FILES:
+        return Response({'media': ['this field is required.']}, status=400)
+
+    try:
+        kind, content_type = _validate_media_upload(request.FILES['media'])
+    except ValueError as exc:
+        return Response({'media': [str(exc)]}, status=400)
 
     serializer = SlideWriteSerializer(data=request.data, context={'request': request})
     serializer.is_valid(raise_exception=True)
@@ -127,7 +160,12 @@ def slide_add(request, slideshow_id):
             .first()
         )
         next_position = (last.position + 1) if last else 1
-        slide = serializer.save(slideshow=slideshow, position=next_position)
+        slide = serializer.save(
+            slideshow=slideshow,
+            position=next_position,
+            media_kind=kind,
+            media_content_type=content_type,
+        )
 
     return Response(
         SlideWriteSerializer(slide, context={'request': request}).data,
@@ -147,11 +185,22 @@ def slide_update(request, slideshow_id, position):
     slideshow = authorize_slideshow(request, slideshow_id)
     slide = get_object_or_404(Slide, slideshow=slideshow, position=position)
 
+    # If a new media file came in, classify it before we let the serializer
+    # save. Caption-only updates skip this whole branch and stay JSON.
+    extra_save = {}
+    if 'media' in request.FILES:
+        try:
+            kind, content_type = _validate_media_upload(request.FILES['media'])
+        except ValueError as exc:
+            return Response({'media': [str(exc)]}, status=400)
+        extra_save['media_kind'] = kind
+        extra_save['media_content_type'] = content_type
+
     serializer = SlideWriteSerializer(
         slide, data=request.data, partial=True, context={'request': request}
     )
     serializer.is_valid(raise_exception=True)
-    serializer.save()
+    serializer.save(**extra_save)
     return Response(serializer.data)
 
 

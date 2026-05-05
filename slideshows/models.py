@@ -47,14 +47,41 @@ def _write_token() -> str:
     return secrets.token_urlsafe(24)
 
 
-def _slide_image_path(instance: 'Slide', filename: str) -> str:
+def _slide_media_path(instance: 'Slide', filename: str) -> str:
     '''Storage path: scoped per slideshow, original filename preserved.
 
     Per-slideshow scoping makes manual cleanup tractable in the
     eventual delete flow, and django-storages' configured
     AWS_S3_FILE_OVERWRITE=False guarantees collisions get suffixed.
     '''
-    return f'slideshows/{instance.slideshow_id}/slides/{filename}'
+    return f'slideshows/{instance.slideshow_id}/clips/{filename}'
+
+
+# Allowed upload content types. Browsers render these natively without
+# any client-side decoding, which is the bar for "shareable URL".
+ALLOWED_IMAGE_TYPES = frozenset({
+    'image/png',
+    'image/jpeg',
+    'image/jpg',
+    'image/gif',
+    'image/webp',
+})
+ALLOWED_VIDEO_TYPES = frozenset({
+    'video/mp4',
+    'video/webm',
+    'video/quicktime',
+})
+ALLOWED_MEDIA_TYPES = ALLOWED_IMAGE_TYPES | ALLOWED_VIDEO_TYPES
+
+# Per-clip upload size limit. 25MB covers a handful of seconds of
+# 1080p H.264 video and is generous for any screenshot/GIF; anything
+# bigger is almost certainly an error or abuse.
+MAX_MEDIA_BYTES = 25 * 1024 * 1024
+
+
+class MediaKind(models.TextChoices):
+    IMAGE = 'image', 'Image'
+    VIDEO = 'video', 'Video'
 
 
 class Slideshow(models.Model):
@@ -103,11 +130,13 @@ class Slideshow(models.Model):
 
 
 class Slide(models.Model):
-    '''One frame of a slideshow: a screenshot plus a caption.
+    '''One clip in a slideshow: an image OR a short video, plus a caption.
 
-    ``position`` is 1-based and unique per slideshow. The choice of
-    1-based is for the human-facing API ("slide 4 has the bug"); the
-    SDK and viewer both surface it directly.
+    ``position`` is 1-based and unique per slideshow. ``media_kind``
+    distinguishes images (PNG/JPEG/GIF/WebP) from short videos
+    (MP4/WebM/MOV) so the viewer can render <img> vs <video>. We use
+    a generic FileField, not ImageField, so the same field handles
+    both; validation happens at the API boundary.
     '''
 
     slideshow = models.ForeignKey(
@@ -116,7 +145,19 @@ class Slide(models.Model):
         on_delete=models.CASCADE,
     )
     position = models.PositiveIntegerField()
-    image = models.ImageField(upload_to=_slide_image_path)
+    media = models.FileField(upload_to=_slide_media_path)
+    media_kind = models.CharField(
+        max_length=8,
+        choices=MediaKind.choices,
+        default=MediaKind.IMAGE,
+        help_text='image | video; sniffed from upload Content-Type at the API boundary.',
+    )
+    media_content_type = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        help_text='Original Content-Type at upload, kept for forensic and debug use.',
+    )
     caption = models.TextField()
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -133,3 +174,7 @@ class Slide(models.Model):
 
     def __str__(self) -> str:
         return f'{self.slideshow_id} #{self.position}'
+
+    @property
+    def is_video(self) -> bool:
+        return self.media_kind == MediaKind.VIDEO

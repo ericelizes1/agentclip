@@ -391,7 +391,11 @@ $ agentclip install-skill</code></pre>
           <div class="clip-thumb">
             {% with show.slides.first as first_slide %}
               {% if first_slide %}
-                <img src="{{ first_slide.image.url }}" alt="">
+                {% if first_slide.is_video %}
+                  <video src="{{ first_slide.media.url }}" muted preload="metadata" playsinline></video>
+                {% else %}
+                  <img src="{{ first_slide.media.url }}" alt="">
+                {% endif %}
               {% endif %}
             {% endwith %}
             <span class="play">▸ {{ show.slides.count }}</span>

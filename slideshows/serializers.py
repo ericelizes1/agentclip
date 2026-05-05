@@ -10,7 +10,7 @@ The serializers split into two flavors:
   ``write_token`` is rendered. Returned exactly once, at the moment of
   creation, since the SDK has no way to recover it later.
 
-Image URLs are emitted as absolute URLs via the request context so the
+Media URLs are emitted as absolute URLs via the request context so the
 viewer template, the API consumer, and any out-of-band crawler all see
 the same canonical URL no matter where the storage backend lives.
 '''
@@ -22,20 +22,23 @@ from rest_framework import serializers
 from .models import Slide, Slideshow
 
 
+def _absolute_media_url(obj: Slide, request) -> str:
+    url = obj.media.url
+    if request is not None and not url.startswith(('http://', 'https://')):
+        return request.build_absolute_uri(url)
+    return url
+
+
 class SlidePublicSerializer(serializers.ModelSerializer):
-    image_url = serializers.SerializerMethodField()
+    media_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Slide
-        fields = ('id', 'position', 'caption', 'image_url')
+        fields = ('id', 'position', 'caption', 'media_url', 'media_kind')
         read_only_fields = fields
 
-    def get_image_url(self, obj: Slide) -> str:
-        request = self.context.get('request')
-        url = obj.image.url
-        if request is not None and not url.startswith(('http://', 'https://')):
-            return request.build_absolute_uri(url)
-        return url
+    def get_media_url(self, obj: Slide) -> str:
+        return _absolute_media_url(obj, self.context.get('request'))
 
 
 class SlideshowPublicSerializer(serializers.ModelSerializer):
@@ -75,7 +78,6 @@ class SlideshowCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Slideshow
         fields = ('id', 'title', 'description', 'share_url', 'write_token')
-        # share_url is a method field; only title/description are writable.
         read_only_fields = ('id', 'share_url', 'write_token')
 
     def get_share_url(self, obj: Slideshow) -> str:
@@ -96,26 +98,24 @@ class SlideshowPatchSerializer(serializers.ModelSerializer):
 
 
 class SlideWriteSerializer(serializers.ModelSerializer):
-    '''Create + update shape for slides. Image and caption only.
+    '''Create + update shape for slides. Media and caption only.
 
     ``position`` is server-assigned on create and read-only on update;
     callers identify the slide by its URL position, not its database id.
+    ``media_kind`` and ``media_content_type`` are server-set from the
+    upload's content type via the views' validator.
     '''
 
-    image_url = serializers.SerializerMethodField()
+    media_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Slide
-        fields = ('id', 'position', 'image', 'caption', 'image_url')
-        read_only_fields = ('id', 'position', 'image_url')
+        fields = ('id', 'position', 'media', 'caption', 'media_url', 'media_kind')
+        read_only_fields = ('id', 'position', 'media_url', 'media_kind')
         extra_kwargs = {
-            'image': {'write_only': True, 'required': False},
+            'media': {'write_only': True, 'required': False},
             'caption': {'required': False},
         }
 
-    def get_image_url(self, obj: Slide) -> str:
-        request = self.context.get('request')
-        url = obj.image.url
-        if request is not None and not url.startswith(('http://', 'https://')):
-            return request.build_absolute_uri(url)
-        return url
+    def get_media_url(self, obj: Slide) -> str:
+        return _absolute_media_url(obj, self.context.get('request'))

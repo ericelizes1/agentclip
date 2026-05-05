@@ -31,3 +31,4 @@ staticfiles/
 .ruff_cache/
 .coverage
 htmlcov/
+db.sqlite3.bak

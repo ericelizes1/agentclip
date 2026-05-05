@@ -20,8 +20,8 @@ from .models import Slide, Slideshow
 class SlideInline(admin.TabularInline):
     model = Slide
     extra = 0
-    fields = ('position', 'caption', 'image', 'created_at')
-    readonly_fields = ('created_at',)
+    fields = ('position', 'caption', 'media', 'media_kind', 'created_at')
+    readonly_fields = ('media_kind', 'created_at')
     ordering = ('position',)
 
 

@@ -25,7 +25,7 @@ from slideshows.models import Slide, Slideshow
 
 
 def _png_bytes(color: str = 'red') -> bytes:
-    '''Smallest valid PNG so ImageField validation does not reject it.'''
+    '''Smallest valid PNG. Real bytes so ImageField/FileField are happy.'''
     buf = io.BytesIO()
     Image.new('RGB', (8, 8), color).save(buf, format='PNG')
     return buf.getvalue()
@@ -33,6 +33,23 @@ def _png_bytes(color: str = 'red') -> bytes:
 
 def _png_upload(name: str = 'shot.png', color: str = 'red') -> SimpleUploadedFile:
     return SimpleUploadedFile(name, _png_bytes(color), content_type='image/png')
+
+
+def _gif_bytes(color: str = 'red') -> bytes:
+    buf = io.BytesIO()
+    Image.new('RGB', (8, 8), color).save(buf, format='GIF')
+    return buf.getvalue()
+
+
+def _gif_upload(name: str = 'clip.gif') -> SimpleUploadedFile:
+    return SimpleUploadedFile(name, _gif_bytes(), content_type='image/gif')
+
+
+def _mp4_upload(name: str = 'clip.mp4') -> SimpleUploadedFile:
+    '''A handful of bytes labeled video/mp4. Sufficient to exercise the
+    content-type sniffing path; we don't validate video stream contents
+    server-side, browsers do.'''
+    return SimpleUploadedFile(name, b'\x00\x00\x00\x18ftypisom' + b'\x00' * 32, content_type='video/mp4')
 
 
 @override_settings(
@@ -92,7 +109,7 @@ class SlideshowAPITests(TestCase):
         show = Slideshow.objects.create(title='show')
         response = self.client.post(
             f'/api/slideshow/{show.id}/slides/',
-            {'image': _png_upload(), 'caption': 'first'},
+            {'media': _png_upload(), 'caption': 'first'},
             format='multipart',
             HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
         )
@@ -104,7 +121,7 @@ class SlideshowAPITests(TestCase):
         for n in range(1, 4):
             response = self.client.post(
                 f'/api/slideshow/{show.id}/slides/',
-                {'image': _png_upload(f'shot{n}.png'), 'caption': f'slide {n}'},
+                {'media': _png_upload(f'shot{n}.png'), 'caption': f'slide {n}'},
                 format='multipart',
                 HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
             )
@@ -115,7 +132,7 @@ class SlideshowAPITests(TestCase):
         show = Slideshow.objects.create(title='show')
         response = self.client.post(
             f'/api/slideshow/{show.id}/slides/',
-            {'image': _png_upload(), 'caption': 'x'},
+            {'media': _png_upload(), 'caption': 'x'},
             format='multipart',
         )
         self.assertEqual(response.status_code, 401)
@@ -125,7 +142,7 @@ class SlideshowAPITests(TestCase):
         show = Slideshow.objects.create(title='show')
         response = self.client.post(
             f'/api/slideshow/{show.id}/slides/',
-            {'image': _png_upload(), 'caption': 'x'},
+            {'media': _png_upload(), 'caption': 'x'},
             format='multipart',
             HTTP_AUTHORIZATION='Bearer wrong-token',
         )
@@ -144,7 +161,7 @@ class SlideshowAPITests(TestCase):
     def test_add_slide_for_nonexistent_slideshow_returns_404(self):
         response = self.client.post(
             '/api/slideshow/00000000-0000-0000-0000-000000000000/slides/',
-            {'image': _png_upload(), 'caption': 'x'},
+            {'media': _png_upload(), 'caption': 'x'},
             format='multipart',
             HTTP_AUTHORIZATION='Bearer anything',
         )
@@ -156,7 +173,7 @@ class SlideshowAPITests(TestCase):
         b = Slideshow.objects.create(title='B')
         response = self.client.post(
             f'/api/slideshow/{b.id}/slides/',
-            {'image': _png_upload(), 'caption': 'x'},
+            {'media': _png_upload(), 'caption': 'x'},
             format='multipart',
             HTTP_AUTHORIZATION=f'Bearer {a.write_token}',
         )
@@ -167,7 +184,7 @@ class SlideshowAPITests(TestCase):
     def test_update_slide_caption_only(self):
         show = Slideshow.objects.create(title='show')
         slide = Slide.objects.create(
-            slideshow=show, position=1, image=_png_upload(), caption='old'
+            slideshow=show, position=1, media=_png_upload(), caption='old'
         )
         response = self.client.patch(
             f'/api/slideshow/{show.id}/slides/1/',
@@ -215,6 +232,69 @@ class SlideshowAPITests(TestCase):
         self.assertEqual(show.title, 'new title')
         self.assertEqual(show.description, 'new desc')
 
+    # ----- media kind detection -----
+
+    def test_add_slide_classifies_png_as_image(self):
+        show = Slideshow.objects.create(title='show')
+        response = self.client.post(
+            f'/api/slideshow/{show.id}/slides/',
+            {'media': _png_upload(), 'caption': 'png'},
+            format='multipart',
+            HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()['media_kind'], 'image')
+
+    def test_add_slide_classifies_gif_as_image(self):
+        '''GIFs animate natively in the viewer; they are still classified as
+        image so the template renders them in an <img> tag.'''
+        show = Slideshow.objects.create(title='show')
+        response = self.client.post(
+            f'/api/slideshow/{show.id}/slides/',
+            {'media': _gif_upload(), 'caption': 'gif'},
+            format='multipart',
+            HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()['media_kind'], 'image')
+
+    def test_add_slide_classifies_mp4_as_video(self):
+        show = Slideshow.objects.create(title='show')
+        response = self.client.post(
+            f'/api/slideshow/{show.id}/slides/',
+            {'media': _mp4_upload(), 'caption': 'video clip'},
+            format='multipart',
+            HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()['media_kind'], 'video')
+
+    def test_add_slide_rejects_unsupported_mime(self):
+        show = Slideshow.objects.create(title='show')
+        bad = SimpleUploadedFile('x.zip', b'PK\x03\x04not-a-real-zip', content_type='application/zip')
+        response = self.client.post(
+            f'/api/slideshow/{show.id}/slides/',
+            {'media': bad, 'caption': 'x'},
+            format='multipart',
+            HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('media', response.json())
+
+    def test_viewer_renders_video_tag_for_video_slide(self):
+        show = Slideshow.objects.create(title='video show')
+        # POST through the API so media_kind is set by the validator path.
+        self.client.post(
+            f'/api/slideshow/{show.id}/slides/',
+            {'media': _mp4_upload(), 'caption': 'a clip'},
+            format='multipart',
+            HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+        )
+        response = self.client.get(f'/s/{show.share_token}/')
+        body = response.content.decode()
+        self.assertIn('<video', body)
+        self.assertNotIn('<img src="/media/slideshows/', body)
+
 
 @override_settings(
     CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
@@ -237,7 +317,7 @@ class PublicViewerTests(TestCase):
     def test_viewer_renders_slideshow_by_share_token(self):
         show = Slideshow.objects.create(title='Public test', summary='everything passed')
         Slide.objects.create(
-            slideshow=show, position=1, image=_png_upload(), caption='one'
+            slideshow=show, position=1, media=_png_upload(), caption='one'
         )
         response = self.client.get(f'/s/{show.share_token}/')
         self.assertEqual(response.status_code, 200)
