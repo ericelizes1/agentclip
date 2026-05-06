@@ -14,7 +14,7 @@
 # - Postgres lives on Neon (external; DATABASE_URL secret).
 # - Object storage lives on Cloudflare R2 (external; R2_* secrets).
 
-app = 'agentclip'
+app = 'agentclip-api'
 primary_region = 'iad'
 
 [build]
