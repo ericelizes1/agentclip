@@ -43,6 +43,7 @@ async function fetchSlideshow(token: string): Promise<EditableSlideshow | null> 
     slides: data.slides.map((s) => ({
       id: s.id,
       position: s.position,
+      title: s.title ?? '',
       caption: s.caption ?? '',
       media_url: s.media_url,
       media_kind: s.media_kind === 'video' ? 'video' : 'image',

@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 export interface ClipViewerSlide {
   id: number | string
   position: number
+  title?: string
   caption?: string
   media_url: string
   media_kind: MediaKind
@@ -47,7 +48,12 @@ function formatDate(isoString: string): string {
  *   NavBar
  *   Hero (title + description + MetaRow)
  *   SummaryCallout (omitted when empty)
- *   <ol> of MediaFrame slides
+ *   <ol> of slides — each with eyebrow position label, optional title,
+ *     MediaFrame, optional caption
+ *
+ * Mobile-first: padding tightens at small widths, h1 uses clamp() so
+ * the headline doesn't bury content on narrow viewports, and the
+ * MetaRow's avatar wraps to the right edge instead of the next line.
  */
 export function ClipViewer({ slideshow, githubUrl, className }: ClipViewerProps) {
   const meta: string[] = [formatDate(slideshow.created_at), `${slideshow.slides.length} clips`]
@@ -56,13 +62,16 @@ export function ClipViewer({ slideshow, githubUrl, className }: ClipViewerProps)
     <div className={cn('min-h-screen bg-paper text-ink-900', className)}>
       <NavBar {...(githubUrl !== undefined ? { githubUrl } : {})} />
 
-      <main className="mx-auto max-w-3xl px-6 py-12">
-        <header className="mb-10 space-y-4">
-          <h1 className="text-3xl font-semibold tracking-[-0.02em] sm:text-4xl">
+      <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
+        <header className="mb-8 space-y-4 sm:mb-10">
+          <h1
+            className="font-semibold tracking-[-0.02em] text-ink-900"
+            style={{ fontSize: 'clamp(1.75rem, 1.2rem + 2.5vw, 2.5rem)', lineHeight: 1.1 }}
+          >
             {slideshow.title || 'Untitled run'}
           </h1>
           {slideshow.description && (
-            <p className="text-lg text-ink-600">{slideshow.description}</p>
+            <p className="text-base text-ink-600 sm:text-lg">{slideshow.description}</p>
           )}
           <MetaRow
             labels={meta}
@@ -74,18 +83,28 @@ export function ClipViewer({ slideshow, githubUrl, className }: ClipViewerProps)
         </header>
 
         {slideshow.summary && (
-          <div className="mb-10">
+          <div className="mb-8 sm:mb-10">
             <SummaryCallout summary={slideshow.summary} />
           </div>
         )}
 
-        <ol className="space-y-8" aria-label="Clip sequence">
+        <ol className="space-y-10 sm:space-y-12" aria-label="Clip sequence">
           {slideshow.slides.map((slide) => (
-            <li key={slide.id} className="space-y-2">
+            <li key={slide.id} className="space-y-3">
+              <div className="flex items-baseline gap-3">
+                <span className="font-mono text-xs uppercase tracking-[0.16em] text-vermillion-700 tabular-nums">
+                  {String(slide.position).padStart(2, '0')}
+                </span>
+                {slide.title && (
+                  <h2 className="text-lg font-semibold tracking-[-0.01em] text-ink-900 sm:text-xl">
+                    {slide.title}
+                  </h2>
+                )}
+              </div>
               <MediaFrame
                 mediaKind={slide.media_kind}
                 src={slide.media_url}
-                alt={slide.caption || `Slide ${slide.position}`}
+                alt={slide.title || slide.caption || `Slide ${slide.position}`}
                 position={slide.position}
               />
               {slide.caption && (

@@ -304,6 +304,8 @@ export interface components {
          *     upload's content type via the views' validator.
          */
         PatchedSlideWriteRequest: {
+            /** @description Short eyebrow title for the slide. Renders above the image in the viewer; gives the slideshow visual hierarchy and makes long runs skimmable. The bundled agentclip skill tells agents to write a 3-7 word title plus a longer caption per slide. */
+            title?: string;
             /** Format: binary */
             media?: string;
             caption?: string;
@@ -324,6 +326,8 @@ export interface components {
         SlidePublic: {
             readonly id: number;
             readonly position: number;
+            /** @description Short eyebrow title for the slide. Renders above the image in the viewer; gives the slideshow visual hierarchy and makes long runs skimmable. The bundled agentclip skill tells agents to write a 3-7 word title plus a longer caption per slide. */
+            readonly title: string;
             readonly caption: string;
             readonly media_url: string;
             /**
@@ -345,6 +349,8 @@ export interface components {
         SlideWrite: {
             readonly id: number;
             readonly position: number;
+            /** @description Short eyebrow title for the slide. Renders above the image in the viewer; gives the slideshow visual hierarchy and makes long runs skimmable. The bundled agentclip skill tells agents to write a 3-7 word title plus a longer caption per slide. */
+            title?: string;
             caption?: string;
             readonly media_url: string;
             /**
@@ -364,6 +370,8 @@ export interface components {
          *     upload's content type via the views' validator.
          */
         SlideWriteRequest: {
+            /** @description Short eyebrow title for the slide. Renders above the image in the viewer; gives the slideshow visual hierarchy and makes long runs skimmable. The bundled agentclip skill tells agents to write a 3-7 word title plus a longer caption per slide. */
+            title?: string;
             /** Format: binary */
             media?: string;
             caption?: string;

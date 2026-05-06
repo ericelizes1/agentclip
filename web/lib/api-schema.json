@@ -543,6 +543,11 @@
                 "type": "object",
                 "description": "Create + update shape for slides. Media and caption only.\n\n``position`` is server-assigned on create and read-only on update;\ncallers identify the slide by its URL position, not its database id.\n``media_kind`` and ``media_content_type`` are server-set from the\nupload's content type via the views' validator.",
                 "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Short eyebrow title for the slide. Renders above the image in the viewer; gives the slideshow visual hierarchy and makes long runs skimmable. The bundled agentclip skill tells agents to write a 3-7 word title plus a longer caption per slide.",
+                        "maxLength": 100
+                    },
                     "media": {
                         "type": "string",
                         "format": "binary",
@@ -592,6 +597,11 @@
                         "type": "integer",
                         "readOnly": true
                     },
+                    "title": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Short eyebrow title for the slide. Renders above the image in the viewer; gives the slideshow visual hierarchy and makes long runs skimmable. The bundled agentclip skill tells agents to write a 3-7 word title plus a longer caption per slide."
+                    },
                     "caption": {
                         "type": "string",
                         "readOnly": true
@@ -615,7 +625,8 @@
                     "id",
                     "media_kind",
                     "media_url",
-                    "position"
+                    "position",
+                    "title"
                 ]
             },
             "SlideWrite": {
@@ -629,6 +640,11 @@
                     "position": {
                         "type": "integer",
                         "readOnly": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Short eyebrow title for the slide. Renders above the image in the viewer; gives the slideshow visual hierarchy and makes long runs skimmable. The bundled agentclip skill tells agents to write a 3-7 word title plus a longer caption per slide.",
+                        "maxLength": 100
                     },
                     "caption": {
                         "type": "string"
@@ -658,6 +674,11 @@
                 "type": "object",
                 "description": "Create + update shape for slides. Media and caption only.\n\n``position`` is server-assigned on create and read-only on update;\ncallers identify the slide by its URL position, not its database id.\n``media_kind`` and ``media_content_type`` are server-set from the\nupload's content type via the views' validator.",
                 "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "Short eyebrow title for the slide. Renders above the image in the viewer; gives the slideshow visual hierarchy and makes long runs skimmable. The bundled agentclip skill tells agents to write a 3-7 word title plus a longer caption per slide.",
+                        "maxLength": 100
+                    },
                     "media": {
                         "type": "string",
                         "format": "binary",

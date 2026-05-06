@@ -14,6 +14,7 @@ import { api } from '@/lib/api'
 export interface EditableSlide {
   id: number | string
   position: number
+  title: string
   caption: string
   media_url: string
   media_kind: MediaKind

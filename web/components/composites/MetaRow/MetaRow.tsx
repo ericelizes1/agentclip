@@ -1,30 +1,31 @@
+import { CreatorAvatar } from '@/components/composites/CreatorAvatar/CreatorAvatar'
 import { cn } from '@/lib/utils'
 
 export interface MetaRowProps {
   /** Bullet-separated dot labels: dates, counts, run identifiers. */
   labels: string[]
-  /** Optional creator credit, rendered after the labels as "Filed by". */
+  /** Optional creator name, rendered as a gradient avatar circle. */
   createdBy?: string
-  /** When set, the credit becomes a link to this URL. */
+  /** Optional URL the avatar links to (portfolio, GitHub, LinkedIn). */
   createdByUrl?: string
   className?: string
 }
 
 /**
- * Reads as: `Mar 14, 2026 · 7 clips · sales-demo  ·  Filed by Eric Elizes`.
+ * Reads as: `Mar 14, 2026 · 7 clips · sales-demo   [EE]`.
  *
- * The "Filed by" segment is only emitted when `createdBy` is non-empty.
- * If `createdByUrl` is set, the name links out (target=_blank,
- * rel=noopener); otherwise it's plain text. This mirrors the
- * pre-pivot Django template behavior so existing slideshows render
- * identically after the migration.
+ * The creator credit is a circular gradient avatar with initials
+ * (CreatorAvatar) instead of a "Filed by Eric" text run. The full
+ * name appears on hover via the avatar's tooltip; clicking opens
+ * the portfolio URL when one is set. Visual signature stays compact
+ * so the row reads as facts + identity, not facts + sentence.
  */
 export function MetaRow({ labels, createdBy, createdByUrl, className }: MetaRowProps) {
   const showCredit = Boolean(createdBy && createdBy.trim())
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center gap-x-3 gap-y-1',
+        'flex flex-wrap items-center gap-x-3 gap-y-2',
         'text-xs uppercase tracking-[0.12em] text-ink-500',
         className,
       )}
@@ -36,23 +37,15 @@ export function MetaRow({ labels, createdBy, createdByUrl, className }: MetaRowP
         </span>
       ))}
       {showCredit && (
-        <span className="flex items-center gap-2">
-          <span aria-hidden="true">·</span>
-          <span className="text-ink-700">
-            Filed by{' '}
-            {createdByUrl ? (
-              <a
-                href={createdByUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-vermillion-700 underline-offset-2 hover:underline"
-              >
-                {createdBy}
-              </a>
-            ) : (
-              <span className="text-ink-900">{createdBy}</span>
-            )}
+        <span className="ml-auto flex items-center sm:ml-3">
+          <span aria-hidden="true" className="mr-3 hidden sm:inline">
+            ·
           </span>
+          <CreatorAvatar
+            name={createdBy as string}
+            {...(createdByUrl ? { url: createdByUrl } : {})}
+            size={32}
+          />
         </span>
       )}
     </div>

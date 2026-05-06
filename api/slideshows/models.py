@@ -278,6 +278,18 @@ class Slide(models.Model):
             'reading the storage backend on every request.'
         ),
     )
+    title = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        help_text=(
+            'Short eyebrow title for the slide. Renders above the image '
+            'in the viewer; gives the slideshow visual hierarchy and '
+            'makes long runs skimmable. The bundled agentclip skill '
+            'tells agents to write a 3-7 word title plus a longer '
+            'caption per slide.'
+        ),
+    )
     caption = models.TextField()
 
     created_at = models.DateTimeField(auto_now_add=True)

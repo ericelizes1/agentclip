@@ -63,7 +63,7 @@ class SlidePublicSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Slide
-        fields = ('id', 'position', 'caption', 'media_url', 'media_kind')
+        fields = ('id', 'position', 'title', 'caption', 'media_url', 'media_kind')
         read_only_fields = fields
 
     def get_media_url(self, obj: Slide) -> str:
@@ -233,10 +233,11 @@ class SlideWriteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Slide
-        fields = ('id', 'position', 'media', 'caption', 'media_url', 'media_kind')
+        fields = ('id', 'position', 'title', 'media', 'caption', 'media_url', 'media_kind')
         read_only_fields = ('id', 'position', 'media_url', 'media_kind')
         extra_kwargs = {
             'media': {'write_only': True, 'required': False},
+            'title': {'required': False},
             'caption': {'required': False},
         }
 
