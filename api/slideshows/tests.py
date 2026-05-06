@@ -511,3 +511,39 @@ class SeedGalleryTests(TestCase):
         self.assertEqual(response.status_code, 200)
         # All 5 demos surface (default queryset cap is 12).
         self.assertEqual(len(response.json()), 5)
+
+
+class AdminSmokeTests(TestCase):
+    '''Defensive smoke tests for the django-unfold-themed admin.
+
+    Catch silent regressions: a misconfigured INSTALLED_APPS order or
+    missing migration would surface here as a 500 on /admin/ before
+    it surfaces in production.
+    '''
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.contrib.auth import get_user_model
+        cls.user = get_user_model().objects.create_superuser(
+            username='admin', email='admin@example.com', password='pw',
+        )
+
+    def setUp(self):
+        self.client.force_login(self.user)
+
+    def test_admin_index_renders_with_unfold_theme(self):
+        response = self.client.get('/admin/')
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode()
+        # Unfold injects its own template chrome; confirm the SITE_HEADER
+        # we configured shows up. (django-unfold renders SITE_HEADER as
+        # the visible top-bar brand on every admin page.)
+        self.assertIn('AgentClip', body)
+
+    def test_slideshow_changelist_renders(self):
+        response = self.client.get('/admin/slideshows/slideshow/')
+        self.assertEqual(response.status_code, 200)
+
+    def test_slide_changelist_renders(self):
+        response = self.client.get('/admin/slideshows/slide/')
+        self.assertEqual(response.status_code, 200)

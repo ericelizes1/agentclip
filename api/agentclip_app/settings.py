@@ -55,6 +55,12 @@ CSRF_TRUSTED_ORIGINS = [
 
 
 INSTALLED_APPS = [
+    # django-unfold replaces the default admin theme. Must be listed
+    # BEFORE django.contrib.admin so its template overrides win the
+    # template-loader race.
+    'unfold',
+    'unfold.contrib.filters',  # nicer dropdown/date filters in the changelist
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -206,6 +212,43 @@ REST_FRAMEWORK = {
 # ----- Defaults -----
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# ----- Admin polish (django-unfold) -----
+#
+# Replaces Django's default admin theme. The admin IS AgentClip's
+# operator dashboard for v1 (no separate analytics or moderation UI),
+# so it deserves to look like a 2026 product rather than 2010 Django.
+#
+# Color palette mirrors the vermillion ramp in web/lib/tokens.ts so
+# the admin reads as visually continuous with agentclip.dev and
+# docs.agentclip.dev. Material Symbol "movie" is the closest standard
+# icon match to the AgentClip ticket-mark logo.
+
+UNFOLD = {
+    'SITE_TITLE': 'AgentClip Admin',
+    'SITE_HEADER': 'AgentClip',
+    'SITE_SYMBOL': 'movie',
+    'SHOW_HISTORY': True,
+    'SHOW_VIEW_ON_SITE': True,
+    'COLORS': {
+        # RGB triplets; Unfold composes them into CSS variables that
+        # cascade to every admin component. Values come from the
+        # vermillion ramp in the design tokens.
+        'primary': {
+            '50':  '253 240 235',  # vermillion-50  (#fdf0eb)
+            '100': '250 220 208',  # vermillion-100 (#fadcd0)
+            '200': '245 181 154',  # interpolated
+            '300': '240 138 106',  # vermillion-300 (#f08a6a)
+            '400': '229 105 71',   # interpolated
+            '500': '217 72 36',    # vermillion-500 (#d94824) — primary
+            '600': '183 58 26',    # vermillion-600 (#b73a1a)
+            '700': '147 40 27',    # vermillion-700 (#93281b)
+            '800': '119 26 20',    # interpolated
+            '900': '77 16 12',     # interpolated
+        },
+    },
+}
 
 
 # ----- Production hardening -----

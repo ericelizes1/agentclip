@@ -12,11 +12,12 @@ from __future__ import annotations
 
 from django.contrib import admin
 from django.utils.html import format_html
+from unfold.admin import ModelAdmin, TabularInline
 
 from .models import Slide, Slideshow
 
 
-class SlideInline(admin.TabularInline):
+class SlideInline(TabularInline):
     model = Slide
     extra = 0
     fields = ('position', 'caption', 'media', 'media_kind', 'created_at')
@@ -25,7 +26,7 @@ class SlideInline(admin.TabularInline):
 
 
 @admin.register(Slideshow)
-class SlideshowAdmin(admin.ModelAdmin):
+class SlideshowAdmin(ModelAdmin):
     list_display = (
         'title_or_id',
         'is_gallery',
@@ -104,7 +105,7 @@ class SlideshowAdmin(admin.ModelAdmin):
 
 
 @admin.register(Slide)
-class SlideAdmin(admin.ModelAdmin):
+class SlideAdmin(ModelAdmin):
     list_display = ('slideshow', 'position', 'caption_short', 'created_at')
     list_filter = ('created_at',)
     search_fields = ('caption', 'slideshow__title')
