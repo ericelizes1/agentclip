@@ -1,0 +1,88 @@
+@import 'tailwindcss';
+
+/*
+ * AgentClip design tokens — Tailwind 4 @theme block.
+ *
+ * Mirrors web/lib/tokens.ts. Tailwind 4's CSS-first @theme syntax
+ * generates utility classes from these custom properties at build
+ * time (e.g. --color-vermillion-500 becomes `bg-vermillion-500`,
+ * --radius-pill becomes `rounded-pill`). Keep the values in lockstep
+ * with tokens.ts so component code consuming either path agrees.
+ */
+@theme {
+  /* ---------- Brand accent (vermillion ramp) ---------- */
+  --color-vermillion-50: #fdf0eb;
+  --color-vermillion-100: #fadcd0;
+  --color-vermillion-300: #f08a6a;
+  --color-vermillion-500: #d94824;
+  --color-vermillion-600: #b73a1a;
+  --color-vermillion-700: #93281b;
+
+  /* ---------- Warm ink scale ---------- */
+  --color-ink-50: #faf9f5;
+  --color-ink-100: #f0eee6;
+  --color-ink-200: #e8e6dc;
+  --color-ink-300: #d1cfc5;
+  --color-ink-400: #b0aea5;
+  --color-ink-500: #87867f;
+  --color-ink-600: #5e5d59;
+  --color-ink-700: #3d3d3a;
+  --color-ink-800: #2a2a26;
+  --color-ink-900: #141413;
+
+  /* ---------- Surfaces ---------- */
+  --color-paper: #faf9f5;
+  --color-paper-raised: #f0eee6;
+  --color-paper-sunken: #e8e6dc;
+  --color-paper-oat: #e3dacc;
+  --color-paper-dark: #141413;
+
+  /* ---------- Radii ---------- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-pill: 42px;
+  /*
+   * Asymmetric CTA radius — Anthropic signature.
+   * Tailwind 4 stores the full shorthand as a single token; consume
+   * via `rounded-cta` once primitives import it.
+   */
+  --radius-cta: 0px 0px 8px 8px;
+
+  /* ---------- Shadows ---------- */
+  --shadow-whisper:
+    rgba(0, 0, 0, 0.01) 0px 4px 12px 0px,
+    rgba(0, 0, 0, 0.05) 0px 2px 6px 0px,
+    rgba(0, 0, 0, 0.10) 0px 1px 3px 0px;
+
+  /* ---------- Motion ---------- */
+  --ease-brand: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-out-brand: cubic-bezier(0, 0, 0.15, 1);
+
+  /* ---------- Typography ---------- */
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
+/* ---------- Base layer ---------- */
+* {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-paper);
+  color: var(--color-ink-900);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.55;
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-vermillion-500);
+  color: var(--color-paper);
+}
