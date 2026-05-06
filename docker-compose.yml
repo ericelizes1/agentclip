@@ -1,0 +1,63 @@
+# docker-compose for local development of the agentclip monorepo.
+#
+# One command (`docker compose up --build`) brings up the entire stack:
+#   postgres at :5432, api at :8000, web at :3000.
+#
+# Pass-through env: copy api/.env.example to api/.env (or set the same
+# vars in the shell) before running. The web service reads
+# AGENTCLIP_API_URL from the compose env and threads it through the
+# typed client; AGENTCLIP_API_URL=http://api:8000 lets server-side
+# fetches resolve via the compose network instead of localhost.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: agentclip
+      POSTGRES_USER: agentclip
+      POSTGRES_PASSWORD: agentclip
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U agentclip']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DJANGO_DEBUG: '1'
+      DJANGO_SECRET_KEY: dev-only-secret-key-do-not-use-in-production
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,api
+      DATABASE_URL: postgres://agentclip:agentclip@postgres:5432/agentclip
+      DJANGO_DB_SSLMODE: disable
+    ports:
+      - '8000:8000'
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      # Server-side fetches inside the compose network resolve via the
+      # service hostname. The browser bundle keeps using localhost.
+      AGENTCLIP_API_URL: http://api:8000
+      NEXT_PUBLIC_AGENTCLIP_API_URL: http://localhost:8000
+    ports:
+      - '3000:3000'
+
+volumes:
+  postgres_data:

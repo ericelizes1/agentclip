@@ -1,0 +1,14 @@
+node_modules
+.next
+.next/cache
+.git
+.gitignore
+README.md
+.env
+.env.*
+storybook-static
+coverage
+.vscode
+.idea
+*.log
+.DS_Store

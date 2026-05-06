@@ -3,6 +3,10 @@ import type { NextConfig } from 'next'
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Standalone build trims node_modules to just what runtime needs
+  // and emits a self-contained server.js — required for the small
+  // production Dockerfile in web/Dockerfile.
+  output: 'standalone',
   // Tailwind 4 + the OG-image renderer (added in U15) need this so that
   // Next can find images served by the Django API at api.agentclip.dev.
   images: {

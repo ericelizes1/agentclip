@@ -41,10 +41,11 @@ RUN DJANGO_DEBUG=true python manage.py collectstatic --noinput
 
 EXPOSE 8000
 
-# Healthcheck hits the home page. A failure means the app is wedged,
-# which is what we want platform-level restart logic to react to.
+# Healthcheck hits the OpenAPI schema — it's the cheapest always-200
+# route the API exposes after the monorepo pivot (the old `/` template
+# moved to web/). A failure means the app is wedged.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -fsS http://127.0.0.1:8000/ || exit 1
+    CMD curl -fsS -H 'Accept: application/json' http://127.0.0.1:8000/api/schema/ -o /dev/null || exit 1
 
 # `sh -c` so $PORT expansion works under platforms that override it.
 # Two workers is right for a $5-12/mo droplet; raise as needed.
