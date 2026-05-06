@@ -2,7 +2,7 @@
 
 The shape is deliberately small: two tables, one foreign key. Most of
 the design budget went to the auth model, which is captured entirely
-in the two opaque tokens on Slideshow.
+in the opaque tokens on Slideshow.
 
 Token model:
 
@@ -12,7 +12,23 @@ Token model:
 
 - ``write_token`` is the credential the SDK uses to mutate slides
   and the summary. 32 url-safe characters, 192 bits, treated as
-  bearer-credential-equivalent in transit and at rest.
+  bearer-credential-equivalent in transit and at rest. Stored
+  plaintext on the row because it's emitted in the create response
+  and the SDK has no recovery path otherwise.
+
+- ``edit_token`` is a per-slideshow secret distinct from the public
+  ``share_token``. Anyone with the URL ``/s/<share_token>/edit?t=<edit_token>``
+  can edit; nobody else can. Returned alongside ``share_token`` in
+  the create response. Recoverable by the slideshow's creator via
+  ``GET /api/v1/slideshow/<share_token>/edit-token/`` authenticated
+  with the same write_token that created the row.
+
+- ``created_by_token_hash`` is SHA-256(write_token) stamped at
+  creation time. Used as the ownership check for edit_token
+  recovery and rotation. We store the hash, never the plaintext —
+  even though write_token already lives plaintext on the row, this
+  hash enables hash-comparison without leaking the credential
+  through a different code path.
 
 There is no User FK. v1 has no accounts; the write_token IS the
 identity. When accounts ship later, a nullable owner FK lands on
@@ -22,10 +38,24 @@ remain mutable via their write_token, exactly as today).
 
 from __future__ import annotations
 
+import hashlib
 import secrets
 import uuid
 
 from django.db import models
+
+
+def hash_write_token(write_token: str) -> str:
+    '''Return SHA-256 of a write_token, hex-encoded.
+
+    The ownership check for edit_token recovery hashes the incoming
+    Authorization-header write_token and compares against the stored
+    hash. SHA-256 is more than enough for "did the same caller create
+    this row" — we're not protecting against rainbow tables (the
+    write_token is already 192 bits of entropy from secrets), just
+    against an attack that confuses hash collisions for ownership.
+    '''
+    return hashlib.sha256(write_token.encode('utf-8')).hexdigest()
 
 
 def _share_token() -> str:
@@ -45,6 +75,18 @@ def _write_token() -> str:
     a credential rotation later.
     '''
     return secrets.token_urlsafe(24)
+
+
+def _edit_token() -> str:
+    '''~43 url-safe chars; 256 bits of entropy.
+
+    Higher entropy than share_token because this one DOES grant
+    mutation rights (delete-slide, edit-caption from the public-side
+    /s/<slug>/edit?t=<edit_token> URL). Keep it short enough to fit
+    in a query string + look reasonable when it scrolls past in the
+    terminal where the agent prints both URLs after creation.
+    '''
+    return secrets.token_urlsafe(32)
 
 
 def _slide_media_path(instance: 'Slide', filename: str) -> str:
@@ -105,6 +147,31 @@ class Slideshow(models.Model):
         default=_write_token,
         editable=False,
         help_text='Bearer credential. Whoever holds it can mutate this slideshow.',
+    )
+    edit_token = models.CharField(
+        max_length=64,
+        unique=True,
+        default=_edit_token,
+        editable=False,
+        help_text=(
+            'Per-slideshow secret used in the public edit URL '
+            '(/s/<share_token>/edit?t=<edit_token>). Distinct from '
+            'write_token; rotatable; recoverable by the creator via the '
+            'edit-token recovery endpoint.'
+        ),
+    )
+    created_by_token_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        default='',
+        db_index=True,
+        editable=False,
+        help_text=(
+            'SHA-256 of the write_token that created this row. Used as '
+            'the ownership check for edit-token recovery + rotation. '
+            'Blank on legacy rows created before the field existed; '
+            'those rows can never recover a lost edit URL via the API.'
+        ),
     )
 
     title = models.CharField(max_length=200, blank=True, default='')

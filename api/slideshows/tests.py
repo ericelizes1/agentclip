@@ -547,3 +547,171 @@ class AdminSmokeTests(TestCase):
     def test_slide_changelist_renders(self):
         response = self.client.get('/admin/slideshows/slide/')
         self.assertEqual(response.status_code, 200)
+
+
+@override_settings(
+    CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
+)
+class EditTokenTests(TestCase):
+    '''Cover the edit_token field, recovery endpoint, and rotate endpoint.
+
+    Captures the contract the SDK depends on: the create response
+    includes a usable edit_url, the recovery endpoint hands it back to
+    the original creator, and rotation invalidates the previous URL
+    immediately.
+
+    Uses the in-memory cache override so each test gets a clean
+    rate-limit slate — without it, prior tests in the same module run
+    can leak state through django-ratelimit and trip 403/429 on the
+    create endpoint.
+    '''
+
+    def setUp(self) -> None:
+        cache.clear()
+        # DRF's APIClient sets content-type and handles `format='json'`
+        # correctly; Django's default test client returns 415 for our
+        # JSON-only create endpoint without it.
+        self.client = APIClient()
+
+    # ----- Create response -----
+
+    def test_create_response_includes_edit_url(self):
+        response = self.client.post(
+            '/api/slideshow/', {'title': 'with edit url'}, format='json',
+        )
+        self.assertEqual(response.status_code, 201)
+        body = response.json()
+        self.assertIn('edit_url', body)
+        # URL shape: /s/<share_token>/edit?t=<edit_token>
+        self.assertIn('/edit?t=', body['edit_url'])
+        # Public viewer URL is also present (existing contract).
+        self.assertIn('share_url', body)
+
+    def test_create_stamps_token_hash_on_row(self):
+        '''Hash is set so the recovery endpoint has something to compare.'''
+        response = self.client.post(
+            '/api/slideshow/', {'title': 'hashed'}, format='json',
+        )
+        write_token = response.json()['write_token']
+        slideshow = Slideshow.objects.get(id=response.json()['id'])
+        from slideshows.models import hash_write_token
+        self.assertEqual(slideshow.created_by_token_hash, hash_write_token(write_token))
+
+    # ----- Recovery (GET) -----
+
+    def test_recovery_with_creator_token_returns_edit_url(self):
+        create = self.client.post(
+            '/api/slideshow/', {'title': 'recover me'}, format='json',
+        ).json()
+        share_token = Slideshow.objects.get(id=create['id']).share_token
+
+        response = self.client.get(
+            f'/api/v1/slideshow/{share_token}/edit-token/',
+            HTTP_AUTHORIZATION=f'Bearer {create["write_token"]}',
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertIn('edit_token', body)
+        self.assertIn('edit_url', body)
+        # Recovery returns the SAME edit_url as the create response.
+        self.assertEqual(body['edit_url'], create['edit_url'])
+
+    def test_recovery_without_authorization_returns_401(self):
+        show = Slideshow.objects.create(title='no auth')
+        response = self.client.get(f'/api/v1/slideshow/{show.share_token}/edit-token/')
+        self.assertEqual(response.status_code, 401)
+
+    def test_recovery_with_wrong_token_returns_403(self):
+        show = Slideshow.objects.create(title='wrong')
+        # Set a hash so the legacy-row branch doesn't fire.
+        from slideshows.models import hash_write_token
+        show.created_by_token_hash = hash_write_token(show.write_token)
+        show.save(update_fields=['created_by_token_hash'])
+
+        response = self.client.get(
+            f'/api/v1/slideshow/{show.share_token}/edit-token/',
+            HTTP_AUTHORIZATION='Bearer not-the-real-token',
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_recovery_with_unknown_share_token_returns_404(self):
+        response = self.client.get(
+            '/api/v1/slideshow/does-not-exist/edit-token/',
+            HTTP_AUTHORIZATION='Bearer anything',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_recovery_on_legacy_row_returns_403(self):
+        '''Pre-edit_token rows have empty token_hash; recovery should fail.'''
+        show = Slideshow.objects.create(title='legacy')
+        # Explicitly leave created_by_token_hash blank (the migration default).
+        self.assertEqual(show.created_by_token_hash, '')
+
+        response = self.client.get(
+            f'/api/v1/slideshow/{show.share_token}/edit-token/',
+            HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+        )
+        self.assertEqual(response.status_code, 403)
+
+    # ----- Rotation (POST) -----
+
+    def test_rotate_returns_new_token_and_invalidates_old(self):
+        create = self.client.post(
+            '/api/slideshow/', {'title': 'rotate'}, format='json',
+        ).json()
+        share_token = Slideshow.objects.get(id=create['id']).share_token
+        old_edit_token = create['edit_url'].split('?t=')[1]
+
+        rotate_response = self.client.post(
+            f'/api/v1/slideshow/{share_token}/rotate-edit-token/',
+            HTTP_AUTHORIZATION=f'Bearer {create["write_token"]}',
+        )
+        self.assertEqual(rotate_response.status_code, 200)
+        new_edit_token = rotate_response.json()['edit_token']
+        self.assertNotEqual(old_edit_token, new_edit_token)
+        # Subsequent recovery returns the NEW token, not the old one.
+        recover = self.client.get(
+            f'/api/v1/slideshow/{share_token}/edit-token/',
+            HTTP_AUTHORIZATION=f'Bearer {create["write_token"]}',
+        ).json()
+        self.assertEqual(recover['edit_token'], new_edit_token)
+
+    def test_rotate_without_ownership_returns_403(self):
+        show = Slideshow.objects.create(title='rotate denied')
+        from slideshows.models import hash_write_token
+        show.created_by_token_hash = hash_write_token(show.write_token)
+        show.save(update_fields=['created_by_token_hash'])
+        original_edit_token = show.edit_token
+
+        response = self.client.post(
+            f'/api/v1/slideshow/{show.share_token}/rotate-edit-token/',
+            HTTP_AUTHORIZATION='Bearer wrong-token',
+        )
+        self.assertEqual(response.status_code, 403)
+        # Rotation did not happen — the row's edit_token is unchanged.
+        show.refresh_from_db()
+        self.assertEqual(show.edit_token, original_edit_token)
+
+    # ----- Field hygiene: edit_token never leaks via other endpoints -----
+
+    def test_edit_token_omitted_from_gallery_endpoint(self):
+        Slideshow.objects.create(title='leak check', is_gallery=True, gallery_position=1)
+
+        response = self.client.get('/api/v1/gallery/')
+        item = response.json()[0]
+        self.assertNotIn('edit_token', item)
+        self.assertNotIn('created_by_token_hash', item)
+
+    def test_edit_token_recovery_response_omits_write_token(self):
+        '''Recovery response carries edit_token but never the write_token.'''
+        create = self.client.post(
+            '/api/slideshow/', {'title': 'no write_token leak'}, format='json',
+        ).json()
+        share_token = Slideshow.objects.get(id=create['id']).share_token
+        response = self.client.get(
+            f'/api/v1/slideshow/{share_token}/edit-token/',
+            HTTP_AUTHORIZATION=f'Bearer {create["write_token"]}',
+        )
+        body = response.json()
+        self.assertNotIn('write_token', body)
+        self.assertNotIn('created_by_token_hash', body)

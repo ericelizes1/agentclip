@@ -42,6 +42,7 @@ from .models import (
     MediaKind,
     Slide,
     Slideshow,
+    hash_write_token,
 )
 from .serializers import (
     GallerySlideshowSerializer,
@@ -101,15 +102,29 @@ def _client_ip(request) -> str | None:
 @parser_classes([JSONParser])
 @ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_CREATE, method='POST', block=True)
 def slideshow_create(request):
-    '''Anonymous create. Returns id, share_url, write_token.
+    '''Anonymous create. Returns id, share_url, write_token, edit_url.
 
     The write_token is rendered exactly once, here. Losing it freezes
     the slideshow forever, which is why the SDK caches it locally
     immediately on the response.
+
+    The edit_url is also rendered exactly once at create time. Lost
+    edit_urls can be recovered through GET /api/v1/slideshow/<slug>/
+    edit-token/ as long as the caller still has the write_token. The
+    SHA-256 hash of the supplied write_token is stamped onto the row
+    here as the ownership credential the recovery endpoint compares
+    against.
     '''
     serializer = SlideshowCreateSerializer(data=request.data, context={'request': request})
     serializer.is_valid(raise_exception=True)
     slideshow = serializer.save(created_ip=_client_ip(request))
+
+    # Stamp the ownership hash so the creator can recover the edit_url
+    # later via the recovery endpoint. This is one extra UPDATE; we don't
+    # care about the round-trip cost on a create path that already does
+    # several writes.
+    slideshow.created_by_token_hash = hash_write_token(slideshow.write_token)
+    slideshow.save(update_fields=['created_by_token_hash'])
 
     return Response(
         SlideshowCreateSerializer(slideshow, context={'request': request}).data,
@@ -212,6 +227,104 @@ def slideshow_patch(request, slideshow_id):
     serializer.is_valid(raise_exception=True)
     serializer.save()
     return Response(serializer.data)
+
+
+# ----- Edit token recovery + rotation -----
+
+
+def _verify_creator(request, slideshow: Slideshow) -> None:
+    '''Confirm the request's Bearer write_token created this slideshow.
+
+    Status codes follow standard HTTP semantics:
+    - 401 NotAuthenticated when no Bearer header is present (the
+      caller hasn't tried to authenticate; advertise the scheme)
+    - 403 PermissionDenied when a token IS supplied but doesn't match
+      the row's stored hash (caller authenticated, just isn't this
+      slideshow's creator)
+
+    Pre-edit_token rows have an empty `created_by_token_hash`; those
+    can never authenticate via this path (the hash compare returns
+    False against the empty string), so they get 403 — the legacy
+    creator can't recover an edit URL through the API and must
+    re-create the slideshow.
+    '''
+    from rest_framework.exceptions import NotAuthenticated, PermissionDenied
+    from .auth import AUTH_HEADER_PREFIX
+    import secrets as _secrets
+
+    header = request.META.get('HTTP_AUTHORIZATION', '')
+    if not header.startswith(AUTH_HEADER_PREFIX):
+        raise NotAuthenticated('missing Bearer token')
+    supplied = header[len(AUTH_HEADER_PREFIX):].strip()
+    if not supplied:
+        raise NotAuthenticated('empty Bearer token')
+
+    expected_hash = slideshow.created_by_token_hash
+    if not expected_hash:
+        # Legacy row created before created_by_token_hash existed.
+        # No way to verify ownership — fail closed with 403.
+        raise PermissionDenied(
+            'this slideshow predates edit-token recovery; cannot verify ownership'
+        )
+    supplied_hash = hash_write_token(supplied)
+    if not _secrets.compare_digest(supplied_hash, expected_hash):
+        raise PermissionDenied('write_token does not match this slideshow')
+
+
+def _edit_url(slideshow: Slideshow, request) -> str:
+    '''Build the public edit URL with the edit_token in the query string.
+
+    Format: /s/<share_token>/edit?t=<edit_token>. Absolute when
+    request context allows; relative otherwise (server-side use).
+    '''
+    path = f'/s/{slideshow.share_token}/edit?t={slideshow.edit_token}'
+    if request is not None:
+        return request.build_absolute_uri(path)
+    return path
+
+
+@api_view(['GET'])
+@authentication_classes([WriteTokenAuthentication])
+def edit_token_recover(request, share_token):
+    '''Return the edit_token + edit_url for callers who can prove ownership.
+
+    Authentication: Bearer <write_token>. The supplied token's SHA-256
+    must match `created_by_token_hash` on the row. 401 when the header
+    is missing/empty; 403 when the token doesn't match; 404 when the
+    slug is unknown.
+    '''
+    slideshow = get_object_or_404(Slideshow, share_token=share_token)
+    _verify_creator(request, slideshow)
+
+    return Response({
+        'edit_token': slideshow.edit_token,
+        'edit_url': _edit_url(slideshow, request),
+    })
+
+
+@api_view(['POST'])
+@authentication_classes([WriteTokenAuthentication])
+@ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_PATCH, method='POST', block=True)
+def edit_token_rotate(request, share_token):
+    '''Regenerate the edit_token. The old URL stops working immediately.
+
+    Authentication: same ownership check as the recovery endpoint. The
+    new edit_token is generated server-side; the response shape mirrors
+    the recovery endpoint so SDK callers can use the same parser.
+    '''
+    slideshow = get_object_or_404(Slideshow, share_token=share_token)
+    _verify_creator(request, slideshow)
+
+    # secrets.token_urlsafe via the model's helper keeps the entropy
+    # consistent with the original creation default.
+    from .models import _edit_token as _new_edit_token
+    slideshow.edit_token = _new_edit_token()
+    slideshow.save(update_fields=['edit_token'])
+
+    return Response({
+        'edit_token': slideshow.edit_token,
+        'edit_url': _edit_url(slideshow, request),
+    })
 
 
 # ----- Public: GET /api/v1/gallery/ -----

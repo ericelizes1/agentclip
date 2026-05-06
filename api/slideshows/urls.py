@@ -35,4 +35,16 @@ urlpatterns = [
 
     # Read API — gallery feed for the home page
     path('api/v1/gallery/', views.GalleryListView.as_view(), name='gallery_list'),
+
+    # Edit-token recovery + rotation (slug-keyed, write_token-authenticated)
+    path(
+        'api/v1/slideshow/<str:share_token>/edit-token/',
+        views.edit_token_recover,
+        name='edit_token_recover',
+    ),
+    path(
+        'api/v1/slideshow/<str:share_token>/rotate-edit-token/',
+        views.edit_token_rotate,
+        name='edit_token_rotate',
+    ),
 ]

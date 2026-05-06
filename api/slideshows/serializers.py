@@ -118,10 +118,22 @@ class GallerySlideshowSerializer(serializers.ModelSerializer):
 
 
 class SlideshowCreateSerializer(serializers.ModelSerializer):
-    '''Create-time shape. Renders the ``write_token`` exactly once.'''
+    '''Create-time shape. Renders ``write_token`` and ``edit_url`` exactly once.
+
+    Both fields are credentials (or near-credentials):
+    - ``write_token`` is the bearer credential the SDK keeps locally
+    - ``edit_url`` embeds the per-slideshow ``edit_token`` in its query
+      string, granting public-side edit access to anyone who holds it
+
+    Neither field appears in any other serializer. Recovery for
+    ``edit_url`` happens via GET /api/v1/slideshow/<slug>/edit-token/
+    (authenticated by the write_token); ``write_token`` itself is
+    never recoverable.
+    '''
 
     write_token = serializers.CharField(read_only=True)
     share_url = serializers.SerializerMethodField()
+    edit_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Slideshow
@@ -132,13 +144,21 @@ class SlideshowCreateSerializer(serializers.ModelSerializer):
             'created_by',
             'created_by_url',
             'share_url',
+            'edit_url',
             'write_token',
         )
-        read_only_fields = ('id', 'share_url', 'write_token')
+        read_only_fields = ('id', 'share_url', 'edit_url', 'write_token')
 
     def get_share_url(self, obj: Slideshow) -> str:
         request = self.context.get('request')
         path = f'/s/{obj.share_token}/'
+        if request is not None:
+            return request.build_absolute_uri(path)
+        return path
+
+    def get_edit_url(self, obj: Slideshow) -> str:
+        request = self.context.get('request')
+        path = f'/s/{obj.share_token}/edit?t={obj.edit_token}'
         if request is not None:
             return request.build_absolute_uri(path)
         return path
