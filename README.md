@@ -51,11 +51,16 @@ cd web && pnpm install && pnpm dev
 | POST | `/api/slideshow/<id>/slides/` | `Authorization: Bearer <write_token>` | 200 / hour / IP |
 | PATCH | `/api/slideshow/<id>/slides/<position>/` | write_token | 200 / hour / IP |
 | PATCH | `/api/slideshow/<id>/` | write_token | 60 / hour / IP |
+| DELETE | `/api/slideshow/<id>/` | write_token | 60 / hour / IP |
 | GET | `/api/v1/gallery/` | none | (read; cached at the CDN) |
 | GET | `/api/v1/slideshow/<share_token>/` | none | (read) |
 | GET | `/api/v1/slideshow/<share_token>/edit-token/` | write_token | (recovery) |
 | POST | `/api/v1/slideshow/<share_token>/rotate-edit-token/` | write_token | 60 / hour / IP |
+| PATCH | `/api/v1/slideshow/<share_token>/slides/<position>/caption/` | edit_token | 200 / hour / IP |
+| DELETE | `/api/v1/slideshow/<share_token>/slides/<position>/` | edit_token | 200 / hour / IP |
 | GET | `/api/schema/` | none | (OpenAPI 3 spec; powers the typed web client) |
+
+Uploaded media is served via `cdn.agentclip.dev` (Cloudflare custom-domain front for the R2 bucket `agentclip-prod`); the storage origin is never exposed to clients.
 
 The full contract lives in `web/lib/api-schema.json` (committed snapshot of the schema). The Python SDK in [`agentclip-python`](https://github.com/ericelizes1/agentclip-python) asserts on the wire shapes — if you change a response, link the matching SDK PR.
 
