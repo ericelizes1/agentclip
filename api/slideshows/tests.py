@@ -1086,3 +1086,113 @@ class RateLimitKeyIsolationTests(TestCase):
             REMOTE_ADDR=EDGE,
         )
         self.assertEqual(innocent.status_code, 201)
+
+
+@override_settings(
+    CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
+)
+class PerSlideshowCapTests(TestCase):
+    '''Per-slideshow caps: max 20 slides, max 100 MB total bytes.
+
+    The cap exists to keep slideshows short and focused — the SKILL
+    counsels 10–15 slides for a typical run, 3–5 for a focused bug
+    repro. Anything past 20 is the run trying to be a tour or a
+    portfolio collection, which is an explicit v0.2 direction.
+    '''
+
+    def setUp(self) -> None:
+        cache.clear()
+        self.client = APIClient()
+        self.show = Slideshow.objects.create(title='cap test')
+        self.auth = {'HTTP_AUTHORIZATION': f'Bearer {self.show.write_token}'}
+
+    def test_slide_count_cap_blocks_21st_slide(self) -> None:
+        # Pre-populate 20 slides directly so we don't churn through 20
+        # POSTs in the test (and don't hit the rate limit either).
+        for n in range(1, 21):
+            Slide.objects.create(
+                slideshow=self.show,
+                position=n,
+                media=_png_upload(f'shot{n}.png'),
+                media_kind=MediaKind.IMAGE,
+                media_content_type='image/png',
+                media_bytes=1000,
+                caption=f'slide {n}',
+            )
+        response = self.client.post(
+            f'/api/slideshow/{self.show.id}/slides/',
+            {'media': _png_upload('overflow.png'), 'caption': 'should fail'},
+            format='multipart',
+            **self.auth,
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('20 slides', response.json()['detail'])
+
+    def test_slide_count_cap_allows_20th_slide(self) -> None:
+        '''The 20th slide must still be accepted — boundary is strict-LESS.'''
+        for n in range(1, 20):
+            Slide.objects.create(
+                slideshow=self.show,
+                position=n,
+                media=_png_upload(f'shot{n}.png'),
+                media_kind=MediaKind.IMAGE,
+                media_content_type='image/png',
+                media_bytes=1000,
+                caption=f'slide {n}',
+            )
+        response = self.client.post(
+            f'/api/slideshow/{self.show.id}/slides/',
+            {'media': _png_upload('twentieth.png'), 'caption': 'last allowed'},
+            format='multipart',
+            **self.auth,
+        )
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()['position'], 20)
+
+    def test_byte_cap_blocks_when_total_would_exceed_100MB(self) -> None:
+        # Pre-stuff 99 MB across two slides; a third 5 MB slide pushes
+        # us over the 100 MB cap.
+        Slide.objects.create(
+            slideshow=self.show,
+            position=1,
+            media=_png_upload('big1.png'),
+            media_kind=MediaKind.IMAGE,
+            media_content_type='image/png',
+            media_bytes=50 * 1024 * 1024,
+            caption='one',
+        )
+        Slide.objects.create(
+            slideshow=self.show,
+            position=2,
+            media=_png_upload('big2.png'),
+            media_kind=MediaKind.IMAGE,
+            media_content_type='image/png',
+            media_bytes=49 * 1024 * 1024,
+            caption='two',
+        )
+        # Synthesize a ~5 MB upload to push past 100 MB.
+        big_bytes = b'\x89PNG\r\n\x1a\n' + b'\x00' * (5 * 1024 * 1024)
+        big_upload = SimpleUploadedFile('overflow.png', big_bytes, content_type='image/png')
+
+        response = self.client.post(
+            f'/api/slideshow/{self.show.id}/slides/',
+            {'media': big_upload, 'caption': 'overflow'},
+            format='multipart',
+            **self.auth,
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('100MB', response.json()['detail'])
+
+    def test_slide_add_records_media_bytes(self) -> None:
+        '''New slides must populate media_bytes for the cap to work.'''
+        png_data = _png_bytes()
+        upload = SimpleUploadedFile('one.png', png_data, content_type='image/png')
+        response = self.client.post(
+            f'/api/slideshow/{self.show.id}/slides/',
+            {'media': upload, 'caption': 'first'},
+            format='multipart',
+            **self.auth,
+        )
+        self.assertEqual(response.status_code, 201)
+        slide = Slide.objects.get(pk=response.json()['id'])
+        self.assertEqual(slide.media_bytes, len(png_data))

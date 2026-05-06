@@ -120,6 +120,18 @@ ALLOWED_MEDIA_TYPES = ALLOWED_IMAGE_TYPES | ALLOWED_VIDEO_TYPES
 # bigger is almost certainly an error or abuse.
 MAX_MEDIA_BYTES = 25 * 1024 * 1024
 
+# Per-slideshow ceilings. The product is short, focused walkthroughs:
+# the bundled SKILL.md tells agents "onboarding QA is 10–15 slides;
+# focused bug repro is 3–5". 20 is a comfortable upper bound on
+# legitimate runs; past it the run is trying to be something else
+# (a tour, a portfolio collection — those land in v0.2 as collections).
+#
+# 100MB total is the headroom budget: 20 slides × 5MB average covers
+# 30-second MP4 clips comfortably, well past typical screenshot sizes
+# (a 1080p PNG is 200–500KB).
+MAX_SLIDES_PER_SLIDESHOW = 20
+MAX_BYTES_PER_SLIDESHOW = 100 * 1024 * 1024
+
 
 class MediaKind(models.TextChoices):
     IMAGE = 'image', 'Image'
@@ -257,6 +269,14 @@ class Slide(models.Model):
         blank=True,
         default='',
         help_text='Original Content-Type at upload, kept for forensic and debug use.',
+    )
+    media_bytes = models.PositiveIntegerField(
+        default=0,
+        help_text=(
+            'Size of the uploaded media in bytes. Populated at slide-add '
+            'time; used to enforce MAX_BYTES_PER_SLIDESHOW without re-'
+            'reading the storage backend on every request.'
+        ),
     )
     caption = models.TextField()
 

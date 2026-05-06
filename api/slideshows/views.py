@@ -22,7 +22,7 @@ monorepo pivot. This module is API-only now.
 
 from __future__ import annotations
 
-from django.db import transaction
+from django.db import models, transaction
 from django.shortcuts import get_object_or_404
 from django_ratelimit.decorators import ratelimit
 from drf_spectacular.utils import extend_schema
@@ -39,7 +39,9 @@ from .auth import WriteTokenAuthentication, authorize_edit, authorize_slideshow
 from .models import (
     ALLOWED_IMAGE_TYPES,
     ALLOWED_MEDIA_TYPES,
+    MAX_BYTES_PER_SLIDESHOW,
     MAX_MEDIA_BYTES,
+    MAX_SLIDES_PER_SLIDESHOW,
     MediaKind,
     Slide,
     Slideshow,
@@ -170,6 +172,41 @@ def slide_add(request, slideshow_id):
     except ValueError as exc:
         return Response({'media': [str(exc)]}, status=400)
 
+    upload = request.FILES['media']
+    new_bytes = upload.size
+
+    # Per-slideshow ceilings. Both checks happen BEFORE we open the
+    # transaction so a misconfigured client gets a clean 400 without
+    # locking any rows. A racing concurrent add is bounded by the
+    # ratelimit + the size of the gap between this read and the save;
+    # in the worst case we accept one extra slide past the cap, which
+    # is fine for a v0.1 advisory limit.
+    from django.db.models import Sum
+    existing = Slide.objects.filter(slideshow=slideshow).aggregate(
+        count=models.Count('id'),
+        total_bytes=Sum('media_bytes'),
+    )
+    if (existing['count'] or 0) >= MAX_SLIDES_PER_SLIDESHOW:
+        return Response(
+            {'detail': (
+                f'this slideshow already has the maximum '
+                f'{MAX_SLIDES_PER_SLIDESHOW} slides. v0.1 caps slideshows at '
+                f'{MAX_SLIDES_PER_SLIDESHOW} clips; longer runs are a v0.2 '
+                f'feature (see github.com/ericelizes1/agentclip — collections).'
+            )},
+            status=400,
+        )
+    if (existing['total_bytes'] or 0) + new_bytes > MAX_BYTES_PER_SLIDESHOW:
+        mb_cap = MAX_BYTES_PER_SLIDESHOW // (1024 * 1024)
+        return Response(
+            {'detail': (
+                f'this slide would push the slideshow past the {mb_cap}MB '
+                f'total-size cap. delete or shrink existing slides, or '
+                f'start a fresh slideshow.'
+            )},
+            status=400,
+        )
+
     serializer = SlideWriteSerializer(data=request.data, context={'request': request})
     serializer.is_valid(raise_exception=True)
 
@@ -186,6 +223,7 @@ def slide_add(request, slideshow_id):
             position=next_position,
             media_kind=kind,
             media_content_type=content_type,
+            media_bytes=new_bytes,
         )
 
     return Response(
@@ -219,8 +257,28 @@ def slide_update(request, slideshow_id, position):
             kind, content_type = _validate_media_upload(request.FILES['media'])
         except ValueError as exc:
             return Response({'media': [str(exc)]}, status=400)
+
+        # Replacing media: enforce the per-slideshow byte cap against the
+        # delta. Subtracts the existing slide's bytes (which are about to
+        # be replaced) and adds the incoming size.
+        new_bytes = request.FILES['media'].size
+        from django.db.models import Sum
+        other_total = Slide.objects.filter(slideshow=slideshow).exclude(
+            pk=slide.pk
+        ).aggregate(total=Sum('media_bytes'))['total'] or 0
+        if other_total + new_bytes > MAX_BYTES_PER_SLIDESHOW:
+            mb_cap = MAX_BYTES_PER_SLIDESHOW // (1024 * 1024)
+            return Response(
+                {'detail': (
+                    f'replacing this slide would push the slideshow past the '
+                    f'{mb_cap}MB total-size cap.'
+                )},
+                status=400,
+            )
+
         extra_save['media_kind'] = kind
         extra_save['media_content_type'] = content_type
+        extra_save['media_bytes'] = new_bytes
 
     serializer = SlideWriteSerializer(
         slide, data=request.data, partial=True, context={'request': request}
