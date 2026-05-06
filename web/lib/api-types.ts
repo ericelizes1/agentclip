@@ -119,6 +119,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/slideshow/{share_token}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Public read of one slideshow by share_token.
+         *
+         *     Replaces the deleted Django template view. Anonymous, unauthenticated,
+         *     rate-limit-free (read-only — abuse vectors are the same as a CDN
+         *     fetch). The Next.js viewer page (`/s/[token]`) calls this endpoint
+         *     via the typed client; agents and integrations are welcome to too.
+         *
+         *     Returns 200 with `SlideshowPublicSerializer` on hit, 404 on miss.
+         *     Slides are prefetched in position order so the response renders in
+         *     one query.
+         */
+        get: operations["v1_slideshow_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/slideshow/{share_token}/edit-token/": {
         parameters: {
             query?: never;
@@ -241,6 +269,19 @@ export interface components {
              */
             created_by_url?: string;
         };
+        SlidePublic: {
+            readonly id: number;
+            readonly position: number;
+            readonly caption: string;
+            readonly media_url: string;
+            /**
+             * @description image | video; sniffed from upload Content-Type at the API boundary.
+             *
+             *     * `image` - Image
+             *     * `video` - Video
+             */
+            readonly media_kind: components["schemas"]["MediaKindEnum"];
+        };
         /**
          * @description Create + update shape for slides. Media and caption only.
          *
@@ -342,6 +383,27 @@ export interface components {
              * @description Optional URL the creator credit links to (portfolio, GitHub, etc.).
              */
             created_by_url?: string;
+        };
+        /** @description Read-only shape for /s/<share_token> and the public API. */
+        SlideshowPublic: {
+            /** Format: uuid */
+            readonly id: string;
+            readonly title: string;
+            readonly description: string;
+            readonly summary: string;
+            /** @description Display credit for the run, e.g. "Eric Elizes". Optional. */
+            readonly created_by: string;
+            /**
+             * Format: uri
+             * @description Optional URL the creator credit links to (portfolio, GitHub, etc.).
+             */
+            readonly created_by_url: string;
+            /** Format: date-time */
+            readonly created_at: string;
+            /** Format: date-time */
+            readonly updated_at: string;
+            readonly share_url: string;
+            readonly slides: components["schemas"]["SlidePublic"][];
         };
     };
     responses: never;
@@ -468,6 +530,27 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GallerySlideshow"][];
+                };
+            };
+        };
+    };
+    v1_slideshow_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                share_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlideshowPublic"];
                 };
             };
         };

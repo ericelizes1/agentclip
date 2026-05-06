@@ -747,6 +747,7 @@ class OpenAPISchemaTests(TestCase):
             '/api/slideshow/{slideshow_id}/slides/',
             '/api/slideshow/{slideshow_id}/slides/{position}/',
             '/api/v1/gallery/',
+            '/api/v1/slideshow/{share_token}/',
             '/api/v1/slideshow/{share_token}/edit-token/',
             '/api/v1/slideshow/{share_token}/rotate-edit-token/',
         }
@@ -772,3 +773,61 @@ class OpenAPISchemaTests(TestCase):
             set(component['properties'].keys()),
             {'title', 'description', 'created_by', 'created_by_url'},
         )
+
+
+class SlideshowPublicReadTests(TestCase):
+    '''GET /api/v1/slideshow/<share_token>/ — the public viewer feed.
+
+    Replaces the deleted Django template view. The Next.js
+    `/s/[token]` page calls this endpoint server-side; agents and
+    integrations may too. Anonymous, unauthenticated.
+    '''
+
+    def setUp(self) -> None:
+        self.client = APIClient()
+        self.slideshow = Slideshow.objects.create(
+            title='Onboarding regression',
+            description='Post-login redirect dropped a query parameter.',
+            summary='Bug repro in 47s.',
+            created_by='Eric Elizes',
+            created_by_url='https://github.com/elizes',
+        )
+        Slide.objects.create(
+            slideshow=self.slideshow,
+            position=1,
+            media=SimpleUploadedFile('one.png', _png_bytes(), content_type='image/png'),
+            media_kind=MediaKind.IMAGE,
+            media_content_type='image/png',
+            caption='Login screen on staging.',
+        )
+        Slide.objects.create(
+            slideshow=self.slideshow,
+            position=2,
+            media=SimpleUploadedFile('two.png', _png_bytes('blue'), content_type='image/png'),
+            media_kind=MediaKind.IMAGE,
+            media_content_type='image/png',
+            caption='Token issued; redirect missing query param.',
+        )
+
+    def test_returns_full_public_shape(self) -> None:
+        response = self.client.get(f'/api/v1/slideshow/{self.slideshow.share_token}/')
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+
+        self.assertEqual(body['title'], 'Onboarding regression')
+        self.assertEqual(body['summary'], 'Bug repro in 47s.')
+        self.assertEqual(body['created_by'], 'Eric Elizes')
+        self.assertEqual(body['created_by_url'], 'https://github.com/elizes')
+        self.assertEqual(len(body['slides']), 2)
+        self.assertEqual(body['slides'][0]['position'], 1)
+        self.assertEqual(body['slides'][1]['position'], 2)
+
+    def test_omits_internal_credentials(self) -> None:
+        response = self.client.get(f'/api/v1/slideshow/{self.slideshow.share_token}/')
+        body = response.json()
+        for forbidden in ('write_token', 'edit_token', 'created_by_token_hash', 'created_ip'):
+            self.assertNotIn(forbidden, body)
+
+    def test_returns_404_for_unknown_share_token(self) -> None:
+        response = self.client.get('/api/v1/slideshow/does-not-exist/')
+        self.assertEqual(response.status_code, 404)

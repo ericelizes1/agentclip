@@ -50,6 +50,7 @@ from .serializers import (
     GallerySlideshowSerializer,
     SlideshowCreateSerializer,
     SlideshowPatchSerializer,
+    SlideshowPublicSerializer,
     SlideWriteSerializer,
 )
 
@@ -359,6 +360,24 @@ def edit_token_rotate(request, share_token):
 
 
 # ----- Public: GET /api/v1/gallery/ -----
+
+
+class SlideshowPublicView(generics.RetrieveAPIView):
+    '''Public read of one slideshow by share_token.
+
+    Replaces the deleted Django template view. Anonymous, unauthenticated,
+    rate-limit-free (read-only — abuse vectors are the same as a CDN
+    fetch). The Next.js viewer page (`/s/[token]`) calls this endpoint
+    via the typed client; agents and integrations are welcome to too.
+
+    Returns 200 with `SlideshowPublicSerializer` on hit, 404 on miss.
+    Slides are prefetched in position order so the response renders in
+    one query.
+    '''
+
+    serializer_class = SlideshowPublicSerializer
+    queryset = Slideshow.objects.prefetch_related('slides')
+    lookup_field = 'share_token'
 
 
 class GalleryListView(generics.ListAPIView):

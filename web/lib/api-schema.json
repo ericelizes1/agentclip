@@ -225,6 +225,40 @@
                 }
             }
         },
+        "/api/v1/slideshow/{share_token}/": {
+            "get": {
+                "operationId": "v1_slideshow_retrieve",
+                "description": "Public read of one slideshow by share_token.\n\nReplaces the deleted Django template view. Anonymous, unauthenticated,\nrate-limit-free (read-only — abuse vectors are the same as a CDN\nfetch). The Next.js viewer page (`/s/[token]`) calls this endpoint\nvia the typed client; agents and integrations are welcome to too.\n\nReturns 200 with `SlideshowPublicSerializer` on hit, 404 on miss.\nSlides are prefetched in position order so the response renders in\none query.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "share_token",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "v1"
+                ],
+                "security": [
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SlideshowPublic"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/slideshow/{share_token}/edit-token/": {
             "get": {
                 "operationId": "v1_slideshow_edit_token_retrieve",
@@ -435,6 +469,43 @@
                     }
                 }
             },
+            "SlidePublic": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "position": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "caption": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "media_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "media_kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MediaKindEnum"
+                            }
+                        ],
+                        "readOnly": true,
+                        "description": "image | video; sniffed from upload Content-Type at the API boundary.\n\n* `image` - Image\n* `video` - Video"
+                    }
+                },
+                "required": [
+                    "caption",
+                    "id",
+                    "media_kind",
+                    "media_url",
+                    "position"
+                ]
+            },
             "SlideWrite": {
                 "type": "object",
                 "description": "Create + update shape for slides. Media and caption only.\n\n``position`` is server-assigned on create and read-only on update;\ncallers identify the slide by its URL position, not its database id.\n``media_kind`` and ``media_content_type`` are server-set from the\nupload's content type via the views' validator.",
@@ -590,6 +661,73 @@
                 },
                 "required": [
                     "id"
+                ]
+            },
+            "SlideshowPublic": {
+                "type": "object",
+                "description": "Read-only shape for /s/<share_token> and the public API.",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "summary": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_by": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "Display credit for the run, e.g. \"Eric Elizes\". Optional."
+                    },
+                    "created_by_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "description": "Optional URL the creator credit links to (portfolio, GitHub, etc.)."
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "share_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "slides": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SlidePublic"
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "created_by",
+                    "created_by_url",
+                    "description",
+                    "id",
+                    "share_url",
+                    "slides",
+                    "summary",
+                    "title",
+                    "updated_at"
                 ]
             }
         },
