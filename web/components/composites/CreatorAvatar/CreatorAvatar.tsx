@@ -1,3 +1,5 @@
+'use client'
+
 import { Tooltip } from '@/components/primitives/Tooltip/Tooltip'
 import { gradientFor } from '@/lib/gradient-avatar'
 import { cn } from '@/lib/utils'
