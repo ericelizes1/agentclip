@@ -81,22 +81,21 @@ def _validate_media_upload(uploaded):
 # well above any realistic agent throughput) while still blocking
 # the obvious abuse cases of "scriptkiddie hammers create endpoint
 # to seed garbage". block=True returns the standard 429 response.
-RATELIMIT_KEY_IP = 'ip'
+#
+# `RATELIMIT_KEY` points at our trusted-proxy-aware key function in
+# slideshows.ratelimit. Without that, django-ratelimit's default
+# `key='ip'` reads REMOTE_ADDR, which behind Cloudflare/Fly is a
+# constant edge IP — meaning all traffic shares one bucket and the
+# limits become useless. See slideshows/ratelimit.py for the trust
+# hierarchy.
+RATELIMIT_KEY = 'slideshows.ratelimit.client_ip_key'
 RATELIMIT_CREATE = '20/h'
 RATELIMIT_SLIDE_WRITE = '200/h'
 RATELIMIT_PATCH = '60/h'
 
-def _client_ip(request) -> str | None:
-    '''Best-effort client IP, honoring X-Forwarded-For when present.
-
-    Fly.io sets X-Forwarded-For to the real client
-    IP. REMOTE_ADDR alone would record the platform's edge proxy,
-    which is useless for abuse forensics.
-    '''
-    forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
-    if forwarded:
-        return forwarded.split(',')[0].strip()
-    return request.META.get('REMOTE_ADDR')
+# Forensics + abuse logging share the same hierarchy as the rate-
+# limit key, so the audit log and the counter agree on identity.
+from .ratelimit import client_ip as _client_ip  # noqa: E402
 
 
 # ----- API: POST /api/slideshow/ -----
@@ -109,7 +108,7 @@ def _client_ip(request) -> str | None:
 )
 @api_view(['POST'])
 @parser_classes([JSONParser])
-@ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_CREATE, method='POST', block=True)
+@ratelimit(key=RATELIMIT_KEY, rate=RATELIMIT_CREATE, method='POST', block=True)
 def slideshow_create(request):
     '''Anonymous create. Returns id, share_url, write_token, edit_url.
 
@@ -152,7 +151,7 @@ def slideshow_create(request):
 @api_view(['POST'])
 @authentication_classes([WriteTokenAuthentication])
 @parser_classes([MultiPartParser, JSONParser])
-@ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_SLIDE_WRITE, method='POST', block=True)
+@ratelimit(key=RATELIMIT_KEY, rate=RATELIMIT_SLIDE_WRITE, method='POST', block=True)
 def slide_add(request, slideshow_id):
     '''Append a slide. Auth: Bearer <write_token>.
 
@@ -206,7 +205,7 @@ def slide_add(request, slideshow_id):
 @api_view(['PATCH'])
 @authentication_classes([WriteTokenAuthentication])
 @parser_classes([MultiPartParser, JSONParser])
-@ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_SLIDE_WRITE, method='PATCH', block=True)
+@ratelimit(key=RATELIMIT_KEY, rate=RATELIMIT_SLIDE_WRITE, method='PATCH', block=True)
 def slide_update(request, slideshow_id, position):
     '''Replace image and/or caption. Auth: Bearer <write_token>.'''
     slideshow = authorize_slideshow(request, slideshow_id)
@@ -242,7 +241,7 @@ def slide_update(request, slideshow_id, position):
 @api_view(['PATCH'])
 @authentication_classes([WriteTokenAuthentication])
 @parser_classes([JSONParser])
-@ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_PATCH, method='PATCH', block=True)
+@ratelimit(key=RATELIMIT_KEY, rate=RATELIMIT_PATCH, method='PATCH', block=True)
 def slideshow_patch(request, slideshow_id):
     '''Patch title, description, or summary. Auth: Bearer <write_token>.'''
     slideshow = authorize_slideshow(request, slideshow_id)
@@ -338,7 +337,7 @@ def edit_token_recover(request, share_token):
 )
 @api_view(['POST'])
 @authentication_classes([WriteTokenAuthentication])
-@ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_PATCH, method='POST', block=True)
+@ratelimit(key=RATELIMIT_KEY, rate=RATELIMIT_PATCH, method='POST', block=True)
 def edit_token_rotate(request, share_token):
     '''Regenerate the edit_token. The old URL stops working immediately.
 
@@ -377,7 +376,7 @@ def edit_token_rotate(request, share_token):
 )
 @api_view(['PATCH'])
 @authentication_classes([WriteTokenAuthentication])
-@ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_SLIDE_WRITE, method='PATCH', block=True)
+@ratelimit(key=RATELIMIT_KEY, rate=RATELIMIT_SLIDE_WRITE, method='PATCH', block=True)
 def slide_edit_caption(request, share_token, position):
     '''Edit a slide's caption via the edit_token. Auth: Bearer <edit_token>.'''
     slideshow = authorize_edit(request, share_token)
@@ -399,7 +398,7 @@ def slide_edit_caption(request, share_token, position):
 )
 @api_view(['DELETE'])
 @authentication_classes([WriteTokenAuthentication])
-@ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_SLIDE_WRITE, method='DELETE', block=True)
+@ratelimit(key=RATELIMIT_KEY, rate=RATELIMIT_SLIDE_WRITE, method='DELETE', block=True)
 def slide_edit_delete(request, share_token, position):
     '''Delete a slide via the edit_token. Auth: Bearer <edit_token>.
 

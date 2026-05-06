@@ -200,6 +200,34 @@ else:
     MEDIA_ROOT = BASE_DIR / 'media'
 
 
+# ----- Cache (django-ratelimit backing store) -----
+#
+# django-ratelimit uses Django's default cache to track per-IP counters.
+# `LocMemCache` is per-process — every gunicorn worker keeps its own
+# counter, so a "20/h" limit becomes "20/h × workers × machines" in
+# production. That makes the rate limits decorative, not load-bearing.
+#
+# In prod, set REDIS_URL to a shared Redis (Upstash on Fly.io is the
+# zero-config option) so every worker hits the same counter. For local
+# dev we keep LocMemCache so contributors don't need a Redis container.
+
+if os.environ.get('REDIS_URL'):
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': os.environ['REDIS_URL'],
+            'TIMEOUT': 3600,
+        },
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'agentclip-default',
+        },
+    }
+
+
 # ----- DRF -----
 
 REST_FRAMEWORK = {

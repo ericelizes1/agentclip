@@ -973,3 +973,116 @@ class SlideEditTokenTests(TestCase):
             HTTP_AUTHORIZATION=f'Bearer {self.token}',
         )
         self.assertEqual(response.status_code, 404)
+
+
+class ClientIPTests(TestCase):
+    '''The trusted-proxy-aware client IP resolver.
+
+    Pins the trust hierarchy CF-Connecting-IP > X-Forwarded-For (first
+    entry) > REMOTE_ADDR. Both the rate-limit key function and the
+    forensics helper share this code, so a regression in one shows up
+    in the other — which means these tests guard both surfaces.
+    '''
+
+    def setUp(self) -> None:
+        from django.http import HttpRequest
+        self.request_factory = HttpRequest
+
+    def _make_request(self, **meta) -> object:
+        from django.http import HttpRequest
+        req = HttpRequest()
+        req.META.update(meta)
+        return req
+
+    def test_client_ip_prefers_cf_connecting_ip(self) -> None:
+        from slideshows.ratelimit import client_ip
+        req = self._make_request(
+            HTTP_CF_CONNECTING_IP='203.0.113.50',
+            HTTP_X_FORWARDED_FOR='198.51.100.10, 10.0.0.1',
+            REMOTE_ADDR='10.0.0.99',
+        )
+        self.assertEqual(client_ip(req), '203.0.113.50')
+
+    def test_client_ip_falls_back_to_x_forwarded_for_first_entry(self) -> None:
+        from slideshows.ratelimit import client_ip
+        req = self._make_request(
+            HTTP_X_FORWARDED_FOR='198.51.100.10, 10.0.0.1, 172.16.0.5',
+            REMOTE_ADDR='10.0.0.99',
+        )
+        self.assertEqual(client_ip(req), '198.51.100.10')
+
+    def test_client_ip_falls_back_to_remote_addr(self) -> None:
+        from slideshows.ratelimit import client_ip
+        req = self._make_request(REMOTE_ADDR='192.0.2.42')
+        self.assertEqual(client_ip(req), '192.0.2.42')
+
+    def test_client_ip_returns_empty_string_when_nothing_known(self) -> None:
+        from slideshows.ratelimit import client_ip
+        req = self._make_request()
+        self.assertEqual(client_ip(req), '')
+
+    def test_client_ip_strips_whitespace_in_x_forwarded_for(self) -> None:
+        '''Some proxies emit `IP1, IP2` with extra padding around commas.'''
+        from slideshows.ratelimit import client_ip
+        req = self._make_request(HTTP_X_FORWARDED_FOR='  198.51.100.10  ,10.0.0.1')
+        self.assertEqual(client_ip(req), '198.51.100.10')
+
+    def test_client_ip_key_returns_same_value_as_client_ip(self) -> None:
+        '''The django-ratelimit key wrapper must agree with the forensics helper.'''
+        from slideshows.ratelimit import client_ip, client_ip_key
+        req = self._make_request(HTTP_CF_CONNECTING_IP='203.0.113.50')
+        self.assertEqual(client_ip_key('any-group', req), client_ip(req))
+
+
+class RateLimitKeyIsolationTests(TestCase):
+    '''End-to-end: two distinct CF-Connecting-IPs must NOT share a counter.
+
+    Behind Cloudflare with the default `key='ip'` setting, both requests
+    look like the same Cloudflare edge IP and share one counter — the
+    bug this whole module exists to fix. With our key function they
+    each get their own bucket and only the abuser is throttled.
+    '''
+
+    def setUp(self) -> None:
+        cache.clear()
+        self.client = APIClient()
+
+    @override_settings(
+        CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
+    )
+    def test_two_clients_through_same_proxy_do_not_share_counter(self) -> None:
+        # Both requests come "from" the same Cloudflare edge (REMOTE_ADDR),
+        # but carry different CF-Connecting-IP headers — exactly what
+        # production looks like.
+        EDGE = '198.41.200.13'
+
+        # Drain attacker's bucket past the create limit.
+        for _ in range(21):
+            self.client.post(
+                '/api/slideshow/',
+                {'title': 'spam'},
+                format='json',
+                HTTP_CF_CONNECTING_IP='198.51.100.99',
+                REMOTE_ADDR=EDGE,
+            )
+
+        # Attacker is now blocked.
+        attacker = self.client.post(
+            '/api/slideshow/',
+            {'title': 'spam-22'},
+            format='json',
+            HTTP_CF_CONNECTING_IP='198.51.100.99',
+            REMOTE_ADDR=EDGE,
+        )
+        self.assertEqual(attacker.status_code, 429)
+
+        # Innocent user behind the same Cloudflare edge but with a
+        # different real IP must NOT be blocked.
+        innocent = self.client.post(
+            '/api/slideshow/',
+            {'title': 'first-clip'},
+            format='json',
+            HTTP_CF_CONNECTING_IP='203.0.113.7',
+            REMOTE_ADDR=EDGE,
+        )
+        self.assertEqual(innocent.status_code, 201)
