@@ -1,33 +1,31 @@
-'''Views for the slideshow API and the public viewer.
+'''Views for the slideshow API.
 
-API surface (under /api/):
+API surface:
 - POST   /api/slideshow/                          create
 - POST   /api/slideshow/<id>/slides/              add slide
 - PATCH  /api/slideshow/<id>/slides/<position>/   update slide
 - PATCH  /api/slideshow/<id>/                     patch slideshow
-
-Public surface:
-- GET    /                                        landing page
-- GET    /s/<share_token>/                        viewer
+- GET    /api/v1/gallery/                         curated home gallery
 
 Each API view is a function-based DRF view rather than a ViewSet
-because the four endpoints don't share enough behavior to benefit
-from a router. Function views also keep the auth wiring
+because the four mutating endpoints don't share enough behavior to
+benefit from a router. Function views also keep the auth wiring
 (``authorize_slideshow``) explicit at every call site, which is the
-right tradeoff for credential-bearing endpoints.
+right tradeoff for credential-bearing endpoints. The gallery
+endpoint, being a read-only list with no auth, uses a plain
+generics.ListAPIView.
 
-The two read-only endpoints (the viewer and the home page) live here
-too, even though they're plain Django views; separating 'public read'
-from 'public write' across modules adds navigation cost without
-buying any encapsulation at this scale.
+The public-facing viewer and home page used to live here as Django
+template views; both moved to the Next.js web/ service in the
+monorepo pivot. This module is API-only now.
 '''
 
 from __future__ import annotations
 
 from django.db import transaction
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404
 from django_ratelimit.decorators import ratelimit
-from rest_framework import status
+from rest_framework import generics, status
 from rest_framework.decorators import (
     api_view,
     authentication_classes,
@@ -46,6 +44,7 @@ from .models import (
     Slideshow,
 )
 from .serializers import (
+    GallerySlideshowSerializer,
     SlideshowCreateSerializer,
     SlideshowPatchSerializer,
     SlideWriteSerializer,
@@ -81,12 +80,6 @@ RATELIMIT_KEY_IP = 'ip'
 RATELIMIT_CREATE = '20/h'
 RATELIMIT_SLIDE_WRITE = '200/h'
 RATELIMIT_PATCH = '60/h'
-
-# Curated list of share_tokens that render in the home-page gallery.
-# Updated in place rather than database-backed; gallery items are an
-# editorial decision, not user content.
-_GALLERY_TOKENS: tuple[str, ...] = ()
-
 
 def _client_ip(request) -> str | None:
     '''Best-effort client IP, honoring X-Forwarded-For when present.
@@ -221,29 +214,26 @@ def slideshow_patch(request, slideshow_id):
     return Response(serializer.data)
 
 
-# ----- Public: GET /s/<share_token>/ -----
+# ----- Public: GET /api/v1/gallery/ -----
 
 
-def slideshow_viewer(request, share_token):
-    '''Public, unauthenticated viewer. Renders the slideshow as HTML.'''
-    slideshow = get_object_or_404(
-        Slideshow.objects.prefetch_related('slides'), share_token=share_token
+class GalleryListView(generics.ListAPIView):
+    '''Curated gallery feed for the home page.
+
+    Returns slideshows with `is_gallery=True`, ordered by
+    `gallery_position` ascending then `-created_at`. Capped at a sane
+    upper bound so a misconfigured admin entry can't blow up the
+    payload.
+
+    Public, unauthenticated, rate-limited per the same throttling as
+    the rest of the API.
+    '''
+
+    serializer_class = GallerySlideshowSerializer
+    pagination_class = None
+    queryset = (
+        Slideshow.objects
+        .filter(is_gallery=True)
+        .order_by('gallery_position', '-created_at')
+        .prefetch_related('slides')[:12]
     )
-    return render(
-        request,
-        'slideshows/viewer.html',
-        {'slideshow': slideshow, 'slides': list(slideshow.slides.all())},
-    )
-
-
-# ----- Public: GET / -----
-
-
-def home(request):
-    '''Landing page with hero, install snippet, and curated gallery.'''
-    gallery = list(
-        Slideshow.objects.filter(share_token__in=_GALLERY_TOKENS).prefetch_related('slides')
-    )
-    by_token = {s.share_token: s for s in gallery}
-    ordered = [by_token[t] for t in _GALLERY_TOKENS if t in by_token]
-    return render(request, 'slideshows/home.html', {'gallery': ordered})

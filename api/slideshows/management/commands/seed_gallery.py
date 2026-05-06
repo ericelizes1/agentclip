@@ -4,11 +4,10 @@ Run once after deploying to a fresh environment:
 
     python manage.py seed_gallery
 
-The command prints the resulting share_tokens. Paste those into
-``slideshows/views.py:_GALLERY_TOKENS`` (preserving the order you
-want the gallery to render in) and commit the change. The constant
-is the editorial-control surface for the gallery; each token must
-be added by hand so curation stays explicit.
+Each row is created with `is_gallery=True` and a sequential
+`gallery_position` (1..5), so it shows up on the home page
+immediately — no source-code edits required. Operators can curate
+further (re-order, hide, add their own) via Django admin.
 
 Each demo demonstrates a different agent-QA pattern referenced in
 SKILL.md (signup bug repro, onboarding walkthrough, competitive
@@ -17,8 +16,9 @@ intentionally stand-ins; replace with real screenshots from actual
 agent runs when capacity allows.
 
 This command is idempotent only in the sense that it creates new
-rows on every run; it does not deduplicate. The operator picks the
-canonical token set by hand.
+rows on every run; it does not deduplicate. Re-running on a DB
+that already has gallery rows will surface duplicates the operator
+must trim via admin.
 '''
 
 from __future__ import annotations
@@ -99,21 +99,24 @@ DEMO_CLIPS = [
 
 
 class Command(BaseCommand):
-    help = 'Create five demo slideshows for the home-page gallery and print their share_tokens.'
+    help = 'Create five demo slideshows for the home-page gallery (is_gallery=True).'
 
     def handle(self, *args, **options):
         if not FIXTURE_DIR.exists():
             self.stderr.write(self.style.ERROR(f'fixtures directory not found: {FIXTURE_DIR}'))
             return
 
-        created = []
-        for theme, title, description, summary, slides_data in DEMO_CLIPS:
+        for gallery_position, (theme, title, description, summary, slides_data) in enumerate(
+            DEMO_CLIPS, start=1
+        ):
             slideshow = Slideshow.objects.create(
                 title=title,
                 description=description,
                 summary=summary,
                 created_by='AgentClip',
                 created_by_url='https://github.com/ericelizes/agentclip',
+                is_gallery=True,
+                gallery_position=gallery_position,
             )
             for position, (filename, caption) in enumerate(slides_data, start=1):
                 fixture_path = FIXTURE_DIR / filename
@@ -131,18 +134,14 @@ class Command(BaseCommand):
                         media_content_type='image/png',
                         caption=caption,
                     )
-            created.append((theme, slideshow.share_token, slideshow.title))
             self.stdout.write(self.style.SUCCESS(
-                f'  created {theme:>14}  /s/{slideshow.share_token}/  ({len(slides_data)} slides)'
+                f'  created {theme:>14}  /s/{slideshow.share_token}/  '
+                f'(position={gallery_position}, {len(slides_data)} slides)'
             ))
 
         self.stdout.write('')
         self.stdout.write(self.style.NOTICE(
-            'Paste these tokens into slideshows/views.py:_GALLERY_TOKENS '
-            '(in the desired display order):'
+            'Gallery seeded. The home page (web/) will fetch these via '
+            '/api/v1/gallery/ on next request. Curate further via Django '
+            'admin if needed.'
         ))
-        self.stdout.write('')
-        self.stdout.write('_GALLERY_TOKENS: tuple[str, ...] = (')
-        for _, token, title in created:
-            self.stdout.write(f"    '{token}',  # {title}")
-        self.stdout.write(')')

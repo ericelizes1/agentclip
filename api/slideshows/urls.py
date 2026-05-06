@@ -1,15 +1,11 @@
 '''URL routes owned by the slideshows app.
 
-Two route families share the module:
+API-only after the monorepo pivot. The public viewer (`/s/<share_token>/`)
+and home page (`/`) used to render here as Django templates; both moved
+to the Next.js web/ service. This module now exposes:
 
-- ``/api/...`` for the SDK-facing endpoints. UUIDs match Django's
-  built-in ``uuid`` converter; positions match a plain ``int``.
-- ``/`` and ``/s/<share_token>/`` for the public, unauthenticated
-  HTML pages.
-
-The order matters: the more specific paths come first so the empty
-``''`` for home doesn't accidentally swallow other routes during a
-future refactor.
+- `/api/slideshow/...`  — write endpoints used by the SDK
+- `/api/v1/gallery/`    — read-only home-page gallery feed for web/
 '''
 
 from __future__ import annotations
@@ -19,7 +15,7 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # API
+    # Write API
     path('api/slideshow/', views.slideshow_create, name='api_slideshow_create'),
     path(
         'api/slideshow/<uuid:slideshow_id>/',
@@ -37,7 +33,6 @@ urlpatterns = [
         name='api_slide_update',
     ),
 
-    # Public
-    path('s/<str:share_token>/', views.slideshow_viewer, name='slideshow_viewer'),
-    path('', views.home, name='home'),
+    # Read API — gallery feed for the home page
+    path('api/v1/gallery/', views.GalleryListView.as_view(), name='gallery_list'),
 ]

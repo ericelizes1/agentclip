@@ -111,6 +111,22 @@ class Slideshow(models.Model):
     description = models.TextField(blank=True, default='')
     summary = models.TextField(blank=True, default='')
 
+    # Gallery curation: which slideshows surface on the home-page gallery
+    # and in what order. Replaces the old _GALLERY_TOKENS code constant
+    # (which broke OSS portability — tokens only exist in one DB).
+    # Gallery membership is an editorial decision the operator manages
+    # via the admin; flipping is_gallery=True is the only step required.
+    is_gallery = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text='Show on the home-page gallery. Curated via the admin; not user-controlled.',
+    )
+    gallery_position = models.PositiveSmallIntegerField(
+        default=0,
+        db_index=True,
+        help_text='Sort order within the gallery (ascending). Ties broken by -created_at.',
+    )
+
     # Optional creator credit, set at create time and rendered on the
     # public viewer. Text-based now, future-compatible with a real
     # owner FK once accounts ship; the two coexist (text = display

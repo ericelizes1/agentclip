@@ -11,7 +11,6 @@ copied accidentally during an admin session.
 from __future__ import annotations
 
 from django.contrib import admin
-from django.urls import reverse
 from django.utils.html import format_html
 
 from .models import Slide, Slideshow
@@ -29,12 +28,17 @@ class SlideInline(admin.TabularInline):
 class SlideshowAdmin(admin.ModelAdmin):
     list_display = (
         'title_or_id',
+        'is_gallery',
+        'gallery_position',
         'slide_count',
         'created_at',
         'created_ip',
         'view_link',
     )
-    list_filter = ('created_at',)
+    # Inline-editable from the changelist so curating the gallery is a
+    # one-click flip; no need to drill into each slideshow.
+    list_editable = ('is_gallery', 'gallery_position')
+    list_filter = ('is_gallery', 'created_at')
     search_fields = ('title', 'description', 'summary', 'id', 'share_token')
     date_hierarchy = 'created_at'
     ordering = ('-created_at',)
@@ -53,6 +57,17 @@ class SlideshowAdmin(admin.ModelAdmin):
         (
             'Creator credit',
             {'fields': ('created_by', 'created_by_url')},
+        ),
+        (
+            'Gallery curation',
+            {
+                'fields': ('is_gallery', 'gallery_position'),
+                'description': (
+                    'Flip is_gallery=True to surface this clip on the '
+                    'home-page gallery. gallery_position controls sort '
+                    'order (ascending; ties broken by -created_at).'
+                ),
+            },
         ),
         (
             'Tokens (read-only)',
@@ -80,7 +95,11 @@ class SlideshowAdmin(admin.ModelAdmin):
 
     @admin.display(description='public viewer')
     def view_link(self, obj: Slideshow) -> str:
-        url = reverse('slideshow_viewer', args=[obj.share_token])
+        # Hardcoded path: the public viewer now lives in the Next.js web/
+        # service and isn't part of Django's URL conf. The path shape
+        # (`/s/<share_token>/`) matches what web/app/s/[token]/page.tsx
+        # serves in production.
+        url = f'/s/{obj.share_token}/'
         return format_html('<a href="{}" target="_blank">{}</a>', url, url)
 
 

@@ -71,6 +71,52 @@ class SlideshowPublicSerializer(serializers.ModelSerializer):
         return path
 
 
+class GallerySlideshowSerializer(serializers.ModelSerializer):
+    '''Public, read-only shape for the home-page gallery endpoint.
+
+    Strips every internal field — write_token, created_ip, gallery_position
+    (an internal sort key), is_gallery (a curation flag) — and emits only
+    the fields the gallery card needs to render. The cover image comes
+    from the FIRST slide if any exist; absent otherwise.
+    '''
+
+    cover_image_url = serializers.SerializerMethodField()
+    slide_count = serializers.SerializerMethodField()
+    share_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Slideshow
+        fields = (
+            'id',
+            'share_token',
+            'title',
+            'description',
+            'created_by',
+            'created_by_url',
+            'created_at',
+            'cover_image_url',
+            'slide_count',
+            'share_url',
+        )
+        read_only_fields = fields
+
+    def get_cover_image_url(self, obj: Slideshow) -> str | None:
+        first = next(iter(obj.slides.all()), None)
+        if first is None:
+            return None
+        return _absolute_media_url(first, self.context.get('request'))
+
+    def get_slide_count(self, obj: Slideshow) -> int:
+        return obj.slides.count()
+
+    def get_share_url(self, obj: Slideshow) -> str:
+        request = self.context.get('request')
+        path = f'/s/{obj.share_token}/'
+        if request is not None:
+            return request.build_absolute_uri(path)
+        return path
+
+
 class SlideshowCreateSerializer(serializers.ModelSerializer):
     '''Create-time shape. Renders the ``write_token`` exactly once.'''
 

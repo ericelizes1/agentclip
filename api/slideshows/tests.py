@@ -21,7 +21,7 @@ from django.test import TestCase, override_settings
 from PIL import Image
 from rest_framework.test import APIClient
 
-from slideshows.models import Slide, Slideshow
+from slideshows.models import MediaKind, Slide, Slideshow
 
 
 def _png_bytes(color: str = 'red') -> bytes:
@@ -340,19 +340,25 @@ class SlideshowAPITests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('media', response.json())
 
-    def test_viewer_renders_video_tag_for_video_slide(self):
+    def test_video_slide_round_trip_through_api(self):
+        '''Posting a video upload yields a Slide with media_kind=video.
+
+        The old assertion was that the Django template viewer rendered a
+        <video> tag; the viewer moved to web/ in the monorepo pivot, so
+        this now verifies the API contract itself: media_kind is set
+        correctly so web/ can branch on it during render.
+        '''
         show = Slideshow.objects.create(title='video show')
-        # POST through the API so media_kind is set by the validator path.
-        self.client.post(
+        response = self.client.post(
             f'/api/slideshow/{show.id}/slides/',
             {'media': _mp4_upload(), 'caption': 'a clip'},
             format='multipart',
             HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
         )
-        response = self.client.get(f'/s/{show.share_token}/')
-        body = response.content.decode()
-        self.assertIn('<video', body)
-        self.assertNotIn('<img src="/media/slideshows/', body)
+        self.assertEqual(response.status_code, 201)
+        slide = show.slides.get(position=1)
+        self.assertEqual(slide.media_kind, MediaKind.VIDEO)
+        self.assertEqual(slide.media_content_type, 'video/mp4')
 
 
 @override_settings(
@@ -372,60 +378,80 @@ class RateLimitTests(TestCase):
         self.assertEqual(r.status_code, 429)
 
 
-class PublicViewerTests(TestCase):
-    def test_viewer_renders_slideshow_by_share_token(self):
-        show = Slideshow.objects.create(title='Public test', summary='everything passed')
-        Slide.objects.create(
-            slideshow=show, position=1, media=_png_upload(), caption='one'
-        )
-        response = self.client.get(f'/s/{show.share_token}/')
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Public test')
-        self.assertContains(response, 'everything passed')
+class GalleryEndpointTests(TestCase):
+    '''Cover the read-only GET /api/v1/gallery/ endpoint.
 
-    def test_viewer_unknown_token_returns_404(self):
+    Replaces the old PublicViewerTests that lived here when Django
+    rendered HTML. The viewer + home page now live in the Next.js
+    web/ service; the API exposes a curated gallery feed instead.
+    '''
+
+    URL = '/api/v1/gallery/'
+
+    def test_returns_only_gallery_flagged_slideshows(self):
+        in_gallery = Slideshow.objects.create(
+            title='in', is_gallery=True, gallery_position=1,
+        )
+        Slideshow.objects.create(title='hidden', is_gallery=False)
+
+        response = self.client.get(self.URL)
+        self.assertEqual(response.status_code, 200)
+        ids = [item['id'] for item in response.json()]
+        self.assertIn(str(in_gallery.id), ids)
+        self.assertEqual(len(ids), 1)
+
+    def test_orders_by_gallery_position_then_recency(self):
+        # Same position; newer should win the tiebreak.
+        old = Slideshow.objects.create(
+            title='old', is_gallery=True, gallery_position=1,
+        )
+        new = Slideshow.objects.create(
+            title='new', is_gallery=True, gallery_position=1,
+        )
+        # Different position; lower wins outright.
+        first = Slideshow.objects.create(
+            title='first', is_gallery=True, gallery_position=0,
+        )
+
+        response = self.client.get(self.URL)
+        ids = [item['id'] for item in response.json()]
+        # gallery_position=0 → first; then position=1 ties resolve to
+        # newer (`new`) before older (`old`).
+        self.assertEqual(
+            ids,
+            [str(first.id), str(new.id), str(old.id)],
+        )
+
+    def test_empty_gallery_returns_empty_list(self):
+        Slideshow.objects.create(title='hidden', is_gallery=False)
+
+        response = self.client.get(self.URL)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), [])
+
+    def test_response_omits_internal_fields(self):
+        Slideshow.objects.create(
+            title='leaktest', is_gallery=True, gallery_position=1,
+        )
+
+        response = self.client.get(self.URL)
+        item = response.json()[0]
+        # write_token, gallery_position, is_gallery, created_ip, summary
+        # are all internal and must never reach the public payload.
+        for forbidden in ('write_token', 'gallery_position', 'is_gallery', 'created_ip', 'summary'):
+            self.assertNotIn(forbidden, item, msg=f'leaked {forbidden}')
+
+    def test_endpoint_is_publicly_accessible(self):
+        '''No auth header required — gallery is unauthenticated.'''
+        response = self.client.get(self.URL)
+        self.assertEqual(response.status_code, 200)
+
+    def test_unknown_token_no_longer_routes(self):
+        '''The old /s/<share_token>/ template route was removed; assert
+        Django returns 404 (not 500 or template lookup error) so we don't
+        regress the route deletion.'''
         response = self.client.get('/s/does-not-exist/')
         self.assertEqual(response.status_code, 404)
-
-    def test_home_renders(self):
-        response = self.client.get('/')
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'agentclip')
-
-    def test_share_token_does_not_leak_write_token(self):
-        '''The viewer must never put write_token into the rendered page.'''
-        show = Slideshow.objects.create(title='leaktest')
-        response = self.client.get(f'/s/{show.share_token}/')
-        self.assertNotIn(show.write_token, response.content.decode())
-
-    # ----- creator credit rendering -----
-
-    def test_viewer_renders_filed_by_with_link_when_url_set(self):
-        show = Slideshow.objects.create(
-            title='credited',
-            created_by='Eric Elizes',
-            created_by_url='https://elizes.dev',
-        )
-        body = self.client.get(f'/s/{show.share_token}/').content.decode()
-        self.assertIn('FILED BY', body)
-        self.assertIn('Eric Elizes', body)
-        self.assertIn('href="https://elizes.dev"', body)
-        self.assertIn('rel="noopener nofollow"', body)
-
-    def test_viewer_renders_filed_by_as_plain_text_when_no_url(self):
-        show = Slideshow.objects.create(title='credited', created_by='Plain Name')
-        body = self.client.get(f'/s/{show.share_token}/').content.decode()
-        self.assertIn('FILED BY', body)
-        self.assertIn('Plain Name', body)
-        # Slice the chunk around the name and confirm no <a href="..."> wraps it.
-        idx = body.index('Plain Name')
-        nearby = body[max(0, idx - 80):idx + 20]
-        self.assertNotIn('href=', nearby)
-
-    def test_viewer_omits_filed_by_block_when_credit_blank(self):
-        show = Slideshow.objects.create(title='no credit')
-        body = self.client.get(f'/s/{show.share_token}/').content.decode()
-        self.assertNotIn('FILED BY', body)
 
 
 class SeedGalleryTests(TestCase):
@@ -455,8 +481,33 @@ class SeedGalleryTests(TestCase):
                 'https://github.com/ericelizes/agentclip',
             )
 
-        # Output ends with a paste-ready _GALLERY_TOKENS block so the
-        # operator can drop it straight into views.py.
-        output = out.getvalue()
-        self.assertIn('_GALLERY_TOKENS', output)
-        self.assertIn('tuple[str, ...]', output)
+    def test_seed_gallery_marks_all_rows_as_gallery_with_sequential_positions(self):
+        '''Every seeded row lands on the home page immediately, with a
+        deterministic display order.'''
+        from django.core.management import call_command
+
+        call_command('seed_gallery')
+
+        gallery_rows = list(
+            Slideshow.objects.order_by('gallery_position').values_list(
+                'is_gallery', 'gallery_position',
+            )
+        )
+        self.assertEqual(len(gallery_rows), 5)
+        # Every row is gallery=True with positions 1..5.
+        self.assertTrue(all(is_gallery for is_gallery, _ in gallery_rows))
+        self.assertEqual(
+            [pos for _, pos in gallery_rows],
+            [1, 2, 3, 4, 5],
+        )
+
+    def test_seeded_rows_appear_in_gallery_endpoint(self):
+        '''End-to-end: seed → endpoint shows the rows in position order.'''
+        from django.core.management import call_command
+
+        call_command('seed_gallery')
+
+        response = self.client.get('/api/v1/gallery/')
+        self.assertEqual(response.status_code, 200)
+        # All 5 demos surface (default queryset cap is 12).
+        self.assertEqual(len(response.json()), 5)
