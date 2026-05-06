@@ -507,20 +507,50 @@ class SlideshowPublicView(generics.RetrieveAPIView):
 class GalleryListView(generics.ListAPIView):
     '''Curated gallery feed for the home page.
 
-    Returns slideshows with `is_gallery=True`, ordered by
-    `gallery_position` ascending then `-created_at`. Capped at a sane
-    upper bound so a misconfigured admin entry can't blow up the
-    payload.
+    Two curation modes, in priority order:
 
+    1. Env-var override — when `AGENTCLIP_GALLERY_TOKENS` is set in
+       the environment as a comma-separated list of share_tokens, the
+       gallery returns those slideshows in that order, bypassing the
+       `is_gallery` flag. Lets a curator (or an agent without admin
+       access) reorder the home gallery via a Fly secret update +
+       redeploy, no Django admin trip required.
+    2. Database flag — falls back to slideshows with `is_gallery=True`,
+       ordered by `gallery_position` then `-created_at`. The original
+       admin-driven path stays intact for a bulk-flag workflow.
+
+    Capped at 12 entries so a typo'd config can't blow up the payload.
     Public, unauthenticated, rate-limited per the same throttling as
     the rest of the API.
     '''
 
     serializer_class = GallerySlideshowSerializer
     pagination_class = None
-    queryset = (
-        Slideshow.objects
-        .filter(is_gallery=True)
-        .order_by('gallery_position', '-created_at')
-        .prefetch_related('slides')[:12]
-    )
+
+    def get_queryset(self):
+        import os
+        from django.db.models import Case, IntegerField, When
+
+        override = os.environ.get('AGENTCLIP_GALLERY_TOKENS', '').strip()
+        if override:
+            tokens = [t.strip() for t in override.split(',') if t.strip()][:12]
+            if tokens:
+                # Preserve the curator's order via Case/When so the
+                # first token in the env var lands at gallery_position 0.
+                ordering = Case(
+                    *[When(share_token=t, then=i) for i, t in enumerate(tokens)],
+                    output_field=IntegerField(),
+                )
+                return (
+                    Slideshow.objects
+                    .filter(share_token__in=tokens)
+                    .annotate(_curator_order=ordering)
+                    .order_by('_curator_order')
+                    .prefetch_related('slides')
+                )
+        return (
+            Slideshow.objects
+            .filter(is_gallery=True)
+            .order_by('gallery_position', '-created_at')
+            .prefetch_related('slides')[:12]
+        )

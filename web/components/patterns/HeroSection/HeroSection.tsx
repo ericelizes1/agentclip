@@ -8,7 +8,17 @@ import { Button } from '@/components/primitives/Button/Button'
 import { Pill } from '@/components/primitives/Pill/Pill'
 import { Tabs } from '@/components/primitives/Tabs/Tabs'
 import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
+import {
+  HeroPreview,
+  type HeroPreviewSlide,
+} from '@/components/patterns/HeroPreview/HeroPreview'
 import { cn } from '@/lib/utils'
+
+export interface HeroFeaturedClip {
+  shareToken: string
+  creatorName?: string
+  slides: HeroPreviewSlide[]
+}
 
 export interface HeroSectionProps {
   /** GitHub URL the primary CTA points at. */
@@ -19,6 +29,13 @@ export interface HeroSectionProps {
   agentPrompt?: string
   /** Hides the install card on pages that don't need it. */
   showInstall?: boolean
+  /**
+   * When provided, the hero leads with an embedded mini-viewer of this
+   * clip ("show, don't tell") and demotes the headline to a caption.
+   * When absent (e.g., the API is down or no AGENTCLIP_HERO_TOKEN is
+   * set), falls back to the original headline-first layout.
+   */
+  featured?: HeroFeaturedClip | null
   className?: string
 }
 
@@ -42,6 +59,7 @@ export function HeroSection({
   pipInstall = PIP_INSTALL_DEFAULT,
   agentPrompt = AGENT_PROMPT_DEFAULT,
   showInstall = true,
+  featured,
   className,
 }: HeroSectionProps) {
   const reduce = useReducedMotion()
@@ -58,17 +76,46 @@ export function HeroSection({
         <Pill>v0.1 · open source · MCP</Pill>
       </motion.div>
 
+      {featured && featured.slides.length > 0 && (
+        <>
+          <motion.p
+            initial={reduce ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={at(1)}
+            className="max-w-[52ch] text-lg leading-snug tracking-tight text-ink-700 sm:text-xl"
+          >
+            An agent ran a real QA flow. This is what came back.
+          </motion.p>
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={at(2)}
+          >
+            <HeroPreview
+              shareToken={featured.shareToken}
+              {...(featured.creatorName !== undefined
+                ? { creatorName: featured.creatorName }
+                : {})}
+              slides={featured.slides}
+            />
+          </motion.div>
+        </>
+      )}
+
       <motion.h1
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={at(1)}
+        transition={at(featured ? 3 : 1)}
         className={cn(
           'font-bold tracking-[-0.04em] leading-[1.02] text-ink-900',
-          'text-[clamp(2.5rem,1.7rem+4.5vw,4.5rem)]',
+          featured
+            ? 'text-[clamp(1.75rem,1.3rem+2vw,2.75rem)]'
+            : 'text-[clamp(2.5rem,1.7rem+4.5vw,4.5rem)]',
         )}
       >
         Skip the
-        <br />
+        {!featured && <br />}
+        {featured ? ' ' : ''}
         <em className="not-italic [text-decoration:underline] [text-decoration-color:var(--color-vermillion-500)] [text-decoration-thickness:5px] [text-underline-offset:0.16em]">
           screencast.
         </em>
@@ -77,7 +124,7 @@ export function HeroSection({
       <motion.p
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={at(2)}
+        transition={at(featured ? 4 : 2)}
         className="max-w-[52ch] text-lg text-ink-600 sm:text-xl"
       >
         QA runs, walkthroughs, bug repros — your agent records the run, narrates
@@ -87,7 +134,7 @@ export function HeroSection({
       <motion.div
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={at(3)}
+        transition={at(featured ? 5 : 3)}
         className="flex flex-wrap items-center gap-3"
       >
         <Button asChild variant="primary" size="lg">
@@ -108,7 +155,7 @@ export function HeroSection({
         <motion.div
           initial={reduce ? false : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={at(4)}
+          transition={at(featured ? 6 : 4)}
           className="rounded-[14px] border border-ink-200 bg-paper shadow-[var(--shadow-whisper)]"
         >
           <Tabs.Root defaultValue="pip">

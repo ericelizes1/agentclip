@@ -11,8 +11,12 @@ import { SiGithub } from '@icons-pack/react-simple-icons'
 
 import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
 import { NavBar } from '@/components/composites/NavBar/NavBar'
+import { TicketMark } from '@/components/primitives/TicketMark/TicketMark'
 import { GalleryGrid, type GalleryClip } from '@/components/patterns/GalleryGrid/GalleryGrid'
-import { HeroSection } from '@/components/patterns/HeroSection/HeroSection'
+import {
+  HeroSection,
+  type HeroFeaturedClip,
+} from '@/components/patterns/HeroSection/HeroSection'
 import { api } from '@/lib/api'
 
 const GITHUB_URL = 'https://github.com/ericelizes1/agentclip'
@@ -70,14 +74,44 @@ async function fetchGallery(): Promise<GalleryClip[]> {
   }
 }
 
+// Featured clip drives the home hero's embedded mini-viewer.
+// AGENTCLIP_HERO_TOKEN is read at SSR time only — flipping the env
+// var on Fly redeploys the web app, which picks up the new token on
+// the next request. ISR (revalidate=60) keeps it snappy in between.
+const HERO_PREVIEW_SLIDE_LIMIT = 4
+
+async function fetchFeatured(): Promise<HeroFeaturedClip | null> {
+  const token = process.env.AGENTCLIP_HERO_TOKEN?.trim()
+  if (!token) return null
+  try {
+    const { data } = await api.GET('/api/v1/slideshow/{share_token}/', {
+      params: { path: { share_token: token } },
+    })
+    if (!data || !data.slides?.length) return null
+    return {
+      shareToken: token,
+      ...(data.created_by ? { creatorName: data.created_by } : {}),
+      slides: data.slides.slice(0, HERO_PREVIEW_SLIDE_LIMIT).map((s) => ({
+        position: s.position,
+        ...(s.title ? { title: s.title } : {}),
+        caption: s.caption ?? '',
+        mediaUrl: s.media_url,
+        mediaKind: s.media_kind === 'video' ? 'video' : 'image',
+      })),
+    }
+  } catch {
+    return null
+  }
+}
+
 export default async function HomePage() {
-  const clips = await fetchGallery()
+  const [clips, featured] = await Promise.all([fetchGallery(), fetchFeatured()])
 
   return (
     <>
       <NavBar githubUrl={GITHUB_URL} />
 
-      <HeroSection githubUrl={GITHUB_URL} />
+      <HeroSection githubUrl={GITHUB_URL} featured={featured} />
 
       <section
         id="how-it-works"
@@ -156,7 +190,7 @@ export default async function HomePage() {
       <footer className="border-t border-ink-200 bg-paper-raised">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-xs uppercase tracking-[0.14em] text-ink-500">
           <span className="flex items-center gap-2 text-ink-700">
-            <span aria-hidden="true" className="size-2 rounded-full bg-vermillion-500" />
+            <TicketMark size={14} className="text-vermillion-500" />
             AgentClip
           </span>
           <a

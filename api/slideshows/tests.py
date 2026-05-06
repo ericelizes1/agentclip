@@ -486,6 +486,56 @@ class GalleryEndpointTests(TestCase):
         response = self.client.get('/s/does-not-exist/')
         self.assertEqual(response.status_code, 404)
 
+    def test_env_var_override_returns_listed_tokens_in_order(self):
+        '''AGENTCLIP_GALLERY_TOKENS bypasses is_gallery and respects order.'''
+        a = Slideshow.objects.create(title='a', is_gallery=False)
+        b = Slideshow.objects.create(title='b', is_gallery=False)
+        c = Slideshow.objects.create(title='c', is_gallery=True, gallery_position=0)
+
+        # Curator wants order: b, a (and intentionally excludes c despite is_gallery).
+        with override_settings():
+            import os
+            os.environ['AGENTCLIP_GALLERY_TOKENS'] = f'{b.share_token},{a.share_token}'
+            try:
+                response = self.client.get(self.URL)
+                ids = [item['id'] for item in response.json()]
+            finally:
+                del os.environ['AGENTCLIP_GALLERY_TOKENS']
+
+        self.assertEqual(ids, [str(b.id), str(a.id)])
+        self.assertNotIn(str(c.id), ids)
+
+    def test_env_var_override_ignores_unknown_tokens(self):
+        '''Curator typos shouldn't 500 the page — unknown tokens silently drop.'''
+        real = Slideshow.objects.create(title='real', is_gallery=False)
+
+        import os
+        os.environ['AGENTCLIP_GALLERY_TOKENS'] = f'not-a-real-token,{real.share_token}'
+        try:
+            response = self.client.get(self.URL)
+            ids = [item['id'] for item in response.json()]
+        finally:
+            del os.environ['AGENTCLIP_GALLERY_TOKENS']
+
+        self.assertEqual(ids, [str(real.id)])
+
+    def test_empty_env_var_falls_back_to_db_flag(self):
+        '''Unset (or whitespace-only) override leaves the original is_gallery
+        path in place so we don't break existing prod behavior.'''
+        flagged = Slideshow.objects.create(
+            title='flagged', is_gallery=True, gallery_position=0,
+        )
+
+        import os
+        os.environ['AGENTCLIP_GALLERY_TOKENS'] = '   '
+        try:
+            response = self.client.get(self.URL)
+            ids = [item['id'] for item in response.json()]
+        finally:
+            del os.environ['AGENTCLIP_GALLERY_TOKENS']
+
+        self.assertEqual(ids, [str(flagged.id)])
+
 
 class SeedGalleryTests(TestCase):
     '''Cover the seed_gallery management command.
