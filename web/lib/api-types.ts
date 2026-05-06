@@ -194,6 +194,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/slideshow/{share_token}/slides/{position}/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * @description Delete a slide via the edit_token. Auth: Bearer <edit_token>.
+         *
+         *     Positions of remaining slides are NOT renumbered — the gap is
+         *     preserved so existing public links to higher-numbered positions
+         *     stay valid as long as those slides exist. Renumbering on delete
+         *     would silently rewrite shareable URLs.
+         */
+        delete: operations["v1_slideshow_slides_destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slideshow/{share_token}/slides/{position}/caption/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** @description Edit a slide's caption via the edit_token. Auth: Bearer <edit_token>. */
+        patch: operations["v1_slideshow_slides_caption_partial_update"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -243,6 +284,17 @@ export interface components {
          * @enum {string}
          */
         MediaKindEnum: "image" | "video";
+        /**
+         * @description Edit-page caption update body.
+         *
+         *     The edit-token-authenticated endpoint accepts only `caption` —
+         *     callers wanting to change media must use the write_token-protected
+         *     `/api/slideshow/<id>/slides/<position>/` route. Keeping the surface
+         *     narrow makes the security boundary easier to reason about.
+         */
+        PatchedSlideCaptionEditRequest: {
+            caption?: string;
+        };
         /**
          * @description Create + update shape for slides. Media and caption only.
          *
@@ -593,6 +645,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EditToken"];
+                };
+            };
+        };
+    };
+    v1_slideshow_slides_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                position: number;
+                share_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    v1_slideshow_slides_caption_partial_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                position: number;
+                share_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchedSlideCaptionEditRequest"];
+                "multipart/form-data": components["schemas"]["PatchedSlideCaptionEditRequest"];
+                "application/x-www-form-urlencoded": components["schemas"]["PatchedSlideCaptionEditRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlideWrite"];
                 };
             };
         };

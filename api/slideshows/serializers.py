@@ -192,6 +192,18 @@ class EditTokenSerializer(serializers.Serializer):
     edit_url = serializers.CharField(read_only=True)
 
 
+class SlideCaptionEditSerializer(serializers.Serializer):
+    '''Edit-page caption update body.
+
+    The edit-token-authenticated endpoint accepts only `caption` —
+    callers wanting to change media must use the write_token-protected
+    `/api/slideshow/<id>/slides/<position>/` route. Keeping the surface
+    narrow makes the security boundary easier to reason about.
+    '''
+
+    caption = serializers.CharField(required=True, allow_blank=True, max_length=500)
+
+
 class SlideWriteSerializer(serializers.ModelSerializer):
     '''Create + update shape for slides. Media and caption only.
 

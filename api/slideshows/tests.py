@@ -750,6 +750,8 @@ class OpenAPISchemaTests(TestCase):
             '/api/v1/slideshow/{share_token}/',
             '/api/v1/slideshow/{share_token}/edit-token/',
             '/api/v1/slideshow/{share_token}/rotate-edit-token/',
+            '/api/v1/slideshow/{share_token}/slides/{position}/',
+            '/api/v1/slideshow/{share_token}/slides/{position}/caption/',
         }
         self.assertEqual(set(schema['paths'].keys()), expected_paths)
 
@@ -830,4 +832,144 @@ class SlideshowPublicReadTests(TestCase):
 
     def test_returns_404_for_unknown_share_token(self) -> None:
         response = self.client.get('/api/v1/slideshow/does-not-exist/')
+        self.assertEqual(response.status_code, 404)
+
+
+@override_settings(
+    CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
+)
+class SlideEditTokenTests(TestCase):
+    '''Edit-page mutating endpoints (PATCH caption, DELETE slide).
+
+    Authenticated by the per-slideshow edit_token. Surface is narrow
+    on purpose — the SDK's write_token routes still own media changes
+    and slideshow metadata edits.
+    '''
+
+    def setUp(self) -> None:
+        cache.clear()
+        self.client = APIClient()
+        self.slideshow = Slideshow.objects.create(title='Edit me')
+        self.s1 = Slide.objects.create(
+            slideshow=self.slideshow,
+            position=1,
+            media=_png_upload('one.png'),
+            media_kind=MediaKind.IMAGE,
+            media_content_type='image/png',
+            caption='original',
+        )
+        self.s2 = Slide.objects.create(
+            slideshow=self.slideshow,
+            position=2,
+            media=_png_upload('two.png', 'blue'),
+            media_kind=MediaKind.IMAGE,
+            media_content_type='image/png',
+            caption='second',
+        )
+        self.token = self.slideshow.edit_token
+
+    # ----- PATCH caption -----
+
+    def test_patch_caption_with_valid_edit_token(self) -> None:
+        response = self.client.patch(
+            f'/api/v1/slideshow/{self.slideshow.share_token}/slides/1/caption/',
+            {'caption': 'updated body'},
+            format='json',
+            HTTP_AUTHORIZATION=f'Bearer {self.token}',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['caption'], 'updated body')
+        self.s1.refresh_from_db()
+        self.assertEqual(self.s1.caption, 'updated body')
+
+    def test_patch_caption_without_auth_returns_401(self) -> None:
+        response = self.client.patch(
+            f'/api/v1/slideshow/{self.slideshow.share_token}/slides/1/caption/',
+            {'caption': 'x'},
+            format='json',
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_patch_caption_with_wrong_token_returns_401(self) -> None:
+        response = self.client.patch(
+            f'/api/v1/slideshow/{self.slideshow.share_token}/slides/1/caption/',
+            {'caption': 'x'},
+            format='json',
+            HTTP_AUTHORIZATION='Bearer not-the-edit-token',
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_patch_caption_with_other_slideshows_token_returns_401(self) -> None:
+        other = Slideshow.objects.create(title='other')
+        response = self.client.patch(
+            f'/api/v1/slideshow/{self.slideshow.share_token}/slides/1/caption/',
+            {'caption': 'x'},
+            format='json',
+            HTTP_AUTHORIZATION=f'Bearer {other.edit_token}',
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_patch_caption_for_unknown_slideshow_returns_404(self) -> None:
+        response = self.client.patch(
+            '/api/v1/slideshow/does-not-exist/slides/1/caption/',
+            {'caption': 'x'},
+            format='json',
+            HTTP_AUTHORIZATION=f'Bearer {self.token}',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_patch_caption_for_unknown_position_returns_404(self) -> None:
+        response = self.client.patch(
+            f'/api/v1/slideshow/{self.slideshow.share_token}/slides/99/caption/',
+            {'caption': 'x'},
+            format='json',
+            HTTP_AUTHORIZATION=f'Bearer {self.token}',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_patch_caption_rejects_write_token(self) -> None:
+        '''The write_token must NOT authorize edit-page mutations; the
+        two surfaces are separated on purpose. Caller wanting both can
+        still hit /api/slideshow/<id>/slides/<position>/ with write_token.'''
+        response = self.client.patch(
+            f'/api/v1/slideshow/{self.slideshow.share_token}/slides/1/caption/',
+            {'caption': 'x'},
+            format='json',
+            HTTP_AUTHORIZATION=f'Bearer {self.slideshow.write_token}',
+        )
+        self.assertEqual(response.status_code, 401)
+
+    # ----- DELETE slide -----
+
+    def test_delete_slide_with_valid_edit_token(self) -> None:
+        response = self.client.delete(
+            f'/api/v1/slideshow/{self.slideshow.share_token}/slides/2/',
+            HTTP_AUTHORIZATION=f'Bearer {self.token}',
+        )
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Slide.objects.filter(pk=self.s2.pk).exists())
+        # Position 1 must remain untouched.
+        self.assertTrue(Slide.objects.filter(pk=self.s1.pk).exists())
+
+    def test_delete_slide_does_not_renumber_remaining(self) -> None:
+        '''Deleting position 1 leaves position 2 at position 2 — gaps in
+        the numeric sequence are intentional, not bugs to fix.'''
+        self.client.delete(
+            f'/api/v1/slideshow/{self.slideshow.share_token}/slides/1/',
+            HTTP_AUTHORIZATION=f'Bearer {self.token}',
+        )
+        self.s2.refresh_from_db()
+        self.assertEqual(self.s2.position, 2)
+
+    def test_delete_slide_without_auth_returns_401(self) -> None:
+        response = self.client.delete(
+            f'/api/v1/slideshow/{self.slideshow.share_token}/slides/1/',
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_delete_slide_for_unknown_position_returns_404(self) -> None:
+        response = self.client.delete(
+            f'/api/v1/slideshow/{self.slideshow.share_token}/slides/99/',
+            HTTP_AUTHORIZATION=f'Bearer {self.token}',
+        )
         self.assertEqual(response.status_code, 404)

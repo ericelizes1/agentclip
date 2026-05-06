@@ -332,6 +332,108 @@
                     }
                 }
             }
+        },
+        "/api/v1/slideshow/{share_token}/slides/{position}/": {
+            "delete": {
+                "operationId": "v1_slideshow_slides_destroy",
+                "description": "Delete a slide via the edit_token. Auth: Bearer <edit_token>.\n\nPositions of remaining slides are NOT renumbered — the gap is\npreserved so existing public links to higher-numbered positions\nstay valid as long as those slides exist. Renumbering on delete\nwould silently rewrite shareable URLs.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "position",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "share_token",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "edit-token"
+                ],
+                "security": [
+                    {
+                        "WriteTokenAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1/slideshow/{share_token}/slides/{position}/caption/": {
+            "patch": {
+                "operationId": "v1_slideshow_slides_caption_partial_update",
+                "description": "Edit a slide's caption via the edit_token. Auth: Bearer <edit_token>.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "position",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "share_token",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "edit-token"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedSlideCaptionEditRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedSlideCaptionEditRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedSlideCaptionEditRequest"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "WriteTokenAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SlideWrite"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -426,6 +528,16 @@
                 ],
                 "type": "string",
                 "description": "* `image` - Image\n* `video` - Video"
+            },
+            "PatchedSlideCaptionEditRequest": {
+                "type": "object",
+                "description": "Edit-page caption update body.\n\nThe edit-token-authenticated endpoint accepts only `caption` —\ncallers wanting to change media must use the write_token-protected\n`/api/slideshow/<id>/slides/<position>/` route. Keeping the surface\nnarrow makes the security boundary easier to reason about.",
+                "properties": {
+                    "caption": {
+                        "type": "string",
+                        "maxLength": 500
+                    }
+                }
             },
             "PatchedSlideWriteRequest": {
                 "type": "object",

@@ -78,6 +78,33 @@ def authorize_slideshow(request, slideshow_id) -> Slideshow:
     return slideshow
 
 
+def authorize_edit(request, share_token: str) -> Slideshow:
+    '''Verify the request's Bearer edit_token against the named slideshow.
+
+    Mirrors ``authorize_slideshow``, but resolves by ``share_token`` (the
+    URL-safe slug the edit page receives) and compares against the
+    slideshow's ``edit_token`` instead of ``write_token``. Used by the
+    edit-page mutating endpoints under /api/v1/slideshow/<slug>/slides/.
+
+    Raises:
+    - 401 NotAuthenticated when no Authorization header is present
+    - 401 AuthenticationFailed when the token does not match
+    - 404 when the slideshow itself does not exist
+    '''
+    header = request.META.get('HTTP_AUTHORIZATION', '')
+    if not header.startswith(AUTH_HEADER_PREFIX):
+        raise NotAuthenticated('missing Bearer token')
+    supplied = header[len(AUTH_HEADER_PREFIX):].strip()
+    if not supplied:
+        raise NotAuthenticated('empty Bearer token')
+
+    slideshow = get_object_or_404(Slideshow, share_token=share_token)
+
+    if not secrets.compare_digest(supplied, slideshow.edit_token):
+        raise AuthenticationFailed('invalid edit_token for this slideshow')
+    return slideshow
+
+
 class WriteTokenAuthenticationScheme(OpenApiAuthenticationExtension):
     '''Tells drf-spectacular how to render WriteTokenAuthentication in OpenAPI.
 

@@ -66,4 +66,16 @@ urlpatterns = [
         views.edit_token_rotate,
         name='edit_token_rotate',
     ),
+
+    # Edit-page mutating endpoints (slug-keyed, edit_token-authenticated)
+    path(
+        'api/v1/slideshow/<str:share_token>/slides/<int:position>/caption/',
+        views.slide_edit_caption,
+        name='slide_edit_caption',
+    ),
+    path(
+        'api/v1/slideshow/<str:share_token>/slides/<int:position>/',
+        views.slide_edit_delete,
+        name='slide_edit_delete',
+    ),
 ]

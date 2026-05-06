@@ -35,7 +35,7 @@ from rest_framework.decorators import (
 from rest_framework.parsers import JSONParser, MultiPartParser
 from rest_framework.response import Response
 
-from .auth import WriteTokenAuthentication, authorize_slideshow
+from .auth import WriteTokenAuthentication, authorize_edit, authorize_slideshow
 from .models import (
     ALLOWED_IMAGE_TYPES,
     ALLOWED_MEDIA_TYPES,
@@ -48,6 +48,7 @@ from .models import (
 from .serializers import (
     EditTokenSerializer,
     GallerySlideshowSerializer,
+    SlideCaptionEditSerializer,
     SlideshowCreateSerializer,
     SlideshowPatchSerializer,
     SlideshowPublicSerializer,
@@ -357,6 +358,59 @@ def edit_token_rotate(request, share_token):
         'edit_token': slideshow.edit_token,
         'edit_url': _edit_url(slideshow, request),
     })
+
+
+# ----- Edit-page mutations: caption-only PATCH + slide DELETE -----
+#
+# Authenticated by the per-slideshow edit_token rather than the
+# write_token. Surface is intentionally narrower than the SDK's
+# write_token endpoints — captions and deletions only, no media
+# replacement, no slideshow metadata edits. The edit-page UI
+# (web/app/s/[token]/edit/) is the only intended consumer.
+
+
+@extend_schema(
+    request=SlideCaptionEditSerializer,
+    responses={200: SlideWriteSerializer},
+    tags=['edit-token'],
+)
+@api_view(['PATCH'])
+@authentication_classes([WriteTokenAuthentication])
+@ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_SLIDE_WRITE, method='PATCH', block=True)
+def slide_edit_caption(request, share_token, position):
+    '''Edit a slide's caption via the edit_token. Auth: Bearer <edit_token>.'''
+    slideshow = authorize_edit(request, share_token)
+    slide = get_object_or_404(Slide, slideshow=slideshow, position=position)
+
+    body = SlideCaptionEditSerializer(data=request.data)
+    body.is_valid(raise_exception=True)
+    slide.caption = body.validated_data['caption']
+    slide.save(update_fields=['caption'])
+
+    return Response(
+        SlideWriteSerializer(slide, context={'request': request}).data,
+    )
+
+
+@extend_schema(
+    responses={204: None},
+    tags=['edit-token'],
+)
+@api_view(['DELETE'])
+@authentication_classes([WriteTokenAuthentication])
+@ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_SLIDE_WRITE, method='DELETE', block=True)
+def slide_edit_delete(request, share_token, position):
+    '''Delete a slide via the edit_token. Auth: Bearer <edit_token>.
+
+    Positions of remaining slides are NOT renumbered — the gap is
+    preserved so existing public links to higher-numbered positions
+    stay valid as long as those slides exist. Renumbering on delete
+    would silently rewrite shareable URLs.
+    '''
+    slideshow = authorize_edit(request, share_token)
+    slide = get_object_or_404(Slide, slideshow=slideshow, position=position)
+    slide.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 # ----- Public: GET /api/v1/gallery/ -----
