@@ -17,8 +17,8 @@ region: nyc
 
 services:
   - name: web
-    dockerfile_path: Dockerfile
-    source_dir: /
+    dockerfile_path: api/Dockerfile
+    source_dir: /api
     instance_size_slug: basic-xxs   # ~$5/mo at v1 scale
     instance_count: 1
 
