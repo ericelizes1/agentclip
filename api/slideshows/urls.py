@@ -33,8 +33,8 @@ urlpatterns = [
     path('api/slideshow/', views.slideshow_create, name='api_slideshow_create'),
     path(
         'api/slideshow/<uuid:slideshow_id>/',
-        views.slideshow_patch,
-        name='api_slideshow_patch',
+        views.slideshow_detail,
+        name='api_slideshow_detail',
     ),
     path(
         'api/slideshow/<uuid:slideshow_id>/slides/',

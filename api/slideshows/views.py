@@ -293,16 +293,28 @@ def slide_update(request, slideshow_id, position):
 
 @extend_schema(
     request=SlideshowPatchSerializer,
-    responses={200: SlideshowPatchSerializer},
+    responses={200: SlideshowPatchSerializer, 204: None},
     tags=['slideshows'],
 )
-@api_view(['PATCH'])
+@api_view(['PATCH', 'DELETE'])
 @authentication_classes([WriteTokenAuthentication])
 @parser_classes([JSONParser])
 @ratelimit(key=RATELIMIT_KEY, rate=RATELIMIT_PATCH, method='PATCH', block=True)
-def slideshow_patch(request, slideshow_id):
-    '''Patch title, description, or summary. Auth: Bearer <write_token>.'''
+@ratelimit(key=RATELIMIT_KEY, rate=RATELIMIT_PATCH, method='DELETE', block=True)
+def slideshow_detail(request, slideshow_id):
+    '''PATCH title/description/summary or DELETE the whole slideshow.
+
+    Auth: Bearer <write_token>. DELETE cascades to all slides via the
+    Slide.slideshow FK; the underlying R2 objects are NOT cleaned up
+    here (django-storages doesn't delete files on model.delete by
+    default), so empty bucket cruft accumulates. Acceptable for v0.1
+    with low traffic; revisit when storage costs matter.
+    '''
     slideshow = authorize_slideshow(request, slideshow_id)
+
+    if request.method == 'DELETE':
+        slideshow.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     serializer = SlideshowPatchSerializer(slideshow, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)

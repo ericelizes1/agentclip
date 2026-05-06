@@ -291,6 +291,39 @@ class SlideshowAPITests(TestCase):
         self.assertEqual(show.title, 'new title')
         self.assertEqual(show.description, 'new desc')
 
+    def test_delete_slideshow_with_valid_write_token_cascades_slides(self):
+        show = Slideshow.objects.create(title='doomed')
+        self.client.post(
+            f'/api/slideshow/{show.id}/slides/',
+            {'media': _png_upload(), 'caption': 'one'},
+            format='multipart',
+            HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+        )
+        self.assertEqual(show.slides.count(), 1)
+
+        response = self.client.delete(
+            f'/api/slideshow/{show.id}/',
+            HTTP_AUTHORIZATION=f'Bearer {show.write_token}',
+        )
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Slideshow.objects.filter(id=show.id).exists())
+        self.assertEqual(Slide.objects.filter(slideshow_id=show.id).count(), 0)
+
+    def test_delete_slideshow_without_auth_returns_401(self):
+        show = Slideshow.objects.create(title='guarded')
+        response = self.client.delete(f'/api/slideshow/{show.id}/')
+        self.assertEqual(response.status_code, 401)
+        self.assertTrue(Slideshow.objects.filter(id=show.id).exists())
+
+    def test_delete_slideshow_with_wrong_token_returns_401(self):
+        show = Slideshow.objects.create(title='other')
+        response = self.client.delete(
+            f'/api/slideshow/{show.id}/',
+            HTTP_AUTHORIZATION='Bearer not-the-real-token',
+        )
+        self.assertEqual(response.status_code, 401)
+        self.assertTrue(Slideshow.objects.filter(id=show.id).exists())
+
     # ----- media kind detection -----
 
     def test_add_slide_classifies_png_as_image(self):
