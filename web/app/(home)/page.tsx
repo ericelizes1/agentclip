@@ -90,6 +90,7 @@ async function fetchFeatured(): Promise<HeroFeaturedClip | null> {
     if (!data || !data.slides?.length) return null
     return {
       shareToken: token,
+      title: data.title || 'Untitled run',
       ...(data.created_by ? { creatorName: data.created_by } : {}),
       slides: data.slides.slice(0, HERO_PREVIEW_SLIDE_LIMIT).map((s) => ({
         position: s.position,

@@ -19,6 +19,8 @@ export interface HeroPreviewSlide {
 export interface HeroPreviewProps {
   /** share_token of the slideshow being previewed; powers the "Open clip" link. */
   shareToken: string
+  /** Slideshow title — rendered above the media so visitors know what they're watching. */
+  title: string
   /** Used in the eyebrow row credit ("Filed by ..."). */
   creatorName?: string
   /** Up to 4–5 slides; first one renders on mount. */
@@ -39,6 +41,7 @@ export interface HeroPreviewProps {
  */
 export function HeroPreview({
   shareToken,
+  title,
   creatorName,
   slides,
   className,
@@ -67,6 +70,10 @@ export function HeroPreview({
           </>
         )}
       </header>
+
+      <h2 className="mb-4 text-xl font-semibold tracking-tight text-ink-900 sm:text-2xl">
+        {title}
+      </h2>
 
       <button
         type="button"

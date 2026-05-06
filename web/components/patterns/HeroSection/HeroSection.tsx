@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 
 export interface HeroFeaturedClip {
   shareToken: string
+  title: string
   creatorName?: string
   slides: HeroPreviewSlide[]
 }
@@ -93,6 +94,7 @@ export function HeroSection({
           >
             <HeroPreview
               shareToken={featured.shareToken}
+              title={featured.title}
               {...(featured.creatorName !== undefined
                 ? { creatorName: featured.creatorName }
                 : {})}

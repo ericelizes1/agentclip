@@ -25,12 +25,12 @@ const SLIDES: HeroPreviewSlide[] = [
 
 describe('HeroPreview', () => {
   it('renders the first slide on mount', () => {
-    render(<HeroPreview shareToken="abc123" slides={SLIDES} />)
+    render(<HeroPreview shareToken="abc123" title="Login flow QA" slides={SLIDES} />)
     expect(screen.getByText('Opened agentclip.dev. Hero loads.')).toBeInTheDocument()
   })
 
   it('advances on body click and wraps back to first', () => {
-    render(<HeroPreview shareToken="abc123" slides={SLIDES} />)
+    render(<HeroPreview shareToken="abc123" title="Login flow QA" slides={SLIDES} />)
     const advance = screen.getByLabelText(/Slide 1 of 3/)
     fireEvent.click(advance)
     expect(screen.getByText('Scrolled to How it works.')).toBeInTheDocument()
@@ -42,21 +42,27 @@ describe('HeroPreview', () => {
   })
 
   it('jumps directly when a position dot is clicked', () => {
-    render(<HeroPreview shareToken="abc123" slides={SLIDES} />)
+    render(<HeroPreview shareToken="abc123" title="Login flow QA" slides={SLIDES} />)
     fireEvent.click(screen.getByLabelText('Jump to slide 3'))
     expect(screen.getByText('Recent fieldwork section.')).toBeInTheDocument()
   })
 
   it('renders the eyebrow with the truncated share_token + creator', () => {
     render(
-      <HeroPreview shareToken="qwft4GcsyM3sVDxy" creatorName="Eric Elizes" slides={SLIDES} />,
+      <HeroPreview
+        shareToken="qwft4GcsyM3sVDxy"
+        title="Stripe checkout QA"
+        creatorName="Eric Elizes"
+        slides={SLIDES}
+      />,
     )
     expect(screen.getByText('AGENTCLIP No.QWFT4G')).toBeInTheDocument()
     expect(screen.getByText('Filed by Eric Elizes')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Stripe checkout QA' })).toBeInTheDocument()
   })
 
   it('links Open clip to the full viewer page', () => {
-    render(<HeroPreview shareToken="abc123" slides={SLIDES} />)
+    render(<HeroPreview shareToken="abc123" title="Login flow QA" slides={SLIDES} />)
     const link = screen.getByRole('link', { name: /Open clip/ })
     expect(link).toHaveAttribute('href', '/s/abc123')
   })
