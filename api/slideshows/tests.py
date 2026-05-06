@@ -478,7 +478,7 @@ class SeedGalleryTests(TestCase):
             self.assertEqual(slideshow.created_by, 'AgentClip')
             self.assertEqual(
                 slideshow.created_by_url,
-                'https://github.com/ericelizes/agentclip',
+                'https://github.com/ericelizes1/agentclip',
             )
 
     def test_seed_gallery_marks_all_rows_as_gallery_with_sequential_positions(self):

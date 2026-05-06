@@ -184,7 +184,7 @@ Two phases. Phase A is pre-launch features (Units 1 through 8). Phase B is the l
   - Modify: `slideshows/views.py` (update `_GALLERY_TOKENS` with the resulting tokens after running the command in production)
 
   **Approach:**
-  - Management command that creates 5 anonymous slideshows directly via `Slideshow.objects.create` plus `Slide.objects.create`, populates each with 3-5 fixture screenshots, sets `created_by="AgentClip"` and `created_by_url="https://github.com/ericelizes/agentclip"`, and prints the resulting `share_token` values.
+  - Management command that creates 5 anonymous slideshows directly via `Slideshow.objects.create` plus `Slide.objects.create`, populates each with 3-5 fixture screenshots, sets `created_by="AgentClip"` and `created_by_url="https://github.com/ericelizes1/agentclip"`, and prints the resulting `share_token` values.
   - Command runs once in the deployed DO environment after migrations. Operator copies the tokens into `_GALLERY_TOKENS` and commits as a follow-up.
   - Five clip themes: (1) bug find on a known public site, (2) onboarding QA, (3) competitive analysis pass, (4) regression check, (5) feature exploration. Each demonstrates a different agent-QA pattern from `SKILL.md`.
 

@@ -4,7 +4,7 @@ import { HeroSection } from './HeroSection'
 
 describe('HeroSection', () => {
   it('renders the locked pill, headline, lede, and CTAs', () => {
-    render(<HeroSection githubUrl="https://github.com/elizes/agentclip" />)
+    render(<HeroSection githubUrl="https://github.com/ericelizes1/agentclip" />)
     expect(screen.getByText(/v0.1 · open source · MCP/)).toBeInTheDocument()
     expect(screen.getByText('screencast.')).toBeInTheDocument()
     expect(
@@ -12,7 +12,7 @@ describe('HeroSection', () => {
     ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /view on github/i })).toHaveAttribute(
       'href',
-      'https://github.com/elizes/agentclip',
+      'https://github.com/ericelizes1/agentclip',
     )
     expect(screen.getByRole('link', { name: /how it works/i })).toHaveAttribute(
       'href',

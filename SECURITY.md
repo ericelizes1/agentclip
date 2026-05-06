@@ -27,7 +27,7 @@ You'll get an acknowledgement within 72 hours. Coordinated disclosure timelines 
 ## What's out of scope (handle via the appropriate upstream)
 
 - Vulnerabilities in pinned dependencies (Django, DRF, django-storages, boto3) — report to those projects directly
-- Issues in the Python package consuming this backend — see [`agentclip/SECURITY.md`](https://github.com/ericelizes/agentclip/blob/main/SECURITY.md)
+- Issues in the Python package consuming this backend — see [`agentclip/SECURITY.md`](https://github.com/ericelizes1/agentclip/blob/main/SECURITY.md)
 - Vulnerabilities in DigitalOcean infrastructure — report to DigitalOcean
 
 ## Disclosure history

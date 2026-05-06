@@ -15,7 +15,7 @@ import { GalleryGrid, type GalleryClip } from '@/components/patterns/GalleryGrid
 import { HeroSection } from '@/components/patterns/HeroSection/HeroSection'
 import { api } from '@/lib/api'
 
-const GITHUB_URL = 'https://github.com/elizes/agentclip'
+const GITHUB_URL = 'https://github.com/ericelizes1/agentclip'
 
 // Curated gallery rows turn over slowly (admin curation, not user
 // edits). One-minute ISR keeps the home page snappy without serving

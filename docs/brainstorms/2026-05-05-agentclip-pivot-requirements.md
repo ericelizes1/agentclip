@@ -23,8 +23,8 @@ This is also the right architectural moment. Pre-launch, before any production d
 
 | Repo | URL | Role |
 |---|---|---|
-| `agentclip` | `github.com/ericelizes/agentclip` | The platform. Monorepo containing `api/` (Django + DRF + Postgres) and `web/` (Next.js 15 + Tailwind + Storybook). One README, one star-getter. |
-| `agentclip-python` | `github.com/ericelizes/agentclip-python` | The Python client. SDK + CLI + MCP server + bundled skill. Publishes the `agentclip` package to PyPI. |
+| `agentclip` | `github.com/ericelizes1/agentclip` | The platform. Monorepo containing `api/` (Django + DRF + Postgres) and `web/` (Next.js 15 + Tailwind + Storybook). One README, one star-getter. |
+| `agentclip-python` | `github.com/ericelizes1/agentclip-python` | The Python client. SDK + CLI + MCP server + bundled skill. Publishes the `agentclip` package to PyPI. |
 
 Both repos owned by Eric's personal GitHub account, not an org. Pinned at the top of his profile. Migration to an org costs ~30 seconds via GitHub's transfer flow if/when AgentClip ever has a co-maintainer or commercial entity.
 

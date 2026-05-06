@@ -2,11 +2,11 @@
 
 The platform monorepo behind [agentclip.dev](https://agentclip.dev): a Django API at `api/` and (in flight) a Next.js front-end at `web/`. Mid-pivot from a Django-templated UI to a split monorepo — see `docs/plans/` for the implementation arc.
 
-[![CI](https://github.com/ericelizes/agentclip/actions/workflows/ci.yml/badge.svg)](https://github.com/ericelizes/agentclip/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/ericelizes/agentclip/blob/main/LICENSE)
+[![CI](https://github.com/ericelizes1/agentclip/actions/workflows/ci.yml/badge.svg)](https://github.com/ericelizes1/agentclip/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/ericelizes1/agentclip/blob/main/LICENSE)
 [![Django](https://img.shields.io/badge/django-6.0-092E20.svg)](https://www.djangoproject.com/)
 
-> **Looking for the Python package, CLI, or MCP server?** Those live in the sister repo: [`ericelizes/agentclip-python`](https://github.com/ericelizes/agentclip-python).
+> **Looking for the Python package, CLI, or MCP server?** Those live in the sister repo: [`ericelizes1/agentclip-python`](https://github.com/ericelizes1/agentclip-python).
 
 ## Stack
 
@@ -42,7 +42,7 @@ DJANGO_DEBUG=true python manage.py runserver
 | PATCH | `/api/slideshow/<id>/slides/<position>/` | write_token | 200 / hour / IP |
 | PATCH | `/api/slideshow/<id>/` | write_token | 60 / hour / IP |
 
-The contract is documented end-to-end in the [agentclip](https://github.com/ericelizes/agentclip) Python package README. The Python tests there assert on these wire shapes; if you change a response, link the matching package PR.
+The contract is documented end-to-end in the [agentclip](https://github.com/ericelizes1/agentclip) Python package README. The Python tests there assert on these wire shapes; if you change a response, link the matching package PR.
 
 ## Deploy
 

@@ -14,8 +14,8 @@ Restructure AgentClip from "Django repo with templated UI plus a separate Python
 
 Two repos at the end:
 
-- `ericelizes/agentclip` — the platform monorepo (`api/` + `web/`)
-- `ericelizes/agentclip-python` — the Python client (renamed from current `agentclip`)
+- `ericelizes1/agentclip` — the platform monorepo (`api/` + `web/`)
+- `ericelizes1/agentclip-python` — the Python client (renamed from current `agentclip`)
 
 ## Problem Frame
 
@@ -440,7 +440,7 @@ Browser request: GET https://agentclip.dev/s/abc123
 **Files:**
 - Local rename only (not a git operation): `/home/eric/code/agentclip-app/` → `/home/eric/code/agentclip/`
 - Local rename only: `/home/eric/code/agentclip/` → `/home/eric/code/agentclip-python/`
-- Modify: `agentclip-python/README.md` (update self-references and cross-links to point at `ericelizes/agentclip` and `ericelizes/agentclip-python`)
+- Modify: `agentclip-python/README.md` (update self-references and cross-links to point at `ericelizes1/agentclip` and `ericelizes1/agentclip-python`)
 - Modify: `agentclip/README.md` (update GitHub URL references)
 - Modify: `agentclip/CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md` (any URL self-references)
 - Modify: `agentclip-python/.github/workflows/release.yml` (PyPI environment URL stays `pypi.org/p/agentclip` — package name unchanged)
@@ -450,7 +450,7 @@ Browser request: GET https://agentclip.dev/s/abc123
 
 **Approach:**
 - Local renames are filesystem moves; git history is unaffected.
-- README copy needs the cross-link refresh: `agentclip-python` README points at `ericelizes/agentclip` (the platform). `agentclip` README points at `ericelizes/agentclip-python` (the SDK).
+- README copy needs the cross-link refresh: `agentclip-python` README points at `ericelizes1/agentclip` (the platform). `agentclip` README points at `ericelizes1/agentclip-python` (the SDK).
 - Commit the README updates *as a separate commit per repo* — not bundled with the directory rename, since the rename itself doesn't show up in git.
 
 **Patterns to follow:**
@@ -464,7 +464,7 @@ Browser request: GET https://agentclip.dev/s/abc123
 - `pwd` after `cd /home/eric/code/agentclip` works.
 - `pwd` after `cd /home/eric/code/agentclip-python` works.
 - `grep -r "agentclip-app" .` returns nothing in either repo.
-- READMEs link to the right GitHub URLs (`github.com/ericelizes/agentclip` and `github.com/ericelizes/agentclip-python`).
+- READMEs link to the right GitHub URLs (`github.com/ericelizes1/agentclip` and `github.com/ericelizes1/agentclip-python`).
 
 ---
 
@@ -1478,7 +1478,7 @@ The lazy detection has to be FAST (sub-50ms when already configured) — file ex
 - Modify: `agentclip-python/README.md` (already updated in Unit 3 for cross-links; this commit polishes badges and adds the `agentclip.dev` live demo line)
 
 **Approach:**
-- Tighten the language so it reads as "the Python client for [AgentClip](https://github.com/ericelizes/agentclip)."
+- Tighten the language so it reads as "the Python client for [AgentClip](https://github.com/ericelizes1/agentclip)."
 - Confirm all PyPI / CI badges resolve once GitHub repos are created.
 
 **Test scenarios:**

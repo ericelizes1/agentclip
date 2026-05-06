@@ -1,8 +1,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: Package issues (CLI / SDK / MCP)
-    url: https://github.com/ericelizes/agentclip-python/issues
+    url: https://github.com/ericelizes1/agentclip-python/issues
     about: For issues with the agentclip Python package, file there. This repo is the platform monorepo.
   - name: Discussion / question
-    url: https://github.com/ericelizes/agentclip/discussions
+    url: https://github.com/ericelizes1/agentclip/discussions
     about: Open-ended questions, deployment help, ideas.

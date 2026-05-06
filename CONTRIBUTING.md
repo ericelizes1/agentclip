@@ -1,6 +1,6 @@
 # Contributing to AgentClip Backend
 
-This repo holds the Django backend that powers `agentclip.dev` and the public viewer at `/s/<share_token>/`. It's the sister of [`ericelizes/agentclip`](https://github.com/ericelizes/agentclip) (the Python package + MCP server).
+This repo holds the Django backend that powers `agentclip.dev` and the public viewer at `/s/<share_token>/`. It's the sister of [`ericelizes1/agentclip`](https://github.com/ericelizes1/agentclip) (the Python package + MCP server).
 
 ## What kind of contributions are welcome
 
@@ -19,7 +19,7 @@ This repo holds the Django backend that powers `agentclip.dev` and the public vi
 ## Dev setup
 
 ```bash
-git clone https://github.com/ericelizes/agentclip
+git clone https://github.com/ericelizes1/agentclip
 cd agentclip/api
 
 python -m venv .venv

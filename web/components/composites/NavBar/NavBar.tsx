@@ -17,7 +17,7 @@ export interface NavBarProps {
  * — pre-pivot Django page used the same behavior.
  */
 export function NavBar({
-  githubUrl = 'https://github.com/elizes/agentclip',
+  githubUrl = 'https://github.com/ericelizes1/agentclip',
   className,
 }: NavBarProps) {
   return (

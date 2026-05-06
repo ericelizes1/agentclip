@@ -114,7 +114,7 @@ class Command(BaseCommand):
                 description=description,
                 summary=summary,
                 created_by='AgentClip',
-                created_by_url='https://github.com/ericelizes/agentclip',
+                created_by_url='https://github.com/ericelizes1/agentclip',
                 is_gallery=True,
                 gallery_position=gallery_position,
             )

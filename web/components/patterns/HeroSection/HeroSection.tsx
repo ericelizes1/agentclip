@@ -38,7 +38,7 @@ const stagger: Transition = { duration: 0.45, ease: [0.2, 0.7, 0.2, 1] }
  * matching the locked design (NOT italic, NOT colored text).
  */
 export function HeroSection({
-  githubUrl = 'https://github.com/elizes/agentclip',
+  githubUrl = 'https://github.com/ericelizes1/agentclip',
   pipInstall = PIP_INSTALL_DEFAULT,
   agentPrompt = AGENT_PROMPT_DEFAULT,
   showInstall = true,
