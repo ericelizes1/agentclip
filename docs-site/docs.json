@@ -1,0 +1,63 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "AgentClip",
+  "description": "Skip the screencast. Open-source MCP tool that turns AI agent runs into shareable URLs.",
+  "colors": {
+    "primary": "#d94824",
+    "light": "#f08a6a",
+    "dark": "#93281b"
+  },
+  "favicon": "/favicon.ico",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting started",
+            "pages": ["index", "quickstart"]
+          },
+          {
+            "group": "Setup",
+            "pages": ["mcp-setup", "self-hosting"]
+          },
+          {
+            "group": "Reference",
+            "pages": ["cli", "troubleshooting"]
+          }
+        ]
+      },
+      {
+        "tab": "API reference",
+        "openapi": "https://api.agentclip.dev/api/schema/"
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/ericelizes1/agentclip"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Try a clip",
+      "href": "https://agentclip.dev"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/ericelizes1/agentclip"
+    }
+  },
+  "search": {
+    "prompt": "Ask AgentClip docs..."
+  },
+  "seo": {
+    "metatags": {
+      "og:image": "https://agentclip.dev/og-default.png"
+    }
+  }
+}

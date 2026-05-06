@@ -1,0 +1,118 @@
+---
+title: "Self-hosting"
+description: "Run your own AgentClip backend on Fly.io, Render, or any Docker-compatible host."
+---
+
+The whole platform is open-source MIT-licensed. The reference deploy is **Fly.io** apps + **Neon** Postgres + **Cloudflare R2** object storage; any host that runs Docker images and any S3-compatible storage will work.
+
+## Reference stack (Fly.io + Neon + R2 + 1Password)
+
+This is what `agentclip.dev` itself runs on. The repo ships specs for everything except the database and bucket, which are external services.
+
+<Steps>
+  <Step title="Provision externally">
+    - **Postgres:** create a [Neon](https://neon.tech) project, grab the connection string with `?sslmode=require`.
+    - **Object storage:** create a [Cloudflare R2](https://developers.cloudflare.com/r2/) bucket and an API token. Note the account-id endpoint URL (`https://<account-id>.r2.cloudflarestorage.com`).
+    - **Secrets vault:** put the secrets in 1Password under `op://Personal/agentclip/...` (or wherever; update `bin/.env.api.template` to match).
+  </Step>
+
+  <Step title="Bootstrap Fly apps">
+    ```bash
+    fly auth login
+    fly apps create agentclip-api
+    fly apps create agentclip-web
+    ```
+  </Step>
+
+  <Step title="Push secrets from 1Password to Fly's vault">
+    ```bash
+    eval $(op signin)
+    bin/sync-secrets.sh api
+    bin/sync-secrets.sh web
+    ```
+
+    The wrapper resolves `op://...` references in `bin/.env.{api,web}.template`, pipes the resolved values into `fly secrets import`, and never persists plaintext to disk.
+  </Step>
+
+  <Step title="First deploy">
+    ```bash
+    cd api && fly deploy --remote-only
+    cd ../web && fly deploy --remote-only
+    ```
+
+    The Django container runs `manage.py migrate` on boot, so the Neon DB gets schema-applied automatically.
+  </Step>
+
+  <Step title="Custom domains + DNS">
+    ```bash
+    fly certs add agentclip.example.com --app agentclip-web
+    fly certs add api.agentclip.example.com --app agentclip-api
+    ```
+
+    Then point Cloudflare A/AAAA records at the Fly app hostnames (`fly ips list --app <app>` shows the IPs).
+  </Step>
+</Steps>
+
+## Docker (any host)
+
+Both services have Dockerfiles. The repo ships a `docker-compose.yml` that spins up postgres + api + web with one command:
+
+```bash
+docker compose up --build
+```
+
+To deploy on a single VPS or a Container-as-a-Service platform, build and push the images:
+
+```bash
+docker build -t agentclip-api ./api
+docker build -t agentclip-web ./web
+```
+
+Wire `DATABASE_URL` (Postgres) and `R2_*` env vars (or any S3-compatible storage) for the api service. Wire `AGENTCLIP_API_URL` (server-side) and `NEXT_PUBLIC_AGENTCLIP_API_URL` (browser) for the web service. Required env vars are listed in `api/.env.example`.
+
+## Required env vars
+
+### API service
+
+| Var | Required? | Notes |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | Yes (in prod) | `python -c "import secrets; print(secrets.token_urlsafe(50))"` |
+| `DJANGO_ALLOWED_HOSTS` | Yes | Comma-separated. Include your domain. |
+| `DATABASE_URL` | Yes (in prod) | `postgres://user:pass@host/db?sslmode=require` |
+| `R2_ACCESS_KEY_ID` | Yes (for media) | Cloudflare R2 token id |
+| `R2_SECRET_ACCESS_KEY` | Yes | Cloudflare R2 token secret |
+| `R2_BUCKET` | Yes | Bucket name |
+| `R2_ENDPOINT` | Yes | `https://<account-id>.r2.cloudflarestorage.com` |
+| `R2_PUBLIC_HOST` | No | CDN host for public media URLs (e.g. `cdn.example.com`) |
+| `DJANGO_DEBUG` | No | Defaults to `false`. |
+
+### Web service
+
+| Var | Required? | Notes |
+|---|---|---|
+| `AGENTCLIP_API_URL` | Yes | Internal (server-side) API URL |
+| `NEXT_PUBLIC_AGENTCLIP_API_URL` | Yes | Public (browser) API URL |
+
+## Migrations
+
+The API container runs `manage.py migrate` on every boot. New schema changes ship with the next deploy automatically.
+
+For one-off operations on a running Fly app (seeding data, opening a Django shell):
+
+```bash
+fly ssh console --app agentclip-api --command 'python manage.py shell'
+fly ssh console --app agentclip-api --command 'python manage.py seed_gallery'
+```
+
+## When to fork vs run hosted
+
+Run hosted (`agentclip.dev`) for:
+- Personal use, small teams, public demos
+- Quickstart and most contributor flows
+
+Self-host when:
+- You're embedding clips inside a product where the URL needs to be on your domain
+- Compliance / data-residency rules apply
+- You want full control of media retention
+
+The wire shapes are stable; SDK consumers point at `AGENTCLIP_BASE_URL=https://agentclip.example.com` and everything else just works.

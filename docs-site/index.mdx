@@ -1,0 +1,34 @@
+---
+title: "AgentClip"
+description: "Skip the screencast. Your agent records the run, narrates it, and ships you a URL anyone can watch."
+---
+
+AgentClip turns an AI agent run into a shareable URL — the agent drives the user's browser, captures meaningful moments with active-voice captions, and ships back a public link.
+
+It's a Python package, an MCP server, a CLI, and a bundled Claude Code skill, all behind a hosted backend at `agentclip.dev`.
+
+## What you can do with it
+
+- **QA in active voice.** Point an agent at any flow; the resulting clip reads as engineering field notes, not a screen recording.
+- **Bug repros that paste cleanly.** Drop the URL in Slack or a PR; the recipient sees title, summary, and step-by-step screenshots without leaving the conversation.
+- **Walkthroughs without a recording session.** Useful for product demos, sales videos, recruiter loops, or onboarding teammates onto a flow you already know.
+
+## Three entry points
+
+<CardGroup cols={3}>
+  <Card title="Quickstart" icon="bolt" href="/quickstart">
+    `pip install agentclip` and you have everything: SDK, CLI, MCP server, and the Claude Code skill.
+  </Card>
+  <Card title="MCP setup" icon="plug" href="/mcp-setup">
+    Wire AgentClip into Claude Desktop or Cursor as an MCP server. Tool calls become URLs.
+  </Card>
+  <Card title="Self-hosting" icon="server" href="/self-hosting">
+    The whole platform is open-source MIT. Fly.io + Neon + Cloudflare R2 spec lives in the repo.
+  </Card>
+</CardGroup>
+
+## Architecture in one paragraph
+
+The Python package is a thin client over a Django REST API. The hosted backend at `api.agentclip.dev` stores slideshows in Postgres and media on Cloudflare R2. The Next.js frontend at `agentclip.dev` consumes a typed client generated from the API's OpenAPI 3 schema. Every public URL is `/s/<share_token>` and every edit URL is `/s/<share_token>/edit?t=<edit_token>` — two parallel auth surfaces, no user accounts.
+
+[Source on GitHub →](https://github.com/ericelizes1/agentclip)

@@ -1,0 +1,94 @@
+---
+title: "Troubleshooting"
+description: "Common issues and how to fix them."
+---
+
+## "Edit link is no longer valid"
+
+You hit the edit page (`/s/<token>/edit?t=...`) and the first save attempt shows an inline error.
+
+**Why:** the `edit_token` in the URL doesn't match the slideshow's current edit_token. Either the token was rotated (intentionally or not) or the URL is from a different slideshow.
+
+**Fix:**
+
+```bash
+agentclip edit-url <share_token>
+```
+
+This recovers a fresh edit URL using your locally cached `write_token`. If that prints a "no write_token cached" error, run `agentclip whoami` first to set up your local config, then re-run the create that issued the original token.
+
+## Lazy first-run setup didn't fire
+
+You ran `agentclip clip` and got a Playwright `BrowserNotInstalled` error.
+
+**Why:** the lazy first-run install path didn't include the `[browser]` extra, so Chromium wasn't downloaded.
+
+**Fix:**
+
+```bash
+pip install 'agentclip[browser]'
+agentclip setup --quiet
+```
+
+The explicit `setup` runs the same code path as lazy first-run, just without waiting for the next subcommand to trigger it.
+
+## MCP tools don't appear in Claude Desktop / Cursor
+
+You added the config block but the four AgentClip tools aren't in the connected-tools list.
+
+**Common causes:**
+
+1. **Forgot to restart the client.** MCP servers are read on launch only.
+2. **`uvx` isn't on PATH.** Install [uv](https://docs.astral.sh/uv/) globally or replace `uvx` with the absolute path to a venv-installed `agentclip`.
+3. **Server crashed at boot.** Run `agentclip mcp` manually in a terminal — if it errors, the same error is what your client sees.
+
+## `pip install agentclip` fails on a Python 3.10 / 3.11 system
+
+The package targets Python 3.12+. If you can't upgrade, `uvx agentclip` runs in an isolated environment without touching your system Python:
+
+```bash
+uvx agentclip --help
+```
+
+## Self-hosted backend: 500 on slideshow_create
+
+Most common cause: `DJANGO_DEBUG=false` plus a missing `DJANGO_SECRET_KEY`. The Django settings loader refuses to start without one in production. Check the container logs:
+
+```bash
+fly logs --app agentclip-api
+```
+
+The error message is explicit when this is the cause.
+
+## Self-hosted backend: media uploads return 200 but URLs 404
+
+R2 ACLs are different from S3. The settings module sets `AWS_DEFAULT_ACL = None` because R2 rejects the `x-amz-acl` header — but you also need to make the bucket publicly readable via either:
+
+1. A Cloudflare Worker route fronting the bucket at a custom domain, and `R2_PUBLIC_HOST` pointing at it.
+2. The bucket's public-bucket setting in the Cloudflare dashboard (less recommended; loses CDN flexibility).
+
+Without one of these, the URLs the API emits will be valid R2 paths but unreachable from a browser.
+
+## Web frontend renders but the gallery is empty
+
+Check that `/api/v1/gallery/` actually returns data. The home page intentionally renders the empty state on API failure — it doesn't 500 because the API blipped — but it also doesn't surface the error visually.
+
+```bash
+curl https://api.example.com/api/v1/gallery/
+```
+
+If empty, run the seed command on the API host:
+
+```bash
+fly ssh console --app agentclip-api --command 'python manage.py seed_gallery'
+```
+
+## Still stuck
+
+Open an issue with the symptom, the command you ran, and the output:
+
+[github.com/ericelizes1/agentclip/issues](https://github.com/ericelizes1/agentclip/issues)
+
+For SDK / CLI / MCP issues specifically:
+
+[github.com/ericelizes1/agentclip-python/issues](https://github.com/ericelizes1/agentclip-python/issues)

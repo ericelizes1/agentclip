@@ -1,0 +1,99 @@
+---
+title: "MCP setup"
+description: "Wire AgentClip into Claude Desktop, Cursor, or any MCP-aware client."
+---
+
+AgentClip ships an MCP server alongside its CLI. The server exposes four tools — `slideshow_create`, `add_slide`, `update_slide`, `set_summary` — that map directly to API endpoints. Once your client is configured, your agent can clip flows by tool call instead of by shell command.
+
+## Claude Desktop
+
+Add the following to `claude_desktop_config.json`:
+
+<CodeGroup>
+
+```json macOS / Linux
+{
+  "mcpServers": {
+    "agentclip": {
+      "command": "uvx",
+      "args": ["agentclip", "mcp"]
+    }
+  }
+}
+```
+
+```json Windows
+{
+  "mcpServers": {
+    "agentclip": {
+      "command": "uvx.exe",
+      "args": ["agentclip", "mcp"]
+    }
+  }
+}
+```
+
+</CodeGroup>
+
+Restart Claude Desktop. The four tools should appear in the connected-tools list. Try:
+
+> "Use AgentClip to record me logging into example.com — three slides max, summary under 50 words."
+
+## Claude Code
+
+The Claude Code skill is bundled with the Python package. After `pip install agentclip`, run any subcommand once (lazy first-run setup wires the skill into your config), then reload your Claude Code session.
+
+```bash
+agentclip whoami "Your Name"        # optional but improves the "Filed by" credit
+agentclip --help                    # any command triggers the lazy install
+```
+
+<Note>
+If you skipped the lazy step, `agentclip install-skill` registers the skill manually.
+</Note>
+
+## Cursor
+
+Cursor reads MCP servers from `~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "agentclip": {
+      "command": "uvx",
+      "args": ["agentclip", "mcp"]
+    }
+  }
+}
+```
+
+## Custom backend
+
+By default the MCP server points at `https://agentclip.dev`. Set `AGENTCLIP_BASE_URL` to point at a self-hosted instance:
+
+```json
+{
+  "mcpServers": {
+    "agentclip": {
+      "command": "uvx",
+      "args": ["agentclip", "mcp"],
+      "env": {
+        "AGENTCLIP_BASE_URL": "https://agentclip.example.com"
+      }
+    }
+  }
+}
+```
+
+See [self-hosting](/self-hosting) for spinning up your own deployment.
+
+## Tool reference
+
+| Tool | Args | Returns |
+|---|---|---|
+| `slideshow_create` | `title?`, `description?`, `created_by?`, `created_by_url?` | `id`, `share_url`, `edit_url`, `write_token` |
+| `add_slide` | `slideshow_id`, `media` (bytes), `caption?` | slide id, position |
+| `update_slide` | `slideshow_id`, `position`, `media?`, `caption?` | updated slide |
+| `set_summary` | `slideshow_id`, `summary` | confirmation |
+
+Wire shapes are pinned to the API's OpenAPI 3 schema; the [API reference](/api-reference) tab in this site is the canonical contract.

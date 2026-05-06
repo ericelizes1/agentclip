@@ -1,0 +1,113 @@
+---
+title: "CLI reference"
+description: "Every AgentClip subcommand, flag, and exit code."
+---
+
+The `agentclip` CLI is the same Python package that powers the SDK and MCP server. Every subcommand listed here is also available as an SDK call (`from agentclip import AgentClip`) and, where applicable, as an MCP tool.
+
+## Global
+
+```bash
+agentclip --help
+agentclip --version
+```
+
+Global behavior:
+
+- **Lazy first-run setup.** The first invocation of any subcommand checks for a setup marker; if missing, it registers the bundled Claude Code skill, installs Playwright Chromium (if `[browser]` extra is installed), and writes the marker. Sub-50ms on subsequent calls.
+- **`AGENTCLIP_BASE_URL`** — env var pointing at the API. Defaults to `https://api.agentclip.dev`.
+- **`AGENTCLIP_WRITE_TOKEN`** — env var caching the most recently issued write_token; auto-set by `slideshow_create` for the duration of a Python process.
+
+## `agentclip clip`
+
+Clip a URL end-to-end: drive a browser, capture screenshots at meaningful moments, narrate with active voice, ship a slideshow.
+
+```bash
+agentclip clip <url> [--title TEXT] [--summary TEXT] [--max-slides N]
+```
+
+| Flag | Type | Default | Notes |
+|---|---|---|---|
+| `<url>` | string | required | The flow's entry point |
+| `--title` | string | empty | Visible on the public viewer |
+| `--summary` | string | empty | Eyebrow callout above the slide stack |
+| `--max-slides` | int | 12 | Hard cap on captures |
+| `--browser` | choice | `auto` | `auto`, `chromium`, `claude-code` |
+
+On success, prints two URLs to stdout — share URL on line 1, edit URL on line 2 — so an agent can capture them with `head -n 1` / `tail -n 1` without parsing chrome.
+
+## `agentclip whoami`
+
+Set or print the credit byline that appears under the title on the public viewer ("Filed by Eric Elizes").
+
+```bash
+agentclip whoami "Eric Elizes"           # set
+agentclip whoami "Eric Elizes" --url https://github.com/elizes
+agentclip whoami --clear                  # remove
+agentclip whoami                          # print current value
+```
+
+## `agentclip edit-url`
+
+Recover the edit URL for a slideshow you created. Authenticated by your locally-cached `write_token`.
+
+```bash
+agentclip edit-url <share_token>
+```
+
+Prints `https://agentclip.dev/s/<slug>/edit?t=<token>` to stdout. Errors go to stderr with a one-line pointer (run `agentclip whoami` if your write_token is unset).
+
+## `agentclip rotate`
+
+Rotate the `edit_token` for a slideshow, invalidating any previously-shared edit URL.
+
+```bash
+agentclip rotate <share_token>
+```
+
+Two-line output:
+- **stdout** — the new edit URL.
+- **stderr** — a one-line warning that the previous URL is now invalid.
+
+The split makes it easy for agents to pipe just the URL without sifting through chrome.
+
+## `agentclip setup`
+
+Idempotent explicit version of the lazy first-run setup.
+
+```bash
+agentclip setup           # full path: skill + browser + whoami prompt
+agentclip setup --quiet   # no prompts, sensible defaults
+```
+
+Prints a checklist: skill registered, browser drivers ready, whoami captured.
+
+## `agentclip mcp`
+
+Run the AgentClip MCP server on stdio. Used by Claude Desktop, Cursor, and other MCP-aware clients via the configs documented in [MCP setup](/mcp-setup).
+
+```bash
+agentclip mcp
+```
+
+Stops on Ctrl+C. Logs go to stderr.
+
+## `agentclip install-skill`
+
+Manual fallback for the Claude Code skill registration that lazy first-run normally handles.
+
+```bash
+agentclip install-skill
+```
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | Success |
+| 1 | Generic failure (message on stderr) |
+| 2 | Bad usage (missing arg, invalid flag) |
+| 3 | API rejected the request (auth, validation, 404) |
+| 4 | Network failure (timeout, DNS, TLS) |
+
+Stable enough that scripts can branch on the exit code without parsing stderr.

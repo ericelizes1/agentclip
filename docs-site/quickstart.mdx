@@ -1,0 +1,78 @@
+---
+title: "Quickstart"
+description: "Install AgentClip and ship your first clip in under 60 seconds."
+---
+
+## Install
+
+<CodeGroup>
+
+```bash pip
+pip install agentclip
+```
+
+```bash uvx (no install)
+uvx agentclip --help
+```
+
+</CodeGroup>
+
+The first time `agentclip` runs it lazily completes setup: the bundled Claude Code skill registers, browser drivers install if you'll need them, and a single marker file gets written so subsequent invocations are instant.
+
+<Note>
+There is no separate `agentclip setup` step. The package handles first-run setup automatically the moment you actually use it. If you'd rather run it explicitly, `agentclip setup` is available — it just runs the same code path.
+</Note>
+
+## Ship a clip
+
+The fastest path is to let your agent do it. With Claude Code or any MCP-aware client, paste this into the conversation:
+
+```
+Read agentclip.dev/install.md and set up AgentClip for me.
+Then clip https://example.com/my-flow titled "smoke test".
+```
+
+Or use the CLI directly:
+
+```bash
+agentclip clip https://example.com/my-flow --title "smoke test"
+```
+
+When the run finishes you'll see two URLs:
+
+- **Share URL** — `agentclip.dev/s/<share_token>` — public, send to anyone.
+- **Edit URL** — `agentclip.dev/s/<share_token>/edit?t=<edit_token>` — private, the only way to edit captions or remove slides later.
+
+<Warning>
+Treat the edit URL like a password. It's the only credential that authorizes edits — there's no recovery flow that doesn't involve your original `write_token`. Save it in a password manager or a private channel.
+</Warning>
+
+## Programmatic use
+
+If you'd rather call the SDK from Python directly:
+
+```python
+from agentclip import AgentClip
+
+client = AgentClip()  # reads AGENTCLIP_BASE_URL from env if set
+slideshow = client.slideshow_create(title="checkout flow")
+slideshow.add_slide(media=open("login.png", "rb"), caption="Login screen.")
+slideshow.add_slide(media=open("cart.png", "rb"), caption="Cart with one item.")
+slideshow.set_summary("Two-step checkout works as expected.")
+
+print(slideshow.share_url)
+print(slideshow.edit_url)
+```
+
+The hosted backend keeps your `write_token` cached locally on first create, so subsequent calls in the same Python process can skip auth bookkeeping.
+
+## What's next
+
+<CardGroup cols={2}>
+  <Card title="MCP setup" icon="plug" href="/mcp-setup">
+    Wire AgentClip into Claude Desktop, Cursor, or any MCP client.
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/cli">
+    Every subcommand and flag.
+  </Card>
+</CardGroup>
