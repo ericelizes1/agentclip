@@ -180,6 +180,18 @@ class SlideshowPatchSerializer(serializers.ModelSerializer):
         read_only_fields = ('id',)
 
 
+class EditTokenSerializer(serializers.Serializer):
+    '''Response shape for the edit-token recovery + rotation endpoints.
+
+    Both endpoints return the same envelope: the bare ``edit_token``
+    (so SDK callers can rebuild URLs against any base) plus the
+    fully-resolved ``edit_url`` for direct display.
+    '''
+
+    edit_token = serializers.CharField(read_only=True)
+    edit_url = serializers.CharField(read_only=True)
+
+
 class SlideWriteSerializer(serializers.ModelSerializer):
     '''Create + update shape for slides. Media and caption only.
 

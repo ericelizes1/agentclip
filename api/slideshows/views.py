@@ -25,6 +25,7 @@ from __future__ import annotations
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django_ratelimit.decorators import ratelimit
+from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.decorators import (
     api_view,
@@ -45,6 +46,7 @@ from .models import (
     hash_write_token,
 )
 from .serializers import (
+    EditTokenSerializer,
     GallerySlideshowSerializer,
     SlideshowCreateSerializer,
     SlideshowPatchSerializer,
@@ -98,6 +100,11 @@ def _client_ip(request) -> str | None:
 # ----- API: POST /api/slideshow/ -----
 
 
+@extend_schema(
+    request=SlideshowCreateSerializer,
+    responses={201: SlideshowCreateSerializer},
+    tags=['slideshows'],
+)
 @api_view(['POST'])
 @parser_classes([JSONParser])
 @ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_CREATE, method='POST', block=True)
@@ -135,6 +142,11 @@ def slideshow_create(request):
 # ----- API: POST /api/slideshow/<id>/slides/ -----
 
 
+@extend_schema(
+    request=SlideWriteSerializer,
+    responses={201: SlideWriteSerializer},
+    tags=['slides'],
+)
 @api_view(['POST'])
 @authentication_classes([WriteTokenAuthentication])
 @parser_classes([MultiPartParser, JSONParser])
@@ -184,6 +196,11 @@ def slide_add(request, slideshow_id):
 # ----- API: PATCH /api/slideshow/<id>/slides/<position>/ -----
 
 
+@extend_schema(
+    request=SlideWriteSerializer,
+    responses={200: SlideWriteSerializer},
+    tags=['slides'],
+)
 @api_view(['PATCH'])
 @authentication_classes([WriteTokenAuthentication])
 @parser_classes([MultiPartParser, JSONParser])
@@ -215,6 +232,11 @@ def slide_update(request, slideshow_id, position):
 # ----- API: PATCH /api/slideshow/<id>/ -----
 
 
+@extend_schema(
+    request=SlideshowPatchSerializer,
+    responses={200: SlideshowPatchSerializer},
+    tags=['slideshows'],
+)
 @api_view(['PATCH'])
 @authentication_classes([WriteTokenAuthentication])
 @parser_classes([JSONParser])
@@ -283,6 +305,10 @@ def _edit_url(slideshow: Slideshow, request) -> str:
     return path
 
 
+@extend_schema(
+    responses={200: EditTokenSerializer},
+    tags=['edit-token'],
+)
 @api_view(['GET'])
 @authentication_classes([WriteTokenAuthentication])
 def edit_token_recover(request, share_token):
@@ -302,6 +328,11 @@ def edit_token_recover(request, share_token):
     })
 
 
+@extend_schema(
+    request=None,
+    responses={200: EditTokenSerializer},
+    tags=['edit-token'],
+)
 @api_view(['POST'])
 @authentication_classes([WriteTokenAuthentication])
 @ratelimit(key=RATELIMIT_KEY_IP, rate=RATELIMIT_PATCH, method='POST', block=True)

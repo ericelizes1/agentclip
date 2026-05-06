@@ -11,10 +11,24 @@ to the Next.js web/ service. This module now exposes:
 from __future__ import annotations
 
 from django.urls import path
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularSwaggerView,
+)
 
 from . import views
 
 urlpatterns = [
+    # OpenAPI schema (machine-readable + Swagger UI for human inspection).
+    # The web/ service generates its typed fetch client off this; humans
+    # poke at it via /api/schema/swagger-ui/ when designing changes.
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path(
+        'api/schema/swagger-ui/',
+        SpectacularSwaggerView.as_view(url_name='schema'),
+        name='swagger-ui',
+    ),
+
     # Write API
     path('api/slideshow/', views.slideshow_create, name='api_slideshow_create'),
     path(

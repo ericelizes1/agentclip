@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'rest_framework',
+    'drf_spectacular',
     'storages',
 
     'slideshows',
@@ -206,6 +207,27 @@ REST_FRAMEWORK = {
     # Convert django-ratelimit's Ratelimited (a PermissionDenied subclass)
     # into HTTP 429 instead of the default 403.
     'EXCEPTION_HANDLER': 'slideshows.exceptions.exception_handler',
+    # drf-spectacular introspects DRF serializers/views to emit OpenAPI 3.
+    # The web/ service consumes that schema to generate typed fetch
+    # bindings — wire-shape changes on either side surface as TS errors
+    # at build time.
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+
+# ----- OpenAPI schema (drf-spectacular) -----
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'AgentClip API',
+    'DESCRIPTION': (
+        'Public HTTP API for AgentClip. Powers the agentclip Python SDK, '
+        'the agentclip.dev web client, and any third-party tooling that '
+        'wants to publish or read slideshows.'
+    ),
+    'VERSION': '0.1.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'SCHEMA_PATH_PREFIX': r'/api/',
 }
 
 

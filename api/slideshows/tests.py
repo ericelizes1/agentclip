@@ -715,3 +715,60 @@ class EditTokenTests(TestCase):
         body = response.json()
         self.assertNotIn('write_token', body)
         self.assertNotIn('created_by_token_hash', body)
+
+
+class OpenAPISchemaTests(TestCase):
+    '''Smoke tests for the drf-spectacular schema endpoint.
+
+    The web/ service's typed fetch client is generated from this
+    schema. If the endpoint stops responding or drops a path the
+    web client expects, the contract silently breaks at build
+    time. These tests fail loudly instead.
+    '''
+
+    def setUp(self) -> None:
+        self.client = APIClient()
+
+    def test_schema_endpoint_returns_openapi_3(self) -> None:
+        response = self.client.get('/api/schema/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'].split(';')[0], 'application/vnd.oai.openapi')
+
+    def test_schema_includes_every_documented_path(self) -> None:
+        # Asks for the JSON variant so we can introspect the structure
+        # without parsing YAML. spectacular content-negotiates on Accept.
+        response = self.client.get('/api/schema/', HTTP_ACCEPT='application/json')
+        self.assertEqual(response.status_code, 200)
+        schema = response.json()
+
+        expected_paths = {
+            '/api/slideshow/',
+            '/api/slideshow/{slideshow_id}/',
+            '/api/slideshow/{slideshow_id}/slides/',
+            '/api/slideshow/{slideshow_id}/slides/{position}/',
+            '/api/v1/gallery/',
+            '/api/v1/slideshow/{share_token}/edit-token/',
+            '/api/v1/slideshow/{share_token}/rotate-edit-token/',
+        }
+        self.assertEqual(set(schema['paths'].keys()), expected_paths)
+
+    def test_slideshow_create_request_documents_serializer_fields(self) -> None:
+        '''The typed web client speaks snake_case to match the Django serializer.
+
+        If a field is renamed on the Python side without regenerating
+        the schema, this test catches the drift before it reaches the
+        web client's `pnpm gen:api`.
+        '''
+        response = self.client.get('/api/schema/', HTTP_ACCEPT='application/json')
+        schema = response.json()
+
+        request_ref = (
+            schema['paths']['/api/slideshow/']['post']['requestBody']
+            ['content']['application/json']['schema']['$ref']
+        )
+        component_name = request_ref.rsplit('/', 1)[-1]
+        component = schema['components']['schemas'][component_name]
+        self.assertEqual(
+            set(component['properties'].keys()),
+            {'title', 'description', 'created_by', 'created_by_url'},
+        )

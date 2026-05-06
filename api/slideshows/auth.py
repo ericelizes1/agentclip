@@ -22,6 +22,7 @@ from __future__ import annotations
 import secrets
 
 from django.shortcuts import get_object_or_404
+from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed, NotAuthenticated
 
@@ -75,3 +76,26 @@ def authorize_slideshow(request, slideshow_id) -> Slideshow:
     if not secrets.compare_digest(supplied, slideshow.write_token):
         raise AuthenticationFailed('invalid write_token for this slideshow')
     return slideshow
+
+
+class WriteTokenAuthenticationScheme(OpenApiAuthenticationExtension):
+    '''Tells drf-spectacular how to render WriteTokenAuthentication in OpenAPI.
+
+    Without this extension spectacular emits a warning and omits the
+    Bearer security scheme from the schema, which the typed web client
+    then can't see. Mapping it to the standard HTTP Bearer scheme keeps
+    the generated TS reflecting the actual wire contract.
+    '''
+
+    target_class = 'slideshows.auth.WriteTokenAuthentication'
+    name = 'WriteTokenAuth'
+
+    def get_security_definition(self, auto_schema):  # noqa: ARG002 — DRF API
+        return {
+            'type': 'http',
+            'scheme': 'bearer',
+            'description': (
+                'Per-slideshow write_token returned by `POST /api/slideshow/`. '
+                'The server keeps no user accounts; the token IS the credential.'
+            ),
+        }

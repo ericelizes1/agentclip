@@ -15,7 +15,9 @@
     "test:coverage": "vitest run --coverage",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "test-storybook": "test-storybook"
+    "test-storybook": "test-storybook",
+    "gen:api": "openapi-typescript ./lib/api-schema.json -o ./lib/api-types.ts",
+    "gen:api:live": "openapi-typescript ${AGENTCLIP_API_URL:-http://localhost:8000}/api/schema/ -o ./lib/api-types.ts"
   },
   "dependencies": {
     "@icons-pack/react-simple-icons": "^11.0.0",
@@ -26,6 +28,7 @@
     "framer-motion": "^11.13.0",
     "lucide-react": "^0.460.0",
     "next": "^15.0.0",
+    "openapi-fetch": "^0.17.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^2.5.0"
@@ -55,6 +58,7 @@
     "eslint-plugin-jsx-a11y": "^6.10.0",
     "happy-dom": "^15.11.7",
     "jsdom": "^25.0.1",
+    "openapi-typescript": "^7.13.0",
     "postcss": "^8.4.0",
     "prettier": "^3.3.0",
     "storybook": "^10.3.6",
