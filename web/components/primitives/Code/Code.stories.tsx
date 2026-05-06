@@ -1,16 +1,16 @@
 import type { Meta, StoryObj } from '@storybook/nextjs'
-import { Smoke } from './Smoke'
+import { Code } from './Code'
 
 const meta = {
-  title: 'Primitives/_Smoke',
-  component: Smoke,
+  title: 'Primitives/Code',
+  component: Code,
   parameters: { layout: 'centered' },
   tags: ['autodocs'],
-} satisfies Meta<typeof Smoke>
+} satisfies Meta<typeof Code>
 
 export default meta
 type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
-  args: { label: 'lucide + simple-icons + framer-motion OK' },
+  args: { children: 'pip install agentclip' },
 }

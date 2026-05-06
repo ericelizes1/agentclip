@@ -1,16 +1,16 @@
 import type { Meta, StoryObj } from '@storybook/nextjs'
-import { TestStub } from './TestStub'
+import { Pill } from './Pill'
 
 const meta = {
-  title: 'Primitives/_TestStub',
-  component: TestStub,
+  title: 'Primitives/Pill',
+  component: Pill,
   parameters: { layout: 'centered' },
   tags: ['autodocs'],
-} satisfies Meta<typeof TestStub>
+} satisfies Meta<typeof Pill>
 
 export default meta
 type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
-  args: { label: 'Pipeline OK' },
+  args: { children: 'v0.1 · open source' },
 }
