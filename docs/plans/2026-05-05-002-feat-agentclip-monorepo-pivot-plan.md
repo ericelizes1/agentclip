@@ -294,7 +294,7 @@ Browser request: GET https://agentclip.dev/s/abc123
 
 ## Implementation Units
 
-### Phase A: Restructure (3 units)
+### Phase A: Restructure (4 units)
 
 - [ ] **Unit 1: Move Django app to `api/` subdirectory**
 
@@ -335,39 +335,97 @@ Browser request: GET https://agentclip.dev/s/abc123
 
 ---
 
-- [ ] **Unit 2: Delete Django templates and template-rendering views**
+- [ ] **Unit 2: Delete Django templates + DB-ify gallery curation + expose `/api/v1/gallery/` endpoint**
 
-**Goal:** Remove the home and viewer Django views and their templates. Next.js takes over those URLs.
+**Goal:** Django pivots from rendering UI to serving API only. Templates die. The gallery's "what shows on the home page" mechanism moves from a code-constant (`_GALLERY_TOKENS` in views.py) to a database-driven flag, exposed via a new DRF endpoint that the Next.js home page will consume.
 
-**Requirements:** R3.
+**Requirements:** R3 + a portability fix — without DB-driven curation, anyone forking the OSS repo would inherit Eric's specific share_tokens hardcoded in source, pointing at slideshows that don't exist in their DB.
 
 **Dependencies:** Unit 1.
 
 **Files:**
-- Delete: `templates/base.html` (the top-level shared template)
+- Delete: `templates/base.html` (top-level shared template)
 - Delete: `api/slideshows/templates/` (entire directory)
-- Modify: `api/slideshows/views.py` (remove `slideshow_viewer` and `home` view functions; keep all DRF endpoints; remove the now-unused `_GALLERY_TOKENS` constant and `home` query for it)
-- Modify: `api/slideshows/urls.py` (remove the `s/<share_token>/` and empty `''` routes; keep all `api/...` routes)
-- Modify: `api/agentclip_app/urls.py` (drop the `static()` block for media in DEBUG since web serves images directly from Spaces; verify CSRF middleware stays because admin still uses it)
-- Modify: `api/slideshows/tests.py` (remove `PublicViewerTests` class; the viewer is no longer Django's responsibility)
+- Modify: `api/slideshows/models.py` (add `is_gallery = models.BooleanField(default=False, db_index=True)` and `gallery_position = models.PositiveSmallIntegerField(default=0, db_index=True)` to the Slideshow model)
+- Create: `api/slideshows/migrations/000X_gallery_flag.py` (auto-generated; data migration step backfills `is_gallery=True` and assigns `gallery_position` 1-5 to whichever 5 rows are currently referenced by the deprecated `_GALLERY_TOKENS` constant on existing deployments — no-op on fresh DBs)
+- Modify: `api/slideshows/views.py` (remove `slideshow_viewer` and `home` Django view functions; remove the `_GALLERY_TOKENS` constant entirely; add a new DRF view `GalleryListView(generics.ListAPIView)` returning slideshows where `is_gallery=True`, ordered by `gallery_position` then `-created_at`, capped at a sane upper bound like 12)
+- Modify: `api/slideshows/serializers.py` (add `GallerySlideshowSerializer` that returns only the fields the Next.js gallery card needs: `id`, `slug`, `title`, `description`, `cover_image_url`, `slide_count`, `created_by`, `created_at`, `gallery_position`. Never includes `edit_token` / `created_by_token_hash`.)
+- Modify: `api/slideshows/urls.py` (remove the `s/<share_token>/` and empty `''` template routes; register `path('api/v1/gallery/', GalleryListView.as_view())`)
+- Modify: `api/slideshows/admin.py` (expose `is_gallery` and `gallery_position` as inline-editable list-display columns + filters; `list_editable=['is_gallery', 'gallery_position']`)
+- Modify: `api/slideshows/management/commands/seed_gallery.py` (replace the existing "paste tokens into _GALLERY_TOKENS" instructions with `is_gallery=True` + `gallery_position=N` set directly on each created slideshow; the command becomes self-contained — running it produces a working gallery for any deployer with no source-code edits required)
+- Modify: `api/agentclip_app/urls.py` (drop the `static()` media block in DEBUG since web serves images directly from Spaces; CSRF middleware stays for admin)
+- Modify: `api/slideshows/tests.py` (remove `PublicViewerTests` class; add new `GalleryEndpointTests` class with ~6 tests)
 
 **Approach:**
-- Remove dead code in one focused commit so the diff reads as "Django steps back to API-only role."
-- Keep DRF endpoints, models, admin, migrations, ratelimit, exception handler — all unchanged.
-- The 4 viewer tests that get removed lose us coverage of "viewer renders correctly," but that coverage moves to web/'s integration test suite later (Unit 14).
+- Two threads bundled into one commit because they touch the same files (views.py, urls.py, tests.py): "delete Django UI" and "make gallery DB-driven." Narratively coherent: "Django steps back to API + DB-curated content."
+- The OSS portability fix is the load-bearing reason for the bundle. Anyone cloning the repo + running `seed_gallery` should immediately see a populated home page on their own deployment without editing source code or knowing what `_GALLERY_TOKENS` is. agentclip.dev runs the same code; Eric curates via Django admin.
+- The DRF endpoint serializer EXCLUDES every internal field (edit_token, write_token hashes, internal IDs) — only client-facing fields ship to the gallery card.
+- The data migration handles the transition for environments that already had pre-existing slideshows referenced by `_GALLERY_TOKENS`. For Eric's local DB and agentclip.dev: it backfills correctly. For fresh forks: it's a no-op.
 
 **Patterns to follow:**
-- Look at `Plane`'s history when they removed Django-templated UI in favor of Next.js — they kept DRF endpoints and admin, deleted template renderers.
+- `Plane`'s history when they removed Django-templated UI in favor of Next.js — they kept DRF endpoints and admin, deleted template renderers.
+- DRF's `generics.ListAPIView` for the gallery endpoint (matches existing list-endpoint patterns in views.py).
+- Linear's "Featured" admin toggle for managing curated lists (single boolean + position).
 
 **Test scenarios:**
-- Happy path: 30 remaining tests in `api/slideshows/tests.py` still pass (the 4 viewer tests are removed, which is the change).
+- Happy path: 30 existing tests still pass (the 4 viewer tests are removed; that's the change).
+- Happy path: `GET /api/v1/gallery/` returns 200 with JSON `{"results": [...]}` containing only `is_gallery=True` slideshows ordered by `gallery_position` ascending then `created_at` descending.
+- Happy path: response payload contains only safe fields (assert no `edit_token`, no `created_by_token_hash`, no internal numeric IDs leaked).
+- Edge case: `GET /api/v1/gallery/` on a DB with zero gallery items returns 200 with `{"results": []}` (empty state, not 404).
+- Edge case: `GET /api/v1/gallery/` is publicly accessible (no auth required) and rate-limited per the existing throttling config.
+- Edge case: `seed_gallery` run on a fresh DB sets `is_gallery=True` on all 5 demo rows + assigns gallery_position 1..5; subsequent `GET /api/v1/gallery/` returns those 5 rows in position order.
+- Edge case: admin can toggle `is_gallery` and reorder `gallery_position` inline; the gallery endpoint reflects the change without a code deploy.
 - Edge case: `DJANGO_DEBUG=true python manage.py check` reports no errors after the route deletions.
-- Edge case: `curl http://localhost:8000/api/slideshow/` still returns valid responses; the API surface is unchanged.
 
 **Verification:**
-- `cd api && python manage.py test slideshows` shows 30 passing (4 fewer than before).
+- `cd api && python manage.py migrate` runs cleanly on a fresh DB and on a DB that already had slideshows referenced by the old `_GALLERY_TOKENS`.
+- `cd api && python manage.py test slideshows` shows 30 existing tests + 6 new `GalleryEndpointTests` all pass.
 - `cd api && python manage.py check` clean.
 - `templates/` directory and `api/slideshows/templates/` directory both gone from the repo.
+- `grep -r "_GALLERY_TOKENS" api/` returns nothing.
+- Manual: visit `localhost:8000/api/v1/gallery/` after running `seed_gallery` → JSON list of 5 demos, ordered by `gallery_position`.
+- Manual: log into Django admin, toggle `is_gallery=False` on one row, refresh the API endpoint → that row no longer appears.
+
+---
+
+- [ ] **Unit 2a: Polish Django admin with `django-unfold`**
+
+**Goal:** Replace Django's default admin theme with [django-unfold](https://github.com/unfoldadmin/django-unfold), a modern Tailwind-based admin UI. The admin IS AgentClip's dashboard — for monitoring posts, curating the gallery, moderating flagged content, viewing the edit-token recovery audit log. It deserves to look like a 2026 product, not 2010 Django.
+
+**Requirements:** Pairs with Unit 2 (admin gains real curation duties via `is_gallery` toggle). With no separate analytics dashboard or settings UI in v0.1, the admin is the operator's whole world. Polish here = polish for the operator experience.
+
+**Dependencies:** Unit 2 (admin starts surfacing the new `is_gallery`/`gallery_position` columns; nicer to wire those in once for the Unfold-themed admin rather than configuring twice).
+
+**Files:**
+- Modify: `api/requirements.txt` (add `django-unfold==X.Y` — pin to the version current at the time of writing the unit; verify it supports the project's Django version per its README)
+- Modify: `api/agentclip_app/settings.py` (add `'unfold'` and `'unfold.contrib.filters'` etc. as needed to `INSTALLED_APPS`, BEFORE `'django.contrib.admin'` per Unfold's installation docs; configure `UNFOLD = {...}` with `SITE_TITLE = 'AgentClip Admin'`, `SITE_HEADER = 'AgentClip'`, `SITE_SYMBOL = 'movie'` (Material Symbol — the closest match to the ticket logo concept), `COLORS = {...}` mapping Unfold's primary palette to AgentClip's vermillion `#d94824` family for brand consistency)
+- Modify: `api/slideshows/admin.py` (change `from django.contrib import admin` to `from unfold.admin import ModelAdmin`; subclass Slideshow's admin from `ModelAdmin` instead of `admin.ModelAdmin`; same for Slide. Existing inline-editable fields, list_display, filters, etc. carry over with no other changes)
+- Optional: `api/static/admin/agentclip-logo.svg` (the vertical movie-ticket logo as an SVG asset, referenced via `UNFOLD["SITE_LOGO"]`)
+- Modify: `api/slideshows/tests.py` (1-2 smoke tests confirming admin pages still render 200 with the Unfold theme — purely defensive)
+
+**Approach:**
+- Unfold replaces the admin theme without changing model registration semantics — switching base classes is the only code change. All inline fields, filters, and admin actions continue to work.
+- Configure Unfold's color palette to match AgentClip tokens (vermillion primary, ink neutrals). This makes the admin visually continuous with `agentclip.dev` and `docs.agentclip.dev`.
+- Set `SITE_LOGO` to the same vertical-ticket SVG used in the public web nav so the admin reads as the same product.
+- Keep any custom admin actions (like "feature this clip" or "rotate edit token") on the Slideshow ModelAdmin so they get the Unfold styling automatically.
+
+**Patterns to follow:**
+- Unfold's official integration guide on GitHub (https://github.com/unfoldadmin/django-unfold).
+- `langfuse-cloud`'s admin theme config — same kind of "admin IS the dashboard" vibe.
+- Matching color tokens between the public site and admin (Linear's admin / settings panes vs marketing site).
+
+**Test scenarios:**
+- Happy path: visit `/admin/` after migrations + `createsuperuser` → Unfold-themed login screen with AgentClip branding.
+- Happy path: log in → Slideshow list page renders with Unfold styling, `is_gallery` and `gallery_position` columns are inline-editable as before, vermillion primary buttons.
+- Happy path: edit a Slideshow, save → the change persists; the admin form is the Unfold-styled version, not vanilla Django.
+- Edge case: existing admin customizations (filters, list_display, search_fields) all continue to work after the base-class swap.
+- Edge case: the admin pages still pass Django's CSRF + auth middleware checks (no regression in security posture).
+
+**Verification:**
+- `cd api && python manage.py migrate && python manage.py runserver` → visit `localhost:8000/admin/` → Unfold-themed admin with vermillion accents.
+- `cd api && python manage.py test slideshows` shows existing tests + 1-2 new admin smoke tests all pass.
+- Toggle `is_gallery` on a slideshow via the Unfold-themed admin → confirm the change persists by reloading + checking `/api/v1/gallery/`.
+- Lighthouse a11y on the admin login page is ≥ 90 (Unfold ships with reasonable a11y; we don't enforce 95 hard-bar on admin since it's not public-facing).
 
 ---
 
@@ -408,6 +466,53 @@ Browser request: GET https://agentclip.dev/s/abc123
 - `grep -r "agentclip-app" .` returns nothing in either repo.
 - READMEs link to the right GitHub URLs (`github.com/ericelizes/agentclip` and `github.com/ericelizes/agentclip-python`).
 
+---
+
+- [ ] **Unit 3a: Add `edit_token` field + recovery / rotate endpoints to API**
+
+**Goal:** Each slideshow gets its own `edit_token` (random, persistent, per-slideshow secret). Create response returns both `public_url` and `edit_url`. Two new endpoints expose recovery and rotation so a user who lost the URL can reclaim it via their existing write_token.
+
+**Requirements:** New v0.1 capability beyond the original requirements set — closes the "agent posts → user edits → user shares" loop without introducing accounts. Aligns with the no-accounts principle by using the user's existing write_token as the ownership credential.
+
+**Dependencies:** Unit 2 (templates deleted; api is now in API-only mode and we're still in Django scope).
+
+**Files:**
+- Modify: `api/slideshows/models.py` (add `edit_token = models.CharField(max_length=64, unique=True, db_index=True)` populated on save via `secrets.token_urlsafe(32)` if blank; add `created_by_token_hash = models.CharField(max_length=64, db_index=True, blank=True)` storing SHA-256 of the creating write_token — never plaintext)
+- Create: `api/slideshows/migrations/0009_edit_token.py` (auto-generated, plus a data migration step to backfill `edit_token` for existing rows so existing fixtures still resolve)
+- Modify: `api/slideshows/serializers.py` (`SlideshowCreateResponseSerializer` includes `edit_url` field; `SlideshowDetailSerializer`, `SlideshowListSerializer`, public viewer serializer all explicitly EXCLUDE `edit_token` and `created_by_token_hash`)
+- Modify: `api/slideshows/views.py` (POST `/api/v1/slideshow/` create: hash the incoming Bearer write_token with SHA-256, stash in `created_by_token_hash`, return JSON with `public_url` + `edit_url`; new endpoint `GET /api/v1/slideshow/<slug>/edit-token/` requires Bearer write_token, returns 200 + `{edit_token, edit_url}` if hash of incoming token matches `created_by_token_hash`, 403 otherwise; new endpoint `POST /api/v1/slideshow/<slug>/rotate-edit-token/` regenerates `edit_token`, requires same ownership check, returns the new token + URL)
+- Modify: `api/slideshows/urls.py` (register the two new endpoints alongside the existing slideshow routes)
+- Modify: `api/slideshows/tests.py` (add ~12 new tests under a new `EditTokenTests` class)
+
+**Approach:**
+- `edit_token` is a per-slideshow secret distinct from the public `share_token` slug. URL shape: `agentclip.dev/s/{slug}/edit?t={edit_token}`. Anyone with this URL can edit; the page never persists the token, only reads it from the query string.
+- Recovery uses the user's existing write_token as the credential. We store SHA-256 of the write_token at create time (never plaintext) and compare hashes on recovery. This means: if the user rotates their write_token, they lose recovery access to slideshows posted under the old token — document this trade-off in the SDK README. They retain access via the original edit URL if they saved it.
+- Rotation invalidates the old `edit_token` (a leaked URL stops working). User runs `agentclip rotate <slug>` to refresh.
+- Read endpoints (list, detail, public viewer, OG image) MUST NOT include `edit_token` or `created_by_token_hash` in the response payload. Only the create response and the dedicated edit-token endpoint expose `edit_token`.
+
+**Patterns to follow:**
+- Existing `share_token` field generation in `api/slideshows/models.py` (random URL-safe token at creation).
+- Linear's "Regenerate share link" UX and Loom's "Reset share URL" pattern — same conceptual model.
+- Django's `secrets.token_urlsafe(32)` for cryptographically secure random tokens.
+
+**Test scenarios:**
+- Happy path: POST `/api/v1/slideshow/` with valid Bearer → 201 response includes both `public_url` and `edit_url`; the `edit_url` contains the slug and a `?t=` parameter with the edit_token.
+- Happy path: GET `/api/v1/slideshow/<slug>/edit-token/` with the same Bearer write_token used to create → 200 with `edit_token` + `edit_url`.
+- Edge case: GET `.../edit-token/` without `Authorization` header → 401.
+- Edge case: GET `.../edit-token/` with a different user's write_token → 403.
+- Edge case: GET `.../edit-token/` for a non-existent slug → 404.
+- Edge case: list endpoint, detail endpoint, public viewer endpoint, OG image route — none of these include `edit_token` or `created_by_token_hash` in the response payload (assert via response keys).
+- Happy path rotate: POST `.../rotate-edit-token/` returns a new edit_token; immediately calling `.../edit-token/` returns the new value; the old token can no longer authenticate edit operations (paired with U16a edit endpoints).
+- Edge case rotate: rotate without ownership match → 403, original token unchanged.
+- Integration: existing seed_gallery fixtures still load after the migration runs (data migration backfills edit_token for them).
+
+**Verification:**
+- `cd api && DJANGO_DEBUG=true python manage.py migrate` runs cleanly on a fresh DB and on a DB that already had pre-migration slideshows.
+- `cd api && DJANGO_DEBUG=true python manage.py test slideshows` shows existing tests still pass + ~12 new `EditTokenTests` pass.
+- Manual: `curl -X POST .../api/v1/slideshow/ -H 'Authorization: Bearer ...'` → response JSON contains both `public_url` and `edit_url`.
+- Manual: `curl .../api/v1/slideshow/{slug}/edit-token/ -H 'Authorization: Bearer wrong_token'` returns 403 with a clear error message.
+- Manual: hit any read endpoint and confirm `edit_token` is not in the JSON.
+
 ### Phase B: Web bootstrap (4 units)
 
 - [ ] **Unit 4: Bootstrap Next.js 15 + TypeScript + Tailwind 4 + tokens**
@@ -428,7 +533,7 @@ Browser request: GET https://agentclip.dev/s/abc123
 - Create: `web/app/layout.tsx` (root layout; loads Geist Sans + Geist Mono via `next/font/google`)
 - Create: `web/app/(home)/page.tsx` (placeholder home page rendering "AgentClip" wordmark)
 - Create: `web/app/globals.css` (Tailwind directives + `@theme` block consuming `tokens.ts` values)
-- Create: `web/lib/tokens.ts` (single-source design tokens: vermillion `#d94824`, ink, paper, surface, border, radius scale, motion easings)
+- Create: `web/lib/tokens.ts` (single-source design tokens — see "Token values (locked)" below)
 - Create: `web/lib/utils.ts` (`cn()` helper using cva + tailwind-merge)
 - Create: `web/.gitignore` (Next.js standard)
 - Create: `web/README.md` (web-specific dev instructions)
@@ -439,6 +544,81 @@ Browser request: GET https://agentclip.dev/s/abc123
 - Tokens live in `lib/tokens.ts` as plain TypeScript; consumed by `globals.css` via `@theme` blocks (CSS-first per Tailwind 4) and by Storybook stories via direct import.
 - Match `manifest`'s package.json scripts (`dev`, `build`, `start`, `lint`, `type:check`, `format`).
 - Skip everything Storybook / Vitest / Radix / icons-related; those land in subsequent units to keep this commit focused.
+
+**Token values (locked — Anthropic-influenced warm parchment palette, validated against `docs/mockups/index.html`):**
+
+```ts
+// web/lib/tokens.ts (locked from mockup)
+export const tokens = {
+  // Brand accent — single chromatic voice
+  vermillion: {
+    50:  '#fdf0eb',
+    100: '#fadcd0',
+    300: '#f08a6a',
+    500: '#d94824',  // primary brand mark, underline emphasis, CTA hover
+    600: '#b73a1a',
+    700: '#93281b',
+  },
+
+  // Warm ink scale (replaces the cool-gray achromatic system)
+  ink: {
+    50:  '#faf9f5',  // page bg level
+    100: '#f0eee6',  // nav + secondary cards
+    200: '#e8e6dc',  // borders, dividers
+    300: '#d1cfc5',  // hairlines, inactive
+    400: '#b0aea5',  // disabled
+    500: '#87867f',  // tertiary text, meta labels
+    600: '#5e5d59',  // secondary body text
+    700: '#3d3d3a',  // strong borders, focus rings
+    800: '#2a2a26',  // mid-deep
+    900: '#141413',  // primary text + dark editorial card bg
+  },
+
+  // Surface tokens — alternating thermal layers
+  paper:        '#faf9f5',  // L0 page ground
+  paperRaised:  '#f0eee6',  // L1 nav + cards
+  paperSunken:  '#e8e6dc',  // L1.5 borders / muted fills
+  paperOat:     '#e3dacc',  // L2 nested cards / callouts
+  paperDark:    '#141413',  // dark editorial inversion
+
+  // Radius scale
+  radiusSm:     '6px',
+  radius:       '10px',
+  radiusLg:     '14px',
+  radiusXl:     '20px',
+  radiusPill:   '42px',           // ghost CTA + secondary buttons (Slite signature)
+  radiusCta:    '0px 0px 8px 8px', // primary CTA asymmetric (Anthropic signature)
+
+  // Whisper shadow — the ONLY elevation in the system
+  shadowWhisper:
+    'rgba(0,0,0,0.01) 0px 4px 12px 0px, ' +
+    'rgba(0,0,0,0.05) 0px 2px 6px 0px, ' +
+    'rgba(0,0,0,0.10) 0px 1px 3px 0px',
+
+  // Easing
+  ease:    'cubic-bezier(0.2, 0.7, 0.2, 1)',
+  easeOut: 'cubic-bezier(0, 0, 0.15, 1)',
+} as const;
+```
+
+**CSS variables block (consumed by `web/app/globals.css` via Tailwind 4 `@theme`):**
+```css
+@theme {
+  --color-vermillion-500: #d94824;
+  --color-ink-50:  #faf9f5;
+  --color-ink-100: #f0eee6;
+  --color-ink-200: #e8e6dc;
+  --color-ink-900: #141413;
+  /* …rest of tokens.ts mirrored here… */
+  --radius-pill: 42px;
+  --shadow-whisper:
+    rgba(0,0,0,0.01) 0px 4px 12px 0px,
+    rgba(0,0,0,0.05) 0px 2px 6px 0px,
+    rgba(0,0,0,0.10) 0px 1px 3px 0px;
+}
+```
+
+**Why warm parchment over cool gray:** matches the Anthropic / Slite editorial DNA we locked during the design pass (see `docs/research/refero-design-prompts/`). The previous `#fafaf9` reads as cold spec-sheet white; `#faf9f5` reads as paper. Single biggest visual lever.
 
 **Patterns to follow:**
 - `manifest/package.json` — exact dependency versions and dev/build script names.
@@ -762,33 +942,84 @@ Browser request: GET https://agentclip.dev/s/abc123
 - Test + story pass.
 - Visual inspection of the three slideshow shapes at mobile and desktop widths.
 
-### Phase D: Pages and OG image (4 units)
+### Phase D: Pages and OG image (5 units)
 
 - [ ] **Unit 13: Home page (`/`)**
 
-**Goal:** Assemble the home page from HeroSection + GalleryGrid patterns. Server-side data fetch for the curated gallery.
+**Goal:** Assemble the home page from HeroSection + GalleryGrid patterns. Server-side data fetch for the curated gallery via the new `/api/v1/gallery/` endpoint (added in Unit 2). The page renders the locked copy and component composition validated in `docs/mockups/index.html`.
 
 **Requirements:** R6, R8.
 
-**Dependencies:** Unit 10, Unit 11, Unit 6 (typed API client).
+**Dependencies:** Unit 10 (HeroSection), Unit 11 (GalleryGrid), Unit 6 (typed API client), Unit 2 (gallery endpoint).
 
 **Files:**
-- Modify: `web/app/(home)/page.tsx` (replace placeholder with composed Hero + Gallery; server-side fetch from `api.agentclip.dev` for gallery slideshows)
+- Modify: `web/app/(home)/page.tsx` (replace placeholder with composed Hero + Gallery; server-side fetch via typed client)
 - Create: `web/app/(home)/page.test.tsx` (component-level test using mocked api client)
+- Create: `web/public/install.md` (the static install instructions the agent fetches via the "Have your agent do it" flow — see "Install routes" below)
 
 **Approach:**
-- Server Component fetches gallery via the typed client.
-- Curated tokens come from a Django endpoint (added in Unit 18 if not already present) or from a hardcoded list in `web/lib/gallery.ts` (settle at implementation time).
-- `generateMetadata` exports og:title, og:description, og:image (a static brand card for the home; not dynamic).
+- Server Component fetches gallery via the typed client (`/api/v1/gallery/`).
+- `generateMetadata` exports og:title `"AgentClip · Skip the screencast"`, og:description matches the lede, og:image is a static brand card for the home.
+- The page composition mirrors the locked mockup at `docs/mockups/index.html` exactly — copy, components, and behaviors below are AUTHORITATIVE.
+
+**Locked content (from mockup — do NOT re-derive):**
+
+- **Pill eyebrow:** `v0.1 · open source · MCP` with vermillion mono caps treatment.
+- **Headline:** `Skip the` (line break) `screencast.` — with `screencast` rendered inside a `<em>` element; `<em>` styling renders as vermillion underline (5px thickness, 0.16em offset). NOT italic, NOT colored text — the underline is the entire emphasis mechanic. Geist Sans 700 at clamp(2.5rem, 1.7rem + 4.5vw, 4.5rem), letter-spacing -0.04em, line-height 1.02.
+- **Lede:** `QA runs, walkthroughs, bug repros — your agent records the run, narrates it, and ships you a URL anyone can watch.` Geist 1.125rem (1.25rem at ≥720px), `--ink-600` color, max-width 52ch.
+- **Hero CTAs:**
+  - Primary: `View on GitHub` with octocat icon + `--radius-cta` (0 0 8px 8px asymmetric — Anthropic signature). `--ink-900` fill, `--paper` text, hover swaps to vermillion.
+  - Secondary: `How it works` with `--radius-pill` (42px — Slite signature). Transparent + 1px ink-900 border.
+- **Install card** (single source of truth — both tabs):
+  - Tab 1 (default): `Install yourself` → single line `$ pip install agentclip` (NO chained command — lazy first-run setup per Unit 23). Copy-on-click puts `pip install agentclip` on the clipboard.
+  - Tab 2: `Have your agent do it` → black agent-prompt block containing `Read agentclip.dev/install.md and set up AgentClip for me.` Copy-on-click puts that exact text on the clipboard.
+  - Connected card style — tabs strip on top, panel below, single bordered container with whisper shadow. Active tab merges into the panel via matched bg color.
+  - "No install? `uvx agentclip --help`" hint below tab 1 only.
+- **How it works (3-card row):**
+  - 01 / install: `pip install` → `pip install agentclip`. First run wires the skill and browser drivers automatically.
+  - 02 / run: `Ask your agent to QA` → Point it at any flow. Agent drives the browser, captures meaningful moments in active voice.
+  - 03 / share: `Send the URL` → One shareable URL. Drop it in Slack, paste in a PR, send it cold to a recruiter. No login.
+- **Gallery section:**
+  - Eyebrow: `IN THE GALLERY`. h2: `Recent fieldwork.` Sub: `Real QA runs, hand-curated.` Right-aligned count: `5 clips`.
+  - Featured card (1 large with Aceternity-style 3D tilt + conic-gradient glow + glass overlay + floating motes).
+  - Grid below (4 secondary cards with the glass-glimpse aesthetic + whisper shadow).
+  - Avatar credit byline `[EE] Eric Elizes` on the featured card body (mono, vermillion-filled circle with initials).
+- **Closing line:** `Open source. Receipts for the work agents quietly do.`
+- **Footer:** wordmark + GitHub link + dot separators.
+- **Nav:** ticket-mark logo (vertical movie-ticket SVG with vermillion fill, white play arrow) + wordmark `AgentClip` + theme toggle + GitHub icon button.
+
+**Install routes (`web/public/install.md`):**
+
+The "Have your agent do it" flow tells the agent to fetch `agentclip.dev/install.md`. That URL must exist. Cleanest implementation: drop a static `install.md` in `web/public/` so Next.js serves it at the web root. Content is a short markdown doc instructing an agent to:
+1. Run `pip install agentclip` (lazy first-run handles the rest)
+2. Reload its session if needed so the skill is registered
+3. Run `agentclip clip <url>` to test against any URL
+4. Surface the resulting public URL + edit URL back to the user
+
+Keep it under ~60 lines so an agent can read + act in one cognitive pass. Treat it as an agent-readable spec, not human marketing copy.
+
+**Click-to-copy behavior:**
+- Code blocks (`<pre data-copy="...">`) and the agent prompt block both have onclick handlers that call `navigator.clipboard.writeText()` and flash a "COPIED" badge in vermillion for ~1.4s.
+- The displayed text and the clipboard content match exactly (no hidden chained commands, no surprise differences).
 
 **Test scenarios:**
-- Happy: page renders Hero + Gallery with mocked clip data.
-- Happy: empty gallery renders the empty state.
-- Integration: real fetch from a running `api/` returns valid data and renders correctly (separate test, possibly excluded from CI).
+- Happy: page renders Hero + How it works + Gallery + closing line + footer with mocked clip data.
+- Happy: empty gallery renders the empty state ("No clips yet — your first agent run starts here.").
+- Happy: clicking the install code block copies the exact displayed text.
+- Happy: clicking the agent prompt block copies the exact displayed text.
+- Happy: tab switch from "Install yourself" to "Have your agent do it" swaps the panel without page reload.
+- Edge: copy-to-clipboard failure (denied permission) → button briefly flashes "COPY FAILED" instead of "COPIED".
+- Edge: `<em>` keyword underline renders correctly across browsers (Safari, Chrome, Firefox) — assert computed `text-decoration-thickness` is 5px.
+- Edge: `web/public/install.md` is reachable at `/install.md` and returns the install instructions as `text/markdown`.
+- Integration: real fetch from a running `api/` returns valid gallery data and renders correctly (separate test, possibly excluded from CI).
+- a11y: passes axe-core; tablist has correct `role`, `aria-selected`, and keyboard nav (arrow keys swap tabs).
 
 **Verification:**
 - `pnpm test` passes for the home page.
-- `pnpm dev` shows the home page at `localhost:3000` with the gallery populated against a running local `api/`.
+- `pnpm dev` shows the home page at `localhost:3000` with gallery populated against a running local `api/`.
+- Visual diff against `docs/mockups/index.html` shows no meaningful drift in the hero, install card, gallery, or footer.
+- `curl localhost:3000/install.md` returns the install doc.
+- Lighthouse a11y ≥ 95 (hard bar per Unit 20).
 
 ---
 
@@ -882,6 +1113,51 @@ Browser request: GET https://agentclip.dev/s/abc123
 **Verification:**
 - Visit a non-existent path → not-found.tsx renders.
 - Force an error in a viewer route → error.tsx renders.
+
+---
+
+- [ ] **Unit 16a: Minimal edit page at `/s/[slug]/edit`**
+
+**Goal:** Web UI at `/s/{slug}/edit?t={edit_token}` that lets the user delete individual slides and edit slide captions inline. Reorder, drag-drop, and bulk operations are deferred to v0.2.
+
+**Requirements:** Pair with Unit 3a's edit URL — without an edit UI the URL is just bytes. Closes the v0.1 editing story (delete + caption-edit covers ~80% of fix-after-the-fact flows).
+
+**Dependencies:** Unit 14 (viewer page exists with SSR data fetch — we mirror its layout). Unit 3a (backend exposes edit_token + supports edit operations).
+
+**Files:**
+- Create: `web/app/s/[slug]/edit/page.tsx` (Server Component for initial load; reads `t` query param via `searchParams`; calls API with `Authorization: Bearer <edit_token>` to fetch the slideshow; renders the client editor; if API returns 403, shows `error.tsx`)
+- Create: `web/app/s/[slug]/edit/edit-client.tsx` (Client Component containing the inline-editable view; tracks unsaved-edit state; debounced auto-save on blur; optimistic UI with rollback on API failure)
+- Create: `web/app/s/[slug]/edit/error.tsx` (handles 403 / invalid edit_token; offers a link back to the public viewer)
+- Modify: `web/lib/api-client.ts` (add `updateSlideCaption(slug, slideId, caption, editToken)` and `deleteSlide(slug, slideId, editToken)` methods that include the edit_token in the request)
+- Create: `web/components/composites/EditableCaption.tsx` (composite component — text becomes a `<textarea>` on click/focus, saves on blur, shows save indicator)
+- Create: `web/components/composites/DeleteSlideButton.tsx` (composite component — confirms before delete, optimistic remove)
+- Create: `web/app/s/[slug]/edit/edit.test.tsx` (Vitest + Testing Library; tests cover happy path + error states; mocks fetch via MSW or undici interceptor)
+
+**Approach:**
+- Edit page mirrors the viewer's layout (TOC sidebar, clip stack, hero) so users immediately recognize "this is the same clip, in edit mode." Only the affordances change: caption text becomes click-to-edit, each slide gets a small Delete button in the corner, the narration block in the clips header gets a "Preview as visitor sees it" link.
+- `edit_token` lives only in the URL query string and in the React component's prop tree. Never persist to localStorage, never send to a third party. The full edit URL stays in the address bar so users can copy + paste it elsewhere.
+- Save-on-blur with debounce (~500ms) gives the inline editing a natural feel. Optimistic UI shows immediate change, rolls back to the prior value if the API call fails.
+- Visual design uses the already-built primitives + composites (vermillion accents, Geist Mono labels). No new design language.
+
+**Patterns to follow:**
+- Linear inline-comment editing (focus on click, save on blur, cancel on Escape).
+- The viewer.html mockup's existing visual grammar — preserve it identically in edit mode.
+- Existing `web/app/s/[slug]/page.tsx` from Unit 14 for the SSR data-fetch pattern.
+
+**Test scenarios:**
+- Happy path: navigate to `/s/k9j2x/edit?t=valid` → editor renders with editable captions and per-slide delete buttons; click caption, change text, blur → API persists; reload public viewer → caption updated.
+- Happy path: click delete on slide 02 → confirmation prompt → confirm → slide removed from UI optimistically; API persists; reload public viewer → slide gone.
+- Edge case: navigate with `?t=invalid` → API returns 403 → error.tsx renders with link back to public viewer; URL remains in address bar so user can correct it.
+- Edge case: navigate with no `t` param → 404 (the route requires it).
+- Edge case: edit a caption while another tab has rotated the edit_token → API returns 403 mid-save → optimistic UI rolls back, banner shows "Edit link is no longer valid. Run `agentclip edit-url <slug>` to get a new one."
+- Error path: API unreachable → optimistic UI shows pending state, error toast prompts retry; user's unsaved changes preserved in component state.
+- Integration: edits made in this UI reflect in the public viewer immediately on next visit (no caching mismatch — the API endpoints invalidate any CDN cache for the slug on mutation).
+
+**Verification:**
+- `cd web && pnpm test edit` runs the new tests; all pass.
+- Manual: post a clip via SDK → run `agentclip edit-url <slug>` → open URL → editor loads → edit caption + delete a slide → refresh viewer → changes are live.
+- Manual: open the same edit URL in two browser tabs → edit in tab A → tab B's optimistic state stays consistent until reload (acceptable for v0.1; "real-time" sync deferred to v0.2).
+- Lighthouse a11y score on the edit page is ≥ 95 (same hard bar as the rest of the site).
 
 ### Phase E: Deploy and ops (5 units)
 
@@ -1039,7 +1315,7 @@ Browser request: GET https://agentclip.dev/s/abc123
 - Search works.
 - Each section has at least one runnable example.
 
-### Phase F: Polish and launch (4 units)
+### Phase F: Polish and launch (5 units)
 
 - [ ] **Unit 22: Rewrite root + per-service READMEs for the monorepo structure**
 
@@ -1074,52 +1350,119 @@ Browser request: GET https://agentclip.dev/s/abc123
 
 ---
 
-- [ ] **Unit 23: Add `agentclip setup` command and `[browser]` extra to `agentclip-python`**
+- [ ] **Unit 23: Lazy first-run setup + `[browser]` extra (with optional `agentclip setup` for manual control)**
 
-**Goal:** Replace `agentclip install-skill` with a more capable `agentclip setup` orchestrator. Add an optional `pip install agentclip[browser]` extra that pulls Playwright. Make first-time setup work cleanly across Claude Code, Cursor, Codex, and raw API agent runtimes.
+**Goal:** Make `pip install agentclip` the ONE-line install. The CLI lazily detects an unconfigured state on first invocation and runs setup transparently, so the user (or their agent) never has to chain a separate setup command. The explicit `agentclip setup` command stays available for manual re-runs and CI/headless contexts. Add an optional `pip install agentclip[browser]` extra that pulls Playwright.
 
-**Requirements:** R1, R13.
+**Requirements:** R1, R13. Aligns with the agent-native positioning — fewer commands to chain means less for the agent to manage.
 
-**Dependencies:** None (this work happens in `agentclip-python`, separate from the platform monorepo). Slot before Unit 24 because Unit 24's README rewrite needs to document the new install commands.
+**Dependencies:** None (this work happens in `agentclip-python`, separate from the platform monorepo). Slot before Unit 24 because Unit 24's README rewrite needs to document the new install copy.
 
 **Target repo:** `agentclip-python`.
 
 **Files:**
-- Modify: `src/agentclip/cli.py` (rename `install-skill` command to `setup`; expand its responsibilities)
+- Modify: `src/agentclip/cli.py` (add a CLI middleware/decorator that calls `_ensure_setup()` before any user-invoked subcommand; keep `setup` as an explicit subcommand)
+- Create: `src/agentclip/_setup.py` (the actual setup implementation — used by both lazy detection and the explicit `agentclip setup` command)
+- Create: `src/agentclip/_detect.py` (browser-substrate + agent-runtime detection, factored out for testability)
 - Modify: `pyproject.toml` (add `[project.optional-dependencies] browser = ["playwright>=1.40"]`)
-- Modify: `src/agentclip/skill/SKILL.md` (one-line note that the `[browser]` extra includes Playwright; agent-browser, Claude Code's built-ins, or Cursor's tools also work)
-- Test: `tests/test_cli.py` (cover the renamed command + browser-substrate detection)
+- Modify: `src/agentclip/skill/SKILL.md` (one-line note that the `[browser]` extra includes Playwright; agent-browser / Claude Code's built-ins / Cursor's tools also work)
+- Test: `tests/test_cli.py` + `tests/test_setup.py` (cover lazy invocation, explicit invocation, idempotency, agent-runtime detection)
 
 **Approach:**
-- The `setup` command runs in this order:
-  1. Copy `SKILL.md` to `~/.claude/skills/agentclip/` (existing install-skill behavior)
-  2. Detect agent runtime: check for `CLAUDECODE` / `CLAUDE_CODE` / `CURSOR_TRACE_ID` / `OPENAI_CODEX_*` env vars; check for installed Python packages (e.g., `claude-code-cli`)
-  3. Detect browser substrate: check if Playwright is importable; check for `claude-in-chrome` MCP availability via Claude config; check for the `agent-browser` npm binary on PATH; print what was found
-  4. If `agentclip[browser]` was installed AND Chromium isn't already present: run `playwright install chromium` (idempotent; first-time download is ~150MB)
-  5. Run the existing whoami prompt (TTY-only, skipped on CI)
-  6. Print a summary checklist: `✓ skill installed`, `✓ browser substrate: [name]`, `✓ credit set: [name or "skipped"]`
-- `install-skill` becomes an alias of `setup` for one release cycle so existing users don't break, then deprecated.
-- `setup` exits non-zero with a helpful error if no browser substrate is detected AND `[browser]` wasn't installed: `"no browser substrate found. Install one of: pip install 'agentclip[browser]', or use Claude Code / Cursor / agent-browser."`
-- Detection logic lives in a new helper module `src/agentclip/_detect.py` so it's testable and not buried in cli.py.
+
+The two paths into setup:
+1. **Lazy (default, agent-friendly):** Any `agentclip <subcommand>` invocation calls `_ensure_setup()` first. If `~/.config/agentclip/setup.lock` exists (or some equivalent marker), it's a no-op. Otherwise it runs the full setup flow inline, prints a one-screen "First time? Setting up AgentClip..." message, then proceeds with the original command. The agent reading the terminal sees a clear teaching moment, not a surprise error.
+2. **Explicit (manual control):** `agentclip setup` runs the same flow on demand, useful for CI prebuilds, container images, re-running after `agentclip rotate`, etc.
+
+Setup flow (shared by both paths):
+1. Copy `SKILL.md` to `~/.claude/skills/agentclip/` (existing install-skill behavior)
+2. Detect agent runtime: check for `CLAUDECODE` / `CLAUDE_CODE` / `CURSOR_TRACE_ID` / `OPENAI_CODEX_*` env vars; check for installed Python packages (e.g., `claude-code-cli`)
+3. Detect browser substrate: check if Playwright is importable; check for `claude-in-chrome` MCP availability via Claude config; check for `agent-browser` npm binary on PATH
+4. If `agentclip[browser]` was installed AND Chromium isn't already present: run `playwright install chromium` (idempotent; ~150MB first-time download)
+5. Run the whoami prompt (TTY-only; skipped on CI; agent-mode prompts via the shell stream)
+6. Write the setup marker (`~/.config/agentclip/setup.lock`) with a timestamp and detected substrate
+7. Print a summary checklist: `✓ skill installed`, `✓ browser substrate: [name]`, `✓ credit set: [name or "skipped"]`
+
+Behavior matrix:
+- **Fresh install + agent's first call:** lazy setup runs transparently before the actual command
+- **Fresh install + user runs `agentclip whoami` interactively:** lazy setup runs first, then whoami
+- **Fresh install + user runs `agentclip setup` explicitly:** runs setup; idempotent if already done (prints "Already set up" + summary)
+- **CI / non-TTY environment:** lazy setup runs without the whoami prompt, marker is still written, exits successfully so the actual command can proceed
+- **No browser substrate + no `[browser]` extra:** lazy setup completes skill install but warns: `"no browser substrate detected; install with pip install 'agentclip[browser]' or use Claude Code / Cursor / agent-browser"` and continues. Subsequent commands that require a browser fail loudly with the same pointer.
+- **`install-skill` (old command):** remains as a deprecated alias for one release cycle, prints a one-line deprecation notice
+
+The lazy detection has to be FAST (sub-50ms when already configured) — file existence check, no network, no imports of Playwright/MCP libraries unless setup is actually running.
 
 **Patterns to follow:**
 - Existing Typer command structure in `cli.py`.
-- The `pre-commit install` and `husky install` patterns — install + setup as a one-line orchestration command after `pip install`.
+- Vite / Astro / Bun first-run patterns — `npm create vite@latest` is the closest precedent: install + auto-bootstrap.
+- Pre-commit's `pre-commit install` is what we're explicitly REPLACING with the lazy version (the precedent we're moving past).
 - TTY detection via `sys.stdin.isatty()` (already used by the whoami prompt).
 
 **Test scenarios:**
-- Happy path: `agentclip setup` invoked in a TTY with `agentclip[browser]` installed → installs skill, runs `playwright install chromium`, prompts for whoami, prints success checklist.
-- Happy path: `agentclip setup` invoked with Claude Code env vars present → detects Claude Code, skips Playwright install, prints success checklist.
-- Edge case: `agentclip setup` invoked in non-TTY (CI, scripted) → installs skill, skips whoami prompt, still prints checklist.
-- Edge case: `agentclip setup` re-run → idempotent; doesn't re-download Chromium if already present, doesn't re-prompt for whoami if already set.
-- Error path: `agentclip setup` with no browser substrate detected and no `[browser]` extra → exits with code 1 and a helpful pointer to `pip install 'agentclip[browser]'`.
-- Error path: `playwright install chromium` fails (no internet, etc.) → reports the failure but still completes skill install + whoami; user can re-run later.
-- Integration: `agentclip install-skill` (the old command) still works as an alias and prints a one-line deprecation notice.
+- Happy path lazy: fresh install, no marker → run `agentclip clip <url>` → setup runs first, marker written, original clip command proceeds.
+- Happy path explicit: fresh install → run `agentclip setup` → setup runs, marker written, success checklist printed.
+- Idempotent lazy: marker exists → run any subcommand → setup is a no-op (sub-50ms), command proceeds immediately.
+- Idempotent explicit: marker exists → run `agentclip setup` → prints "Already set up" + summary, exits 0.
+- Edge case: `agentclip setup` in non-TTY → installs skill + browser, skips whoami prompt, writes marker.
+- Edge case: lazy setup in non-TTY (CI) → completes silently with sensible defaults, marker written.
+- Edge case: with Claude Code env vars present → detects Claude Code, skips Playwright install, prints success checklist.
+- Edge case: re-run after `agentclip rotate` → user runs `agentclip setup` to refresh; idempotent on skill install but updates whoami if changed.
+- Error path: no browser substrate + no `[browser]` → setup completes with warning, marker written; later `agentclip clip` fails loudly with install pointer.
+- Error path: `playwright install chromium` fails (no internet) → setup reports failure but still completes skill install + whoami; user can re-run later.
+- Integration: lazy setup adds < 50ms to subsequent invocations once the marker exists (perf assertion).
 
 **Verification:**
 - All existing 40 SDK tests still pass.
-- 6-7 new tests cover the scenarios above.
-- Manual smoke test on a fresh `pip install agentclip[browser]` (no Claude Code, no Cursor) followed by `agentclip setup` → ends with a working Chromium ready for the agent.
+- ~10 new tests covering lazy + explicit paths.
+- Manual smoke test on a fresh `pip install agentclip` (no `[browser]` extra, no Claude Code) → run `agentclip clip <url>` → setup runs transparently, command proceeds.
+- Manual smoke test on `pip install 'agentclip[browser]'` followed by an explicit `agentclip clip <url>` → lazy setup downloads Chromium, prompts whoami, then clips.
+- Cold-start perf: `time agentclip --help` after marker is written should be < 100ms total (Python startup + lazy-check overhead).
+
+---
+
+- [ ] **Unit 23a: `agentclip edit-url` + `agentclip rotate` CLI commands**
+
+**Goal:** SDK CLI commands let users (or their agents) recover the edit URL for any slideshow they created, and rotate the edit_token to invalidate a leaked URL.
+
+**Requirements:** Closes the recovery loop opened by Unit 3a. The user's existing write_token already proves ownership; these commands expose that proof to the recovery endpoint without requiring accounts.
+
+**Dependencies:** Unit 3a (recovery + rotate endpoints exist on the API). Unit 23 (`agentclip setup` ships, since these commands consolidate around the same Click subcommand structure and shared whoami-config loader).
+
+**Files:**
+- Create: `agentclip-python/src/agentclip/cli/edit_url.py` (new Click subcommand `edit-url`; resolves write_token from the existing whoami config; calls `GET /api/v1/slideshow/<slug>/edit-token/`; prints `agentclip.dev/s/<slug>/edit?t=<token>` to stdout on success)
+- Create: `agentclip-python/src/agentclip/cli/rotate.py` (new Click subcommand `rotate`; calls `POST /api/v1/slideshow/<slug>/rotate-edit-token/`; prints the new edit URL plus a one-line warning that the previous URL is now invalid)
+- Modify: `agentclip-python/src/agentclip/cli/__init__.py` (register both subcommands alongside `whoami`, `setup`, `install-skill`)
+- Modify: `agentclip-python/src/agentclip/client.py` (add `get_edit_url(slug: str) -> str` and `rotate_edit_token(slug: str) -> str` methods on `AgentClipClient`; both use the existing Bearer-write_token request infrastructure)
+- Create: `agentclip-python/tests/cli/test_edit_url.py` (~5 tests with `respx`/`httpx_mock`)
+- Create: `agentclip-python/tests/cli/test_rotate.py` (~3 tests)
+
+**Approach:**
+- Both commands are thin wrappers over the API recovery + rotate endpoints. Most of the logic is "translate API response into helpful CLI output."
+- Use the existing `AgentClipClient` and whoami-config infrastructure built in completed U5/U6. No new client plumbing.
+- Output on success is a plain URL on stdout (one line, no extra text) so an agent can capture and paste it into chat without parsing.
+- Output on failure goes to stderr with helpful next-step pointers (run `agentclip whoami`, check connectivity, etc.).
+- Rotation prints two lines: the new URL on stdout, the invalidation warning on stderr — separable for agent parsing.
+
+**Patterns to follow:**
+- Existing `agentclip whoami` and `agentclip setup` Click subcommand structure (shared config loader, consistent error formatting).
+- Linear CLI's `link` and `link rotate` commands (same UX pattern; same separation of "the URL itself" from "the explanatory chrome").
+- The `agentclip-python` repo's existing test infrastructure with `respx` for mocked HTTP.
+
+**Test scenarios:**
+- Happy path edit-url: `agentclip edit-url k9j2x` with whoami configured + slug owned by current write_token → exits 0, prints `agentclip.dev/s/k9j2x/edit?t=...` to stdout, nothing to stderr.
+- Edge case: slug not owned by current user (API returns 403) → exits 1, stderr says "You didn't create that clip. Run `agentclip whoami` to check which write_token is active." Stdout empty.
+- Edge case: whoami config missing → exits 1, stderr says "Run `agentclip setup` or `agentclip whoami` to identify yourself first." Stdout empty.
+- Edge case: slug not found (API returns 404) → exits 1, stderr says "No clip with slug `<slug>` found." Stdout empty.
+- Edge case: API unreachable → exits 1, stderr says "Could not reach AgentClip API. Check connectivity." Stdout empty.
+- Happy path rotate: `agentclip rotate k9j2x` with ownership match → exits 0, stdout has new URL, stderr has one-line invalidation warning.
+- Edge case rotate: ownership mismatch → exits 1, same error message as edit-url.
+
+**Verification:**
+- `cd agentclip-python && pytest` shows existing 40-46 tests still pass + ~8 new tests pass.
+- Manual: post a clip via the SDK → run `agentclip edit-url <slug>` → URL prints → opens in browser to a working editor (Unit 16a delivers the page).
+- Manual: `agentclip rotate <slug>` → original edit URL now returns 403, new URL works.
+- Manual: pipe stdout to `xdg-open` or similar (`agentclip edit-url <slug> | xargs xdg-open`) and verify the URL opens cleanly with no stderr noise interfering.
 
 ---
 
@@ -1196,7 +1539,7 @@ Browser request: GET https://agentclip.dev/s/abc123
 
 | Risk | Mitigation |
 |---|---|
-| 25 units is a lot of commits; the launch arc takes time. | Sequencing follows the Phase A → B → C → D → E → F arc. Each phase boundary is a natural deliverable; Eric can stop mid-arc and the work-to-date is still valuable. |
+| 28 units is a lot of commits; the launch arc takes time. | Sequencing follows the Phase A → B → C → D → E → F arc. Each phase boundary is a natural deliverable; Eric can stop mid-arc and the work-to-date is still valuable. |
 | Tailwind 4 is newer (released 2024); some patterns are still maturing. | Stick to the `@theme` CSS-first idiom; lean on `manifest`'s working configuration as the reference. Vitest config and Tailwind config are the most likely places for gotchas; both are isolated to single units. |
 | OG image generation via satori has font-loading sharp edges. | Implement OG image after the regular viewer is working (Unit 15 after Unit 14). If satori-on-Node is too slow on Render, fall back to static og:image of the first slide (Django's current behavior); the contract change is small. |
 | Render-vs-Vercel choice means slightly slower OG card cold starts. | Acceptable for v0.1 traffic. Documented in CHANGELOG. v0.2 can move web to Vercel if performance becomes a real problem. |
