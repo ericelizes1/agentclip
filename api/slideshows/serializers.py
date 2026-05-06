@@ -17,16 +17,45 @@ the same canonical URL no matter where the storage backend lives.
 
 from __future__ import annotations
 
+import os
+
 from rest_framework import serializers
 
 from .models import Slide, Slideshow
 
 
+def _public_base_url() -> str | None:
+    '''The configured public-facing base URL, when present.
+
+    Wins over the inbound request's host. Useful when the API runs
+    behind a tunnel, a CDN, or a reverse proxy that doesn't propagate
+    the original Host header (cloudflared quick tunnels fall in this
+    bucket; production deployments behind R2 + a public CDN host fall
+    in the cleaner version of the same bucket).
+    '''
+    base = os.environ.get('AGENTCLIP_PUBLIC_BASE_URL')
+    return base.rstrip('/') if base else None
+
+
+def _build_absolute(path: str, request) -> str:
+    '''Promote a relative path to an absolute URL.
+
+    Order: AGENTCLIP_PUBLIC_BASE_URL > inbound request's scheme+host >
+    fall back to the relative path itself (server-side consumers can
+    still resolve it).
+    '''
+    if path.startswith(('http://', 'https://')):
+        return path
+    base = _public_base_url()
+    if base:
+        return base + path
+    if request is not None:
+        return request.build_absolute_uri(path)
+    return path
+
+
 def _absolute_media_url(obj: Slide, request) -> str:
-    url = obj.media.url
-    if request is not None and not url.startswith(('http://', 'https://')):
-        return request.build_absolute_uri(url)
-    return url
+    return _build_absolute(obj.media.url, request)
 
 
 class SlidePublicSerializer(serializers.ModelSerializer):
@@ -64,11 +93,7 @@ class SlideshowPublicSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_share_url(self, obj: Slideshow) -> str:
-        request = self.context.get('request')
-        path = f'/s/{obj.share_token}/'
-        if request is not None:
-            return request.build_absolute_uri(path)
-        return path
+        return _build_absolute(f'/s/{obj.share_token}/', self.context.get('request'))
 
 
 class GallerySlideshowSerializer(serializers.ModelSerializer):
@@ -110,11 +135,7 @@ class GallerySlideshowSerializer(serializers.ModelSerializer):
         return obj.slides.count()
 
     def get_share_url(self, obj: Slideshow) -> str:
-        request = self.context.get('request')
-        path = f'/s/{obj.share_token}/'
-        if request is not None:
-            return request.build_absolute_uri(path)
-        return path
+        return _build_absolute(f'/s/{obj.share_token}/', self.context.get('request'))
 
 
 class SlideshowCreateSerializer(serializers.ModelSerializer):
@@ -150,18 +171,13 @@ class SlideshowCreateSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'share_url', 'edit_url', 'write_token')
 
     def get_share_url(self, obj: Slideshow) -> str:
-        request = self.context.get('request')
-        path = f'/s/{obj.share_token}/'
-        if request is not None:
-            return request.build_absolute_uri(path)
-        return path
+        return _build_absolute(f'/s/{obj.share_token}/', self.context.get('request'))
 
     def get_edit_url(self, obj: Slideshow) -> str:
-        request = self.context.get('request')
-        path = f'/s/{obj.share_token}/edit?t={obj.edit_token}'
-        if request is not None:
-            return request.build_absolute_uri(path)
-        return path
+        return _build_absolute(
+            f'/s/{obj.share_token}/edit?t={obj.edit_token}',
+            self.context.get('request'),
+        )
 
 
 class SlideshowPatchSerializer(serializers.ModelSerializer):

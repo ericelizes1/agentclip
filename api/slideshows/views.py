@@ -298,13 +298,14 @@ def _verify_creator(request, slideshow: Slideshow) -> None:
 def _edit_url(slideshow: Slideshow, request) -> str:
     '''Build the public edit URL with the edit_token in the query string.
 
-    Format: /s/<share_token>/edit?t=<edit_token>. Absolute when
-    request context allows; relative otherwise (server-side use).
+    Honors AGENTCLIP_PUBLIC_BASE_URL so the URL points at the user-facing
+    host even when the API is reached through an internal hostname.
     '''
-    path = f'/s/{slideshow.share_token}/edit?t={slideshow.edit_token}'
-    if request is not None:
-        return request.build_absolute_uri(path)
-    return path
+    from .serializers import _build_absolute
+    return _build_absolute(
+        f'/s/{slideshow.share_token}/edit?t={slideshow.edit_token}',
+        request,
+    )
 
 
 @extend_schema(
