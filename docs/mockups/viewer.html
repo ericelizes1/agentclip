@@ -92,7 +92,8 @@
       --vermillion-500: #ff5a30;
     }
 
-    .theme-toggle {
+    /* ---------- Icon buttons (theme toggle, github) ---------- */
+    .icon-btn {
       display: inline-flex; align-items: center; justify-content: center;
       width: 36px; height: 36px;
       border-radius: var(--radius);
@@ -100,17 +101,47 @@
       background: transparent;
       color: var(--ink-700);
       cursor: pointer;
-      transition: background 140ms var(--ease), border-color 140ms var(--ease);
+      text-decoration: none;
+      transition: background 140ms var(--ease), border-color 140ms var(--ease), color 140ms var(--ease);
     }
-    .theme-toggle:hover {
+    .icon-btn:hover {
       background: var(--paper-sunken);
       border-color: var(--ink-500);
+      color: var(--ink-900);
     }
-    .theme-toggle svg { width: 16px; height: 16px; }
+    .icon-btn svg { width: 16px; height: 16px; }
     .theme-toggle .icon-sun { display: none; }
     .theme-toggle .icon-moon { display: block; }
     :root[data-theme="dark"] .theme-toggle .icon-sun { display: block; color: var(--vermillion-500); }
     :root[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+
+    /* ---------- Avatar credit (shared with home) ---------- */
+    .avatar-circle {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--vermillion-500);
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      flex-shrink: 0;
+      transition: background 140ms var(--ease);
+    }
+    .avatar-credit {
+      display: inline-flex; align-items: center; gap: 8px;
+      text-decoration: none;
+      color: var(--ink-900);
+      transition: color 140ms var(--ease);
+    }
+    .avatar-credit:hover { color: var(--vermillion-500); }
+    .avatar-credit:hover .avatar-circle { background: var(--vermillion-600); }
+    .avatar-credit-name {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+      font-weight: 500;
+    }
 
     body {
       font-family: var(--font-sans);
@@ -138,21 +169,17 @@
       display: flex; align-items: center; justify-content: space-between; gap: 12px;
     }
     .brand {
-      display: inline-flex; align-items: center; gap: 8px;
+      display: inline-flex; align-items: center; gap: 10px;
       font-weight: 600; font-size: 1.125rem; letter-spacing: -0.025em;
       color: var(--ink-900); text-decoration: none;
     }
-    .brand .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--vermillion-500); }
-    .btn-tiny {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 6px 12px; font-size: 0.75rem; font-weight: 500;
-      letter-spacing: -0.01em; text-decoration: none; cursor: pointer;
-      border-radius: var(--radius);
-      background: transparent; color: var(--ink-700);
-      border: 1px solid var(--ink-300); min-height: 32px;
-      transition: background 140ms var(--ease);
+    .brand .logo-mark {
+      width: 14px; height: 20px;
+      color: var(--vermillion-500);
+      flex-shrink: 0;
+      transition: transform 220ms var(--ease);
     }
-    .btn-tiny:hover { background: var(--paper-sunken); }
+    .brand:hover .logo-mark { transform: translateY(-1px) rotate(-2deg); }
 
     /* ---------- Layout: main column + TOC sidebar ---------- */
     .clip-layout {
@@ -192,16 +219,6 @@
       margin-right: 8px; vertical-align: middle;
     }
     .clip-meta .label.live::before { background: var(--vermillion-500); }
-    .clip-meta .credit a {
-      color: var(--ink-900); text-decoration: none;
-      border-bottom: 1px solid var(--ink-500);
-      padding-bottom: 1px;
-      transition: color 140ms var(--ease), border-color 140ms var(--ease);
-    }
-    .clip-meta .credit a:hover {
-      color: var(--vermillion-500);
-      border-bottom-color: var(--vermillion-500);
-    }
 
     .clip-title {
       font-size: clamp(1.875rem, 1.4rem + 3vw, 3.25rem);
@@ -209,21 +226,30 @@
       max-width: 22ch;
     }
     .clip-description {
-      margin-top: 16px; font-size: 1.125rem;
+      margin-top: 12px; font-size: 1.125rem;
       color: var(--ink-600);
       max-width: 56ch; line-height: 1.55;
     }
     @media (min-width: 720px) { .clip-description { font-size: 1.25rem; } }
 
-    /* ---------- NEW: Narration controls ---------- */
-    .narration {
-      margin-top: 28px;
+    /* ---------- Byline (under title) ---------- */
+    .clip-byline {
+      margin-top: 16px;
       display: flex; align-items: center; gap: 12px;
-      padding: 14px 16px;
+    }
+
+    /* ---------- Narration controls — video-player chrome above clip stack ---------- */
+    .narration {
+      margin-block: 16px 20px;
+      display: flex; align-items: center; gap: 14px;
+      padding: 16px 18px;
       background: var(--paper-raised);
       border: 1px solid var(--ink-200);
       border-radius: var(--radius-lg);
-      max-width: 520px;
+      box-shadow: 0 1px 2px rgba(10, 10, 10, 0.03);
+    }
+    @media (min-width: 720px) {
+      .narration { padding: 18px 22px; gap: 18px; }
     }
     .narration .play-btn {
       display: inline-flex; align-items: center; justify-content: center;
@@ -539,13 +565,22 @@
   <!-- ===== Sticky nav ===== -->
   <header class="nav">
     <div class="wrap">
-      <a class="brand" href="home.html"><span class="dot"></span>AgentClip</a>
+      <a class="brand" href="/">
+        <svg class="logo-mark" viewBox="0 0 14 20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M 2,0 L 12,0 A 2,2 0 0 1 14,2 L 14,12.5 A 1.5,1.5 0 0 0 14,15.5 L 14,18 A 2,2 0 0 1 12,20 L 2,20 A 2,2 0 0 1 0,18 L 0,15.5 A 1.5,1.5 0 0 0 0,12.5 L 0,2 A 2,2 0 0 1 2,0 Z" fill="currentColor"/>
+          <line x1="2.5" y1="14" x2="11.5" y2="14" stroke="#fff" stroke-width="0.6" stroke-dasharray="1 1" opacity="0.85"/>
+          <polygon points="5,4.5 5,11.5 10.5,8" fill="#fff"/>
+        </svg>
+        AgentClip
+      </a>
       <div style="display: flex; gap: 8px; align-items: center;">
-        <button class="theme-toggle" aria-label="Toggle dark mode" onclick="toggleTheme()">
+        <button class="icon-btn theme-toggle" aria-label="Toggle dark mode" onclick="toggleTheme()">
           <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
           <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
         </button>
-        <a class="btn-tiny" href="https://github.com/ericelizes/agentclip">GitHub</a>
+        <a class="icon-btn" href="https://github.com/ericelizes/agentclip" aria-label="View on GitHub">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.387.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.418-1.305.762-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+        </a>
       </div>
     </div>
   </header>
@@ -582,25 +617,21 @@
             <span class="label live">A FIELD RUN</span>
             <span class="label dot">4 CLIPS</span>
             <span class="label dot">MAY 5, 2026</span>
-            <span class="label dot credit">FILED BY <a href="https://elizes.dev">Eric Elizes</a></span>
             <span class="toc-mobile-pill">Jump to clip</span>
           </div>
 
           <h1 class="clip-title">Project-create flow QA on staging</h1>
 
+          <div class="clip-byline">
+            <a class="avatar-credit" href="https://elizes.dev" aria-label="Filed by Eric Elizes">
+              <span class="avatar-circle" aria-hidden="true">EE</span>
+              <span class="avatar-credit-name">Eric Elizes</span>
+            </a>
+          </div>
+
           <p class="clip-description">
             Walking through the new-user signup and project-create flow on staging, looking for friction, broken validation, and surprises.
           </p>
-
-          <!-- NEW: Narration controls -->
-          <div class="narration" role="region" aria-label="Narrated playback controls">
-            <button class="play-btn" aria-label="Play narration"></button>
-            <div class="narration-text">
-              <span class="narration-title">Play narration</span>
-              <span class="narration-meta">~2 MIN · 4 CLIPS · NATIVE VOICE</span>
-            </div>
-            <button class="speed-btn" aria-label="Playback speed">1×</button>
-          </div>
 
           <!-- Summary -->
           <div class="summary-card">
@@ -609,11 +640,21 @@
           </div>
         </section>
 
-        <!-- Clips list -->
+        <!-- Clips list — narration acts as the video player chrome above the stack -->
         <section>
           <div class="clips-strip">
             <h2>Clips, in order</h2>
             <span class="label">4 of 4</span>
+          </div>
+
+          <!-- Narration controls — plays the clips below as a single narrated video -->
+          <div class="narration" role="region" aria-label="Narrated playback controls">
+            <button class="play-btn" aria-label="Play narration"></button>
+            <div class="narration-text">
+              <span class="narration-title">Play as narrated video</span>
+              <span class="narration-meta">~2 MIN · 4 CLIPS · NATIVE VOICE</span>
+            </div>
+            <button class="speed-btn" aria-label="Playback speed">1×</button>
           </div>
 
           <div class="clips-list">
