@@ -1,12 +1,12 @@
-# agentclip-app
+# agentclip
 
-The Django backend that powers [agentclip.dev](https://agentclip.dev): the API the SDK posts to and the public viewer where clips render.
+The platform monorepo behind [agentclip.dev](https://agentclip.dev): a Django API at `api/` and (in flight) a Next.js front-end at `web/`. Mid-pivot from a Django-templated UI to a split monorepo — see `docs/plans/` for the implementation arc.
 
-[![CI](https://github.com/ericelizes/agentclip-app/actions/workflows/ci.yml/badge.svg)](https://github.com/ericelizes/agentclip-app/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/ericelizes/agentclip-app/blob/main/LICENSE)
+[![CI](https://github.com/ericelizes/agentclip/actions/workflows/ci.yml/badge.svg)](https://github.com/ericelizes/agentclip/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/ericelizes/agentclip/blob/main/LICENSE)
 [![Django](https://img.shields.io/badge/django-6.0-092E20.svg)](https://www.djangoproject.com/)
 
-> **Looking for the Python package, CLI, or MCP server?** Those live in the sister repo: [`ericelizes/agentclip`](https://github.com/ericelizes/agentclip).
+> **Looking for the Python package, CLI, or MCP server?** Those live in the sister repo: [`ericelizes/agentclip-python`](https://github.com/ericelizes/agentclip-python).
 
 ## Stack
 

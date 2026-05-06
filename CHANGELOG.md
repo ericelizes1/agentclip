@@ -23,4 +23,4 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), ver
 - 20-test integration suite covering the API (auth, position assignment, IP forensics, cross-slideshow token reuse), rate-limit 429 behavior, and viewer rendering.
 - DigitalOcean App Platform spec at `.do/app.yaml`. `Dockerfile` runs migrations on container start.
 
-[Unreleased]: https://github.com/ericelizes/agentclip-app/compare/main...HEAD
+[Unreleased]: https://github.com/ericelizes/agentclip/compare/main...HEAD

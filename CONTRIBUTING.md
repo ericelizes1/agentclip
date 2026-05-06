@@ -19,8 +19,8 @@ This repo holds the Django backend that powers `agentclip.dev` and the public vi
 ## Dev setup
 
 ```bash
-git clone https://github.com/ericelizes/agentclip-app
-cd agentclip-app
+git clone https://github.com/ericelizes/agentclip
+cd agentclip/api
 
 python -m venv .venv
 source .venv/bin/activate

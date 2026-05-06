@@ -1,4 +1,4 @@
-# DigitalOcean App Platform spec for agentclip-app.
+# DigitalOcean App Platform spec for agentclip.
 #
 # Update `github.repo` to point at your fork or rename, then
 # `doctl apps create --spec .do/app.yaml` to deploy.
@@ -12,7 +12,7 @@
 # Everything else is captured below so the spec is reproducible:
 # `doctl apps update <id> --spec .do/app.yaml` reapplies changes.
 
-name: agentclip-app
+name: agentclip
 region: nyc
 
 services:
@@ -23,7 +23,7 @@ services:
     instance_count: 1
 
     github:
-      repo: ericelizes/agentclip-app
+      repo: ericelizes/agentclip
       branch: main
       deploy_on_push: true
 
