@@ -7,8 +7,10 @@
 # SSH: fly ssh console --app agentclip-api
 #
 # Architecture:
-# - Single shared-cpu-1x machine (256 MB RAM) — fits the v0.1 traffic
-#   profile (a handful of agent runs/hour). Scale up via `fly scale`.
+# - Single shared-cpu-1x machine (768 MB RAM). 256MB OOM'd on the
+#   first real upload (boto3 + multipart pushed gunicorn workers
+#   past the limit); 768MB gives headroom for boto3's botocore
+#   service definitions plus a multipart buffer. Scale via `fly scale`.
 # - Auto-stops on idle to keep $/month near zero; cold start is ~2s
 #   for Django + the slim image.
 # - Postgres lives on Neon (external; DATABASE_URL secret).
@@ -51,7 +53,7 @@ primary_region = 'iad'
 
 [[vm]]
   size = 'shared-cpu-1x'
-  memory = '256mb'
+  memory = '768mb'
 
 [[statics]]
   guest_path = '/app/staticfiles'
