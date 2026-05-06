@@ -13,6 +13,10 @@
  *   2. `process.env.NEXT_PUBLIC_AGENTCLIP_API_URL` (browser bundles)
  *   3. `https://api.agentclip.dev` as the prod default
  *
+ * Production split: the web frontend lives on `agentclip.dev`; the
+ * API lives on `api.agentclip.dev`. Each is its own Fly.io app, so
+ * the subdomain split happens at DNS, not in a path-routing proxy.
+ *
  * The Django service is API-only after the monorepo pivot; the web
  * client owns the HTML and calls this module for every read or write.
  */

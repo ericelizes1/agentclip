@@ -92,7 +92,7 @@ class SlideshowAPITests(TestCase):
         self.assertEqual(slideshow.created_ip, '198.51.100.7')
 
     def test_create_honors_x_forwarded_for(self):
-        '''DO App Platform sets X-Forwarded-For; REMOTE_ADDR alone is the proxy.'''
+        '''Fly.io sets X-Forwarded-For; REMOTE_ADDR alone is the proxy.'''
         self.client.post(
             '/api/slideshow/',
             {'title': 'forwarded'},

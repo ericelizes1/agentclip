@@ -50,7 +50,7 @@ agentclip/
 │   └── tailwind.config.ts
 ├── docker-compose.yml      docker compose up → postgres + api + web for local dev
 ├── render.yaml             Render-native IaC for the hosted deploy
-├── .do/app.yaml            Alternative deploy spec for self-hosters
+├── api/fly.toml            Alternative deploy spec for self-hosters
 ├── docs/                   Plans and design docs (already exists)
 ├── .github/workflows/      Separate api-ci.yml + web-ci.yml jobs
 └── README.md
@@ -97,7 +97,7 @@ No `/self-host`, no `/docs` on the Next.js side. Self-host content lives in Mint
 ### Hosting and infra-as-code
 
 - **Render for both `api` and `web`** services via repo-committed `render.yaml`. Eric already knows Render; same platform self-hosters can use; one dashboard.
-- **`.do/app.yaml` retained** as an alternative deploy spec for self-hosters who prefer DigitalOcean.
+- **`api/fly.toml` retained** as an alternative deploy spec for self-hosters who prefer Fly.io.
 - **`docker-compose.yml` at repo root** brings the whole stack up locally with a single command for any contributor.
 - **Mintlify** for docs at `docs.agentclip.dev` (hosted, free for OSS, separate from Render).
 - **No Terraform at v0.1.** Deferred to v0.2 if ever a multi-cloud need appears.
@@ -159,7 +159,7 @@ Explicit non-goals at v0.1.0:
 
 - Eric owns `agentclip.dev` and can configure DNS for `docs.agentclip.dev` and (optionally) `api.agentclip.dev`.
 - Eric has Render account access (already confirmed; he uses it).
-- DigitalOcean Spaces account exists for object storage (already configured).
+- Cloudflare R2 account exists for object storage (already configured).
 - Mintlify free-for-OSS tier is still available at launch (verifiable closer to time).
 - Geist and Geist Mono remain available via Google Fonts (currently are).
 - npm package name `agentclip` is reserved or available; if taken, fall back to `@agentclip/sdk` scoped (deferred to v0.2 with the JS SDK).

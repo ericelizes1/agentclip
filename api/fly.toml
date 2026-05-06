@@ -1,0 +1,58 @@
+# Fly.io app config for the AgentClip API.
+#
+# Deploy: cd api && fly deploy
+# Bootstrap: fly launch --copy-config --no-deploy --name agentclip-api
+# Set secrets via 1Password: bin/sync-secrets.sh api
+# Logs: fly logs --app agentclip-api
+# SSH: fly ssh console --app agentclip-api
+#
+# Architecture:
+# - Single shared-cpu-1x machine (256 MB RAM) — fits the v0.1 traffic
+#   profile (a handful of agent runs/hour). Scale up via `fly scale`.
+# - Auto-stops on idle to keep $/month near zero; cold start is ~2s
+#   for Django + the slim image.
+# - Postgres lives on Neon (external; DATABASE_URL secret).
+# - Object storage lives on Cloudflare R2 (external; R2_* secrets).
+
+app = 'agentclip-api'
+primary_region = 'iad'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+  [http_service.concurrency]
+    type = 'requests'
+    hard_limit = 100
+    soft_limit = 80
+
+[[http_service.checks]]
+  grace_period = '15s'
+  interval = '30s'
+  method = 'GET'
+  timeout = '5s'
+  path = '/api/schema/'
+
+[env]
+  DJANGO_DEBUG = 'false'
+  DJANGO_DB_SSLMODE = 'require'
+  DJANGO_SECURE_SSL_REDIRECT = 'true'
+  DJANGO_SECURE_HSTS_SECONDS = '31536000'
+  DJANGO_ALLOWED_HOSTS = 'agentclip-api.fly.dev,api.agentclip.dev'
+  DJANGO_CSRF_TRUSTED_ORIGINS = 'https://api.agentclip.dev,https://agentclip.dev'
+  R2_REGION = 'auto'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '256mb'
+
+[[statics]]
+  guest_path = '/app/staticfiles'
+  url_prefix = '/static/'

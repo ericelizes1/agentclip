@@ -1,7 +1,7 @@
 '''Django settings for the agentclip backend.
 
 Single-file settings driven by environment variables, the same way
-the deploy target (DigitalOcean App Platform) wants them. There is
+the deploy target (Fly.io) wants them. There is
 no settings/dev.py vs settings/prod.py split because every difference
 between environments collapses cleanly into env vars, and the split
 adds more cognitive load than it removes for a one-service app.
@@ -158,12 +158,17 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
-# ----- Object storage (DigitalOcean Spaces, S3-compatible) -----
+# ----- Object storage (Cloudflare R2, S3-compatible) -----
 
-# When DO_SPACES_KEY is set we route uploaded media to Spaces; otherwise
+# When R2_ACCESS_KEY_ID is set we route uploaded media to R2; otherwise
 # we fall back to local FileSystemStorage so `manage.py runserver` works
-# out of the box for contributors who haven't set up Spaces.
-if os.environ.get('DO_SPACES_KEY'):
+# out of the box for contributors who haven't set up R2.
+#
+# R2 is region-agnostic at the wire level (it always reports `auto`),
+# but boto3 needs *some* region string to sign requests, so we pass
+# `auto` through. The endpoint URL takes the form
+# https://<account-id>.r2.cloudflarestorage.com.
+if os.environ.get('R2_ACCESS_KEY_ID'):
     STORAGES = {
         'default': {
             'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
@@ -172,20 +177,24 @@ if os.environ.get('DO_SPACES_KEY'):
             'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
         },
     }
-    AWS_ACCESS_KEY_ID = os.environ['DO_SPACES_KEY']
-    AWS_SECRET_ACCESS_KEY = os.environ['DO_SPACES_SECRET']
-    AWS_STORAGE_BUCKET_NAME = os.environ['DO_SPACES_BUCKET']
-    AWS_S3_ENDPOINT_URL = os.environ['DO_SPACES_ENDPOINT']
-    AWS_S3_REGION_NAME = os.environ.get('DO_SPACES_REGION', 'nyc3')
+    AWS_ACCESS_KEY_ID = os.environ['R2_ACCESS_KEY_ID']
+    AWS_SECRET_ACCESS_KEY = os.environ['R2_SECRET_ACCESS_KEY']
+    AWS_STORAGE_BUCKET_NAME = os.environ['R2_BUCKET']
+    AWS_S3_ENDPOINT_URL = os.environ['R2_ENDPOINT']
+    AWS_S3_REGION_NAME = os.environ.get('R2_REGION', 'auto')
     AWS_S3_ADDRESSING_STYLE = 'virtual'
-    AWS_DEFAULT_ACL = 'public-read'
+    # R2 ignores ACLs (everything is private at the bucket level and
+    # served via a public Worker route or custom domain); leaving the
+    # default ACL unset keeps boto3 from sending an x-amz-acl header
+    # that R2 would reject.
+    AWS_DEFAULT_ACL = None
     AWS_QUERYSTRING_AUTH = False
     AWS_S3_FILE_OVERWRITE = False
-    # Custom domain (e.g. cdn.agentclip.dev pointing at Spaces CDN) lets us
-    # serve images under our own URL space without exposing the
-    # digitaloceanspaces.com hostname to slideshow viewers.
-    if os.environ.get('DO_SPACES_CUSTOM_DOMAIN'):
-        AWS_S3_CUSTOM_DOMAIN = os.environ['DO_SPACES_CUSTOM_DOMAIN']
+    # Public host (e.g. cdn.agentclip.dev fronting the R2 bucket via a
+    # Cloudflare Worker route) lets us serve images under our own URL
+    # space without exposing the r2.cloudflarestorage.com hostname.
+    if os.environ.get('R2_PUBLIC_HOST'):
+        AWS_S3_CUSTOM_DOMAIN = os.environ['R2_PUBLIC_HOST']
 else:
     MEDIA_URL = '/media/'
     MEDIA_ROOT = BASE_DIR / 'media'

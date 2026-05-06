@@ -34,7 +34,7 @@ The current Django-templated UI clears a working bar but not the 2026 OSS dev-to
 - **R7.** Per-clip dynamic OG image generation via Next.js `opengraph-image.tsx`. Card includes wordmark, title, first-slide preview, and creator credit.
 - **R8.** Type-safe API client generated from DRF OpenAPI schema (drf-spectacular → openapi-typescript). Backend and frontend types stay in sync automatically.
 - **R9.** Lighthouse CI gate: a11y ≥ 95 hard fail; performance ≥ 90, best practices ≥ 95, SEO ≥ 95 warn-only at v0.1.
-- **R10.** `render.yaml` at repo root ships infra-as-code for both services + Postgres. `.do/app.yaml` retained as alternative deploy. `docker-compose.yml` for local dev. Multiple deploy paths for self-hosters.
+- **R10.** `render.yaml` at repo root ships infra-as-code for both services + Postgres. `api/fly.toml` retained as alternative deploy. `docker-compose.yml` for local dev. Multiple deploy paths for self-hosters.
 - **R11.** Mintlify-hosted docs at `docs.agentclip.dev` with at least five sections (quickstart, MCP setup, CLI reference, self-hosting, troubleshooting). Deployed separately, free OSS tier.
 - **R12.** MIT license preserved on both repos. Documented choice in CONTRIBUTING.md so the rationale is explicit.
 - **R13.** Each implementation unit lands as one focused, well-justified atomic commit. Conventional prefix (feat / fix / refactor / chore / docs). Body explains *why*, not just *what*. The cumulative log on each repo reads as a textbook portfolio engineering progression.
@@ -67,7 +67,7 @@ The current Django-templated UI clears a working bar but not the 2026 OSS dev-to
 - **`agentclip-app/slideshows/`** — current Django app with models, serializers, views, admin, tests. The `slideshows.urls` module's split between `/api/...` routes and `/`/`/s/<token>/` routes is what changes (the latter two go away).
 - **`agentclip-app/templates/base.html`** + **`slideshows/templates/slideshows/{home,viewer}.html`** — Django templates being deleted. Useful only as a reference for what the Next.js pages must render; the visual design itself stays close to what's there now (Geist Sans, vermillion accent, mobile-first), just rebuilt in React.
 - **`agentclip/src/agentclip/`** — Python SDK; this plan does not change its code, only its repo name.
-- **`agentclip-app/.do/app.yaml`** — current DigitalOcean App Platform spec; retained as an alternative deploy path, paths get updated to point under `api/`.
+- **`agentclip-app/api/fly.toml`** — current Fly.io spec; retained as an alternative deploy path, paths get updated to point under `api/`.
 - **`agentclip-app/docs/plans/2026-05-05-001-feat-agentclip-launch-arc-plan.md`** — prior plan covering the SDK + DO-deploy launch arc. Most of the SDK side (whoami, attribution, video clips) is already shipped. The pre-pivot deploy unit (U4 in that plan) is superseded by Unit 18 in this one.
 
 ### Institutional Learnings
@@ -96,7 +96,7 @@ The current Django-templated UI clears a working bar but not the 2026 OSS dev-to
 - **opengraph-image.tsx with satori**: Next.js's built-in OG generation runs on the Edge runtime. On Render's Node runtime, it runs slightly slower (~50-200ms) but works identically. Acceptable cost.
 - **Renames at push time, not before**: local directory names match GitHub repo names but the rename itself is cheap; sequencing it at push time keeps mid-flight branch tooling simpler.
 - **Mintlify deployed separately at `docs.agentclip.dev`**: not part of the monorepo. Their CLI seeds an MDX project; we host config in `docs.agentclip.dev`'s own Mintlify project. Single-repo monorepo with docs as a third app would over-couple the deploy story.
-- **`render.yaml` as committed IaC**: Render-native, declarative. Self-hosters can use it directly or fall back to `.do/app.yaml` or generic Docker.
+- **`render.yaml` as committed IaC**: Render-native, declarative. Self-hosters can use it directly or fall back to `api/fly.toml` or generic Docker.
 - **Each implementation unit corresponds to one atomic commit**: this is a hard constraint per the brainstorm. Splitting bigger units into multiple commits is allowed if implementation reveals complexity; merging smaller units into one is not.
 
 ## Open Questions
@@ -116,7 +116,7 @@ The current Django-templated UI clears a working bar but not the 2026 OSS dev-to
 - **Vitest coverage thresholds**: settle when wiring Vitest config; default to 70% line coverage on the `lib/` and `components/primitives/` directories.
 - **Storybook addon-a11y CI severity threshold**: error vs warning per rule. Settle during CI integration.
 - **Specific Mintlify nav structure**: settle while writing the docs sections in Unit 21.
-- **Whether `next/image` is used for slide thumbnails**: vs raw `<img>`, depending on whether DO Spaces serves images compatibly with Next.js Image's loader. Settle when implementing ClipCard / MediaFrame.
+- **Whether `next/image` is used for slide thumbnails**: vs raw `<img>`, depending on whether Cloudflare R2 serves images compatibly with Next.js Image's loader. Settle when implementing ClipCard / MediaFrame.
 - **Whether the `web/` ESLint config extends from a shared `manifest`-style config or stays standalone**: settle when wiring ESLint.
 - **Per-route revalidate intervals**: home is mostly static; viewer needs server-rendering on every request for fresh data. Settle when implementing the routes.
 
@@ -184,7 +184,7 @@ agentclip/                                            (renamed from agentclip-ap
 ├── docs/                                             (already exists; plans + brainstorms)
 ├── docker-compose.yml                                (NEW: api + web + postgres for local dev)
 ├── render.yaml                                       (NEW: Render IaC)
-├── .do/app.yaml                                      (retained as alternative deploy path)
+├── api/fly.toml                                      (retained as alternative deploy path)
 ├── .github/workflows/
 │   ├── api-ci.yml                                    (Django check + ruff + pytest + Docker build)
 │   └── web-ci.yml                                    (eslint + tsc + vitest + storybook + Lighthouse)
@@ -265,7 +265,7 @@ Browser request: GET https://agentclip.dev/s/abc123
             └─> Django DRF endpoint
                   └─> SlideshowPublicSerializer
                         ├─> Slideshow row + prefetched slides
-                        ├─> media_url (absolute, points at DO Spaces)
+                        ├─> media_url (absolute, points at Cloudflare R2)
                         └─> created_by + created_by_url
             <─ JSON
     <─ Slideshow data
@@ -312,12 +312,12 @@ Browser request: GET https://agentclip.dev/s/abc123
 - Move: `requirements.txt` → `api/requirements.txt`
 - Move: `.env.example` → `api/.env.example`
 - Move: `db.sqlite3.bak` → not moved; gitignored already
-- Modify: `.do/app.yaml` (paths updated to point at `api/Dockerfile`, working directory etc.)
-- Modify: `Dockerfile` references inside `.do/app.yaml`
+- Modify: `api/fly.toml` (paths updated to point at `api/Dockerfile`, working directory etc.)
+- Modify: `Dockerfile` references inside `api/fly.toml`
 
 **Approach:**
 - `git mv` everything Django-related under `api/`. History preserves cleanly.
-- Update `.do/app.yaml`'s `dockerfile_path` and `source_dir` to point at `api/`.
+- Update `api/fly.toml`'s `dockerfile_path` and `source_dir` to point at `api/`.
 - No source-code changes inside the Django app; this is purely a directory move.
 - Verify after the move: `cd api && python manage.py check` passes.
 
@@ -1203,11 +1203,11 @@ Keep it under ~60 lines so an agent can read + act in one cognitive pass. Treat 
 
 **Files:**
 - Create: `render.yaml` (services: agentclip-api as web service from `api/Dockerfile`, agentclip-web as web service from `web/Dockerfile`, agentclip-db as Postgres)
-- Modify: `.do/app.yaml` (retained as alternative; verify paths after Unit 1)
+- Modify: `api/fly.toml` (retained as alternative; verify paths after Unit 1)
 - Modify: `README.md` (add Render deploy section to the platform-level README)
 
 **Approach:**
-- Per the brainstorm, `sync: false` for secrets (DJANGO_SECRET_KEY, DO_SPACES_*) so Render prompts the operator.
+- Per the brainstorm, `sync: false` for secrets (DJANGO_SECRET_KEY, R2_*) so Render prompts the operator.
 - Cross-service env var references (web service's `AGENTCLIP_API_URL` resolves from api service's hostport).
 - Both services on starter plan; database on starter plan.
 
@@ -1533,7 +1533,7 @@ The lazy detection has to be FAST (sub-50ms when already configured) — file ex
 - **State lifecycle risks:** None new. The viewer is read-only. The home gallery is read-only. State persistence happens entirely on the api side, unchanged.
 - **API surface parity:** The 4 DRF endpoints stay byte-identical in wire shape. The Python SDK's tests, the Django app's tests, and the new Next.js api client all assert on the same shapes. Adding `created_by` / `created_by_url` (already shipped) is the last contract change before the pivot lands.
 - **Integration coverage:** Unit 14's viewer test asserts on the SSR data fetch path against a mocked typed client. Unit 6's typed client is the cross-layer contract enforcer.
-- **Unchanged invariants:** The 4 MCP tool names, the 4 API endpoints, the wire shapes of `slideshow_create` / `add_slide` / `update_slide` / `set_summary`. The Python SDK's public API. The DO Spaces upload path. The `write_token` auth model. None of these change.
+- **Unchanged invariants:** The 4 MCP tool names, the 4 API endpoints, the wire shapes of `slideshow_create` / `add_slide` / `update_slide` / `set_summary`. The Python SDK's public API. The Cloudflare R2 upload path. The `write_token` auth model. None of these change.
 
 ## Risks & Dependencies
 
@@ -1552,7 +1552,7 @@ The lazy detection has to be FAST (sub-50ms when already configured) — file ex
 
 - **CHANGELOG entries**: both repos get a `[0.1.0] - 2026-05` section after Unit 24, before the tag.
 - **Repo topics**: set after `gh repo create` in Unit 24.
-- **Render secrets**: DJANGO_SECRET_KEY (generate via `python -c "import secrets; print(secrets.token_urlsafe(50))"`), DATABASE_URL (Render auto-provisions), DO_SPACES_KEY/SECRET/BUCKET (from DO).
+- **Render secrets**: DJANGO_SECRET_KEY (generate via `python -c "import secrets; print(secrets.token_urlsafe(50))"`), DATABASE_URL (Render auto-provisions), R2_ACCESS_KEY_ID/R2_SECRET_ACCESS_KEY/R2_BUCKET (from DO).
 - **DNS records**: agentclip.dev → Render web service IP; api.agentclip.dev → Render api service IP; docs.agentclip.dev → Mintlify CNAME.
 - **awesome-mcp-servers PR**: post-PyPI publish. Format documented in the prior OSS-launch research digest. Not part of this plan.
 - **Session note**: this plan supersedes `docs/plans/2026-05-05-001-feat-agentclip-launch-arc-plan.md` for the web side. Most SDK-side units from that plan are already shipped (whoami, attribution, video clips, OSS hygiene). The two pending operational units (U4: DO deploy, U8: README hero) from that plan are subsumed by Units 18 and 24 in this one.

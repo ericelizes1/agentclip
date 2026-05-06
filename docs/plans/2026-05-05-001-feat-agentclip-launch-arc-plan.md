@@ -9,7 +9,7 @@ date: 2026-05-05
 
 ## Overview
 
-The two AgentClip repos (`agentclip` Python package and `agentclip-app` Django backend) are functionally complete and the existing commit logs already tell a coherent narrative arc: scaffold, then SDK, then MCP, then CLI, then skill, then tests, then polish, then rename, then OSS hygiene, then video clips. This plan defines the remaining work needed to round out v0.1.0 and ship to PyPI plus DigitalOcean without breaking that narrative.
+The two AgentClip repos (`agentclip` Python package and `agentclip-app` Django backend) are functionally complete and the existing commit logs already tell a coherent narrative arc: scaffold, then SDK, then MCP, then CLI, then skill, then tests, then polish, then rename, then OSS hygiene, then video clips. This plan defines the remaining work needed to round out v0.1.0 and ship to PyPI plus Fly.io without breaking that narrative.
 
 The constraint baked into every unit below: each commit reads as one focused, well-justified improvement. No "wip", no "address feedback", no batched mega-commits. Conventional prefixes (`feat`, `fix`, `refactor`, `test`, `chore`, `docs`). Commit-message bodies explain *why*, not just *what*. Each implementation unit corresponds to roughly one atomic commit.
 
@@ -203,25 +203,25 @@ Two phases. Phase A is pre-launch features (Units 1 through 8). Phase B is the l
   - Home page on `agentclip.dev` shows 5 populated cards after deploy + seed run + token paste-in.
   - Each card has a thumbnail, title, description, and "▸ N" badge.
 
-- [ ] **Unit 4: Deploy to DigitalOcean and wire DNS**
+- [ ] **Unit 4: Deploy to Fly.io and wire DNS**
 
   **Goal:** Boot the live service at `agentclip.dev` backed by managed Postgres and Spaces.
 
   **Requirements:** R4.
 
-  **Dependencies:** Units 1 and 2 merged. Eric must provision the DO account (Postgres, Spaces, App Platform).
+  **Dependencies:** Units 1 and 2 merged. Eric must provision the Fly.io account (Neon DB + R2 bucket already exist).
 
   **Files:** none. Operational unit, not code.
 
   **Approach:**
-  - Eric runs the steps already documented in `README.md` Deploy section: provision Postgres, create Space, generate keys, `doctl apps create --spec .do/app.yaml`, set the secret env vars marked `type: SECRET` in `.do/app.yaml` via the App Platform UI, point `agentclip.dev` DNS at the App Platform hostname.
+  - Eric runs the steps already documented in `README.md` Deploy section: provision Postgres on Neon, create R2 bucket, generate R2 keys, run `bin/sync-secrets.sh api && bin/sync-secrets.sh web` to push 1Password-backed secrets to Fly, `fly deploy --app agentclip-api` and `fly deploy --app agentclip-web`, then point `agentclip.dev` and `api.agentclip.dev` DNS (via Cloudflare) at the Fly app hostnames.
   - Once live, run Unit 3's `seed_gallery` command in the deployed environment.
   - Smoke test: hit `https://agentclip.dev/` (200), `https://agentclip.dev/s/<seed_token>/` (200), `POST https://agentclip.dev/api/slideshow/` (201) from a fresh `pip install agentclip` against the live URL.
 
   **Test expectation:** none, this unit is operational.
 
   **Verification:**
-  - DNS resolves `agentclip.dev` to App Platform.
+  - DNS resolves `agentclip.dev` and `api.agentclip.dev` to Fly.
   - Home page renders with seeded gallery.
   - End-to-end SDK call from a fresh `pip install agentclip` succeeds against the production URL.
 

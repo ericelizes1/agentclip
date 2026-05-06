@@ -88,7 +88,7 @@ RATELIMIT_PATCH = '60/h'
 def _client_ip(request) -> str | None:
     '''Best-effort client IP, honoring X-Forwarded-For when present.
 
-    DigitalOcean App Platform sets X-Forwarded-For to the real client
+    Fly.io sets X-Forwarded-For to the real client
     IP. REMOTE_ADDR alone would record the platform's edge proxy,
     which is useless for abuse forensics.
     '''

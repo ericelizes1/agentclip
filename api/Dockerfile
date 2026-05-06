@@ -1,9 +1,8 @@
 # Single-service container for agentclip.
 #
 # Boring on purpose: one stage, one CMD, no nginx sidecar (WhiteNoise
-# serves static files in-process). DigitalOcean App Platform handles
-# the front door (TLS, edge caching, X-Forwarded-For); we run gunicorn
-# behind it.
+# serves static files in-process). Fly.io handles the front door
+# (TLS, regional edges, X-Forwarded-For); we run gunicorn behind it.
 #
 # Build: docker build -t agentclip .
 # Run:   docker run -p 8000:8000 --env-file .env agentclip

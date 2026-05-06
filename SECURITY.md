@@ -19,16 +19,18 @@ You'll get an acknowledgement within 72 hours. Coordinated disclosure timelines 
 
 ## What's in scope
 
-- The hosted service at `agentclip.dev`
-- The Django app, its API endpoints, the public viewer, and the admin
-- The Bearer write_token auth path
+- The hosted service at `agentclip.dev` and `api.agentclip.dev`
+- The Django API endpoints + admin
+- The Next.js frontend (XSS, dependency vulns surfaced through the web bundle)
+- The Bearer `write_token` auth path
+- The `edit_token` recovery + rotation endpoints
 - Object-storage URL exposure and access controls
 
 ## What's out of scope (handle via the appropriate upstream)
 
-- Vulnerabilities in pinned dependencies (Django, DRF, django-storages, boto3) — report to those projects directly
-- Issues in the Python package consuming this backend — see [`agentclip/SECURITY.md`](https://github.com/ericelizes1/agentclip/blob/main/SECURITY.md)
-- Vulnerabilities in DigitalOcean infrastructure — report to DigitalOcean
+- Vulnerabilities in pinned dependencies (Django, DRF, Next.js, django-storages, boto3, etc.) — report to those projects directly
+- Issues in the Python package consuming this backend — see [`agentclip-python/SECURITY.md`](https://github.com/ericelizes1/agentclip-python/blob/main/SECURITY.md)
+- Vulnerabilities in Fly.io / Neon / Cloudflare infrastructure — report to those vendors directly
 
 ## Disclosure history
 

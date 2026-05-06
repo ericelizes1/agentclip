@@ -1,0 +1,53 @@
+# Fly.io app config for the AgentClip web frontend (Next.js 15).
+#
+# Deploy: cd web && fly deploy
+# Bootstrap: fly launch --copy-config --no-deploy --name agentclip-web
+# Set secrets via 1Password: bin/sync-secrets.sh web
+# Logs: fly logs --app agentclip-web
+#
+# Architecture:
+# - Talks to the api app at https://agentclip-api.fly.dev for SSR
+#   fetches and to https://api.agentclip.dev for browser fetches
+#   (the latter is the public custom domain).
+# - No persistent storage; all state lives in the api.
+# - Single shared-cpu-1x machine like the api; scale independently.
+
+app = 'agentclip-web'
+primary_region = 'iad'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ['app']
+
+  [http_service.concurrency]
+    type = 'requests'
+    hard_limit = 200
+    soft_limit = 160
+
+[[http_service.checks]]
+  grace_period = '15s'
+  interval = '30s'
+  method = 'GET'
+  timeout = '5s'
+  path = '/'
+
+[env]
+  NODE_ENV = 'production'
+  NEXT_TELEMETRY_DISABLED = '1'
+  # Server-side fetches inside fly's private network. DNS resolves to
+  # the api app's internal address without going through the public
+  # load balancer.
+  AGENTCLIP_API_URL = 'http://agentclip-api.internal:8000'
+  # Browser bundle uses the public custom domain.
+  NEXT_PUBLIC_AGENTCLIP_API_URL = 'https://api.agentclip.dev'
+
+[[vm]]
+  size = 'shared-cpu-1x'
+  memory = '512mb'
