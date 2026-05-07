@@ -47,6 +47,13 @@ urlpatterns = [
         name='api_slide_update',
     ),
 
+    # Admin: feature/unfeature a slideshow in the gallery (Bearer AGENTCLIP_ADMIN_TOKEN).
+    path(
+        'api/v1/slideshow/<str:share_token>/feature/',
+        views.slideshow_feature,
+        name='slideshow_feature',
+    ),
+
     # Read API — gallery feed for the home page
     path('api/v1/gallery/', views.GalleryListView.as_view(), name='gallery_list'),
     path(

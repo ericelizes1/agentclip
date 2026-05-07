@@ -486,55 +486,6 @@ class GalleryEndpointTests(TestCase):
         response = self.client.get('/s/does-not-exist/')
         self.assertEqual(response.status_code, 404)
 
-    def test_env_var_override_returns_listed_tokens_in_order(self):
-        '''AGENTCLIP_GALLERY_TOKENS bypasses is_gallery and respects order.'''
-        a = Slideshow.objects.create(title='a', is_gallery=False)
-        b = Slideshow.objects.create(title='b', is_gallery=False)
-        c = Slideshow.objects.create(title='c', is_gallery=True, gallery_position=0)
-
-        # Curator wants order: b, a (and intentionally excludes c despite is_gallery).
-        with override_settings():
-            import os
-            os.environ['AGENTCLIP_GALLERY_TOKENS'] = f'{b.share_token},{a.share_token}'
-            try:
-                response = self.client.get(self.URL)
-                ids = [item['id'] for item in response.json()]
-            finally:
-                del os.environ['AGENTCLIP_GALLERY_TOKENS']
-
-        self.assertEqual(ids, [str(b.id), str(a.id)])
-        self.assertNotIn(str(c.id), ids)
-
-    def test_env_var_override_ignores_unknown_tokens(self):
-        '''Curator typos shouldn't 500 the page — unknown tokens silently drop.'''
-        real = Slideshow.objects.create(title='real', is_gallery=False)
-
-        import os
-        os.environ['AGENTCLIP_GALLERY_TOKENS'] = f'not-a-real-token,{real.share_token}'
-        try:
-            response = self.client.get(self.URL)
-            ids = [item['id'] for item in response.json()]
-        finally:
-            del os.environ['AGENTCLIP_GALLERY_TOKENS']
-
-        self.assertEqual(ids, [str(real.id)])
-
-    def test_empty_env_var_falls_back_to_db_flag(self):
-        '''Unset (or whitespace-only) override leaves the original is_gallery
-        path in place so we don't break existing prod behavior.'''
-        flagged = Slideshow.objects.create(
-            title='flagged', is_gallery=True, gallery_position=0,
-        )
-
-        import os
-        os.environ['AGENTCLIP_GALLERY_TOKENS'] = '   '
-        try:
-            response = self.client.get(self.URL)
-            ids = [item['id'] for item in response.json()]
-        finally:
-            del os.environ['AGENTCLIP_GALLERY_TOKENS']
-
-        self.assertEqual(ids, [str(flagged.id)])
 
 
 class SeedGalleryTests(TestCase):
@@ -832,6 +783,7 @@ class OpenAPISchemaTests(TestCase):
             '/api/v1/gallery/',
             '/api/v1/slideshow/{share_token}/',
             '/api/v1/slideshow/{share_token}/edit-token/',
+            '/api/v1/slideshow/{share_token}/feature/',
             '/api/v1/slideshow/{share_token}/rotate-edit-token/',
             '/api/v1/slideshow/{share_token}/slides/{position}/',
             '/api/v1/slideshow/{share_token}/slides/{position}/caption/',
@@ -1279,3 +1231,155 @@ class PerSlideshowCapTests(TestCase):
         self.assertEqual(response.status_code, 201)
         slide = Slide.objects.get(pk=response.json()['id'])
         self.assertEqual(slide.media_bytes, len(png_data))
+
+
+class AdminFeatureEndpointTests(TestCase):
+    '''Cover the POST/DELETE /api/v1/slideshow/<share_token>/feature/ admin
+    endpoint. Auth: Bearer AGENTCLIP_ADMIN_TOKEN env var.
+
+    The endpoint is the supported curation surface: the
+    `agentclip slideshow feature` CLI hits this from a developer's
+    machine to flip is_gallery without a Django admin trip.
+    '''
+
+    URL_TMPL = '/api/v1/slideshow/{share_token}/feature/'
+    ADMIN_TOKEN = 'test-admin-token-9d8e7f6a'
+
+    def setUp(self):
+        import os
+        self._prev = os.environ.get('AGENTCLIP_ADMIN_TOKEN')
+        os.environ['AGENTCLIP_ADMIN_TOKEN'] = self.ADMIN_TOKEN
+
+    def tearDown(self):
+        import os
+        if self._prev is None:
+            os.environ.pop('AGENTCLIP_ADMIN_TOKEN', None)
+        else:
+            os.environ['AGENTCLIP_ADMIN_TOKEN'] = self._prev
+
+    def test_post_features_a_slideshow_with_default_position_zero(self):
+        show = Slideshow.objects.create(title='soon-to-be-featured', is_gallery=False)
+        response = self.client.post(
+            self.URL_TMPL.format(share_token=show.share_token),
+            HTTP_AUTHORIZATION=f'Bearer {self.ADMIN_TOKEN}',
+        )
+        self.assertEqual(response.status_code, 200)
+        show.refresh_from_db()
+        self.assertTrue(show.is_gallery)
+        self.assertEqual(show.gallery_position, 0)
+
+    def test_post_with_explicit_position_updates_order(self):
+        show = Slideshow.objects.create(title='a', is_gallery=False)
+        response = self.client.post(
+            self.URL_TMPL.format(share_token=show.share_token),
+            data={'position': 3},
+            content_type='application/json',
+            HTTP_AUTHORIZATION=f'Bearer {self.ADMIN_TOKEN}',
+        )
+        self.assertEqual(response.status_code, 200)
+        show.refresh_from_db()
+        self.assertEqual(show.gallery_position, 3)
+
+    def test_post_is_idempotent_and_can_reorder(self):
+        '''Calling POST twice with different positions reorders without error.'''
+        show = Slideshow.objects.create(title='reorder', is_gallery=True, gallery_position=5)
+
+        for new_pos in (0, 7, 2):
+            response = self.client.post(
+                self.URL_TMPL.format(share_token=show.share_token),
+                data={'position': new_pos},
+                content_type='application/json',
+                HTTP_AUTHORIZATION=f'Bearer {self.ADMIN_TOKEN}',
+            )
+            self.assertEqual(response.status_code, 200)
+            show.refresh_from_db()
+            self.assertEqual(show.gallery_position, new_pos)
+            self.assertTrue(show.is_gallery)
+
+    def test_delete_unfeatures(self):
+        show = Slideshow.objects.create(title='drop-me', is_gallery=True, gallery_position=2)
+        response = self.client.delete(
+            self.URL_TMPL.format(share_token=show.share_token),
+            HTTP_AUTHORIZATION=f'Bearer {self.ADMIN_TOKEN}',
+        )
+        self.assertEqual(response.status_code, 204)
+        show.refresh_from_db()
+        self.assertFalse(show.is_gallery)
+
+    def test_no_auth_returns_401(self):
+        show = Slideshow.objects.create(title='guarded', is_gallery=False)
+        response = self.client.post(
+            self.URL_TMPL.format(share_token=show.share_token),
+        )
+        self.assertEqual(response.status_code, 401)
+        show.refresh_from_db()
+        self.assertFalse(show.is_gallery)
+
+    def test_wrong_token_returns_401(self):
+        show = Slideshow.objects.create(title='guarded', is_gallery=False)
+        response = self.client.post(
+            self.URL_TMPL.format(share_token=show.share_token),
+            HTTP_AUTHORIZATION='Bearer wrong-token',
+        )
+        self.assertEqual(response.status_code, 401)
+        show.refresh_from_db()
+        self.assertFalse(show.is_gallery)
+
+    def test_unset_admin_token_returns_503(self):
+        '''A deploy that forgot to set AGENTCLIP_ADMIN_TOKEN fails closed.'''
+        import os
+        os.environ.pop('AGENTCLIP_ADMIN_TOKEN', None)
+        show = Slideshow.objects.create(title='x', is_gallery=False)
+        response = self.client.post(
+            self.URL_TMPL.format(share_token=show.share_token),
+            HTTP_AUTHORIZATION=f'Bearer {self.ADMIN_TOKEN}',
+        )
+        self.assertEqual(response.status_code, 503)
+
+    def test_unknown_share_token_returns_404(self):
+        response = self.client.post(
+            self.URL_TMPL.format(share_token='not-a-real-token'),
+            HTTP_AUTHORIZATION=f'Bearer {self.ADMIN_TOKEN}',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_negative_position_returns_400(self):
+        show = Slideshow.objects.create(title='x', is_gallery=False)
+        response = self.client.post(
+            self.URL_TMPL.format(share_token=show.share_token),
+            data={'position': -1},
+            content_type='application/json',
+            HTTP_AUTHORIZATION=f'Bearer {self.ADMIN_TOKEN}',
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_post_sets_featured_at_timestamp(self):
+        '''Audit trail: featuring records when it happened.'''
+        from django.utils import timezone
+        before = timezone.now()
+        show = Slideshow.objects.create(title='audit', is_gallery=False, featured_at=None)
+        response = self.client.post(
+            self.URL_TMPL.format(share_token=show.share_token),
+            HTTP_AUTHORIZATION=f'Bearer {self.ADMIN_TOKEN}',
+        )
+        self.assertEqual(response.status_code, 200)
+        show.refresh_from_db()
+        self.assertIsNotNone(show.featured_at)
+        self.assertGreaterEqual(show.featured_at, before)
+
+    def test_delete_preserves_featured_at_for_audit_trail(self):
+        '''Unfeaturing keeps the timestamp so we can answer "when was X
+        last featured?" months later — even if it's no longer in the gallery.'''
+        from django.utils import timezone
+        marker = timezone.now()
+        show = Slideshow.objects.create(
+            title='dropped', is_gallery=True, gallery_position=0, featured_at=marker,
+        )
+        response = self.client.delete(
+            self.URL_TMPL.format(share_token=show.share_token),
+            HTTP_AUTHORIZATION=f'Bearer {self.ADMIN_TOKEN}',
+        )
+        self.assertEqual(response.status_code, 204)
+        show.refresh_from_db()
+        self.assertFalse(show.is_gallery)
+        self.assertEqual(show.featured_at, marker)

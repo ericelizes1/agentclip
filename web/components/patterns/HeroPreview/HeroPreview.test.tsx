@@ -68,7 +68,7 @@ describe('HeroPreview', () => {
   })
 
   it('renders nothing when given an empty slide list', () => {
-    const { container } = render(<HeroPreview shareToken="abc123" slides={[]} />)
+    const { container } = render(<HeroPreview shareToken="abc123" title="x" slides={[]} />)
     expect(container.firstChild).toBeNull()
   })
 })

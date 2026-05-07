@@ -74,15 +74,13 @@ async function fetchGallery(): Promise<GalleryClip[]> {
   }
 }
 
-// Featured clip drives the home hero's embedded mini-viewer.
-// AGENTCLIP_HERO_TOKEN is read at SSR time only — flipping the env
-// var on Fly redeploys the web app, which picks up the new token on
-// the next request. ISR (revalidate=60) keeps it snappy in between.
+// The home hero leads with the gallery's #1 entry. Curation lives on
+// the API (`AGENTCLIP_GALLERY_TOKENS`) — single source of truth, one
+// env var, one redeploy. Position 0 in the env var becomes the hero;
+// positions 1..n become gallery cards below.
 const HERO_PREVIEW_SLIDE_LIMIT = 4
 
-async function fetchFeatured(): Promise<HeroFeaturedClip | null> {
-  const token = process.env.AGENTCLIP_HERO_TOKEN?.trim()
-  if (!token) return null
+async function fetchFullSlideshow(token: string): Promise<HeroFeaturedClip | null> {
   try {
     const { data } = await api.GET('/api/v1/slideshow/{share_token}/', {
       params: { path: { share_token: token } },
@@ -106,7 +104,10 @@ async function fetchFeatured(): Promise<HeroFeaturedClip | null> {
 }
 
 export default async function HomePage() {
-  const [clips, featured] = await Promise.all([fetchGallery(), fetchFeatured()])
+  const galleryRows = await fetchGallery()
+  const [heroRow, ...galleryCards] = galleryRows
+  const featured = heroRow ? await fetchFullSlideshow(heroRow.shareToken) : null
+  const clips = galleryCards
 
   return (
     <>

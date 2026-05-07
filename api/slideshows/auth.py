@@ -105,6 +105,62 @@ def authorize_edit(request, share_token: str) -> Slideshow:
     return slideshow
 
 
+class AdminTokenAuthentication(BaseAuthentication):
+    '''Bearer auth backed by the AGENTCLIP_ADMIN_TOKEN env var.
+
+    Single shared secret. Holders can call admin endpoints (currently
+    just feature/unfeature) without a Django superuser account or admin
+    session. Used by the `agentclip slideshow feature` CLI to flip
+    `is_gallery` on any slideshow.
+
+    Marker class only — the real check lives in `authorize_admin`,
+    which has the request in hand. Keeps DRF's 401-vs-403 dispatch
+    clean (an authentication_classes entry is required for 401).
+
+    If the env var is unset on a deployed environment, every admin
+    request fails closed with 503 — a misconfigured curator endpoint
+    is safer broken than silently public.
+    '''
+
+    def authenticate(self, request) -> None:
+        return None
+
+    def authenticate_header(self, request) -> str:
+        return 'Bearer'
+
+
+def authorize_admin(request) -> None:
+    '''Verify the request's Bearer token matches AGENTCLIP_ADMIN_TOKEN.
+
+    Raises:
+    - 401 NotAuthenticated when the header is missing or empty
+    - 401 AuthenticationFailed when the token doesn't match
+    - 503 APIException when the server has no admin token configured
+      (intentional fail-closed: a curator endpoint without a configured
+      secret is safer broken than implicitly public)
+    '''
+    import os
+
+    expected = (os.environ.get('AGENTCLIP_ADMIN_TOKEN') or '').strip()
+    if not expected:
+        from rest_framework.exceptions import APIException
+        class _AdminMisconfigured(APIException):
+            status_code = 503
+            default_detail = 'admin endpoint is not configured on this deploy'
+            default_code = 'admin_token_unset'
+        raise _AdminMisconfigured()
+
+    header = request.META.get('HTTP_AUTHORIZATION', '')
+    if not header.startswith(AUTH_HEADER_PREFIX):
+        raise NotAuthenticated('missing Bearer token')
+    supplied = header[len(AUTH_HEADER_PREFIX):].strip()
+    if not supplied:
+        raise NotAuthenticated('empty Bearer token')
+
+    if not secrets.compare_digest(supplied, expected):
+        raise AuthenticationFailed('invalid admin token')
+
+
 class WriteTokenAuthenticationScheme(OpenApiAuthenticationExtension):
     '''Tells drf-spectacular how to render WriteTokenAuthentication in OpenAPI.
 

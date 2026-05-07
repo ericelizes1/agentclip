@@ -35,7 +35,13 @@ from rest_framework.decorators import (
 from rest_framework.parsers import JSONParser, MultiPartParser
 from rest_framework.response import Response
 
-from .auth import WriteTokenAuthentication, authorize_edit, authorize_slideshow
+from .auth import (
+    AdminTokenAuthentication,
+    WriteTokenAuthentication,
+    authorize_admin,
+    authorize_edit,
+    authorize_slideshow,
+)
 from .models import (
     ALLOWED_IMAGE_TYPES,
     ALLOWED_MEDIA_TYPES,
@@ -483,6 +489,61 @@ def slide_edit_delete(request, share_token, position):
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+# ----- Admin: feature/unfeature a slideshow in the gallery -----
+
+
+@extend_schema(
+    request={
+        'type': 'object',
+        'properties': {
+            'position': {
+                'type': 'integer',
+                'description': 'gallery_position to assign; lower sorts first.',
+            },
+        },
+    },
+    responses={200: SlideshowPublicSerializer, 204: None},
+    tags=['admin'],
+)
+@api_view(['POST', 'DELETE'])
+@authentication_classes([AdminTokenAuthentication])
+def slideshow_feature(request, share_token):
+    '''Flip is_gallery on a slideshow. Auth: Bearer AGENTCLIP_ADMIN_TOKEN.
+
+    POST   {position?: int} → set is_gallery=True, gallery_position=<position>
+    DELETE                  → set is_gallery=False (drops from gallery)
+
+    The slideshow row is the source of truth for curation. Calling
+    POST repeatedly with different positions is the supported way to
+    reorder. POST is idempotent in the is_gallery sense — calling it
+    twice on a featured slideshow is fine; the second call updates
+    the position.
+    '''
+    authorize_admin(request)
+    slideshow = get_object_or_404(Slideshow, share_token=share_token)
+
+    if request.method == 'DELETE':
+        slideshow.is_gallery = False
+        slideshow.save(update_fields=['is_gallery'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    # POST → feature.
+    raw_position = request.data.get('position', 0) if isinstance(request.data, dict) else 0
+    try:
+        position = int(raw_position)
+    except (TypeError, ValueError):
+        return Response({'position': ['must be an integer']}, status=400)
+    if position < 0:
+        return Response({'position': ['must be >= 0']}, status=400)
+
+    from django.utils import timezone
+    slideshow.is_gallery = True
+    slideshow.gallery_position = position
+    slideshow.featured_at = timezone.now()
+    slideshow.save(update_fields=['is_gallery', 'gallery_position', 'featured_at'])
+    return Response(SlideshowPublicSerializer(slideshow, context={'request': request}).data)
+
+
 # ----- Public: GET /api/v1/gallery/ -----
 
 
@@ -507,50 +568,27 @@ class SlideshowPublicView(generics.RetrieveAPIView):
 class GalleryListView(generics.ListAPIView):
     '''Curated gallery feed for the home page.
 
-    Two curation modes, in priority order:
+    Returns slideshows with `is_gallery=True`, ordered by
+    `gallery_position` ascending then `-created_at`. Capped at 12 so a
+    misconfigured admin entry can't blow up the payload.
 
-    1. Env-var override — when `AGENTCLIP_GALLERY_TOKENS` is set in
-       the environment as a comma-separated list of share_tokens, the
-       gallery returns those slideshows in that order, bypassing the
-       `is_gallery` flag. Lets a curator (or an agent without admin
-       access) reorder the home gallery via a Fly secret update +
-       redeploy, no Django admin trip required.
-    2. Database flag — falls back to slideshows with `is_gallery=True`,
-       ordered by `gallery_position` then `-created_at`. The original
-       admin-driven path stays intact for a bulk-flag workflow.
+    Curation flips the `is_gallery` flag and sets `gallery_position`.
+    Two ways to flip it:
+    - Django admin (privileged user account)
+    - The `agentclip slideshow feature <token>` CLI, which hits the
+      admin endpoint at `/api/v1/slideshow/<share_token>/feature/`
+      authenticated by `AGENTCLIP_ADMIN_TOKEN`. The CLI path lets a
+      curator (or an agent given the admin token) reorder the gallery
+      without a Django admin trip — and without a redeploy.
 
-    Capped at 12 entries so a typo'd config can't blow up the payload.
-    Public, unauthenticated, rate-limited per the same throttling as
-    the rest of the API.
+    Public, unauthenticated, rate-limit-free (read-only).
     '''
 
     serializer_class = GallerySlideshowSerializer
     pagination_class = None
-
-    def get_queryset(self):
-        import os
-        from django.db.models import Case, IntegerField, When
-
-        override = os.environ.get('AGENTCLIP_GALLERY_TOKENS', '').strip()
-        if override:
-            tokens = [t.strip() for t in override.split(',') if t.strip()][:12]
-            if tokens:
-                # Preserve the curator's order via Case/When so the
-                # first token in the env var lands at gallery_position 0.
-                ordering = Case(
-                    *[When(share_token=t, then=i) for i, t in enumerate(tokens)],
-                    output_field=IntegerField(),
-                )
-                return (
-                    Slideshow.objects
-                    .filter(share_token__in=tokens)
-                    .annotate(_curator_order=ordering)
-                    .order_by('_curator_order')
-                    .prefetch_related('slides')
-                )
-        return (
-            Slideshow.objects
-            .filter(is_gallery=True)
-            .order_by('gallery_position', '-created_at')
-            .prefetch_related('slides')[:12]
-        )
+    queryset = (
+        Slideshow.objects
+        .filter(is_gallery=True)
+        .order_by('gallery_position', '-created_at')
+        .prefetch_related('slides')[:12]
+    )

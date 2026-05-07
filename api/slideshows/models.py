@@ -205,6 +205,16 @@ class Slideshow(models.Model):
         db_index=True,
         help_text='Sort order within the gallery (ascending). Ties broken by -created_at.',
     )
+    # Audit trail for curation. Set on every successful feature; left
+    # alone on unfeature so we retain "last featured at X" even after
+    # a slideshow drops out of the gallery. Useful for retrospectives
+    # ('what was on the home page when we tweeted on date Y?').
+    featured_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Timestamp of the most recent feature event. Null if never featured.',
+    )
 
     # Optional creator credit, set at create time and rendered on the
     # public viewer. Text-based now, future-compatible with a real
