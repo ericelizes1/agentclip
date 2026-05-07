@@ -18,6 +18,12 @@ import {
   HeroSection,
   type HeroFeaturedClip,
 } from '@/components/patterns/HeroSection/HeroSection'
+import { CaptureStack } from '@/components/patterns/PageViewfinder/CaptureStack'
+import {
+  PageViewfinder,
+  type ViewfinderSlide,
+} from '@/components/patterns/PageViewfinder/PageViewfinder'
+import { SlideCapture } from '@/components/patterns/PageViewfinder/SlideCapture'
 import { api } from '@/lib/api'
 
 const GITHUB_URL = 'https://github.com/ericelizes1/agentclip'
@@ -104,11 +110,40 @@ async function fetchFullSlideshow(token: string): Promise<HeroFeaturedClip | nul
   }
 }
 
+// Captions used on each slot in the CaptureStack as the visitor
+// scrolls past the section. Falls back gracefully when the featured
+// clip's slide captions aren't available.
+const SECTION_CAPTIONS: Record<string, string> = {
+  hero: 'Hero — agentclip.dev introduces itself.',
+  'how-it-works': 'How it works — install, run, share.',
+  gallery: 'Recent fieldwork — curated agent runs.',
+  closing: 'Open source. Receipts for the work agents quietly do.',
+}
+
 export default async function HomePage() {
   const galleryRows = await fetchGallery()
   const [heroRow, ...galleryCards] = galleryRows
   const featured = heroRow ? await fetchFullSlideshow(heroRow.shareToken) : null
   const clips = galleryCards
+
+  // Build the viewfinder slide registry. Each section captures one
+  // slide; thumbnails come from the featured clip itself (so the
+  // visitor's "captures" are real screenshots of agentclip.dev,
+  // because that's what the meta clip contains). When there's no
+  // featured clip, the viewfinder is silently skipped — page renders
+  // as a normal site without the chrome.
+  const sectionIds = ['hero', 'how-it-works', 'gallery', 'closing'] as const
+  const viewfinderSlides: ViewfinderSlide[] = featured
+    ? sectionIds.map((id, idx) => {
+        const slide = featured.slides[idx]
+        return {
+          id,
+          thumbnailUrl: slide?.mediaUrl ?? '',
+          caption: SECTION_CAPTIONS[id] ?? slide?.caption ?? '',
+          position: idx + 1,
+        }
+      })
+    : []
 
   // Wrap the entire home page in RecordingProvider so the NavBar's
   // TicketMark and the HeroSection's pill share the same state.
@@ -118,83 +153,92 @@ export default async function HomePage() {
 
   return (
     <RecordingProvider initial={initialRecordingState}>
-      <NavBar githubUrl={GITHUB_URL} />
+      <PageViewfinder slides={viewfinderSlides}>
+        <NavBar githubUrl={GITHUB_URL} />
 
-      <HeroSection githubUrl={GITHUB_URL} featured={featured} />
+        <SlideCapture slideId="hero">
+          <HeroSection githubUrl={GITHUB_URL} featured={featured} />
+        </SlideCapture>
 
-      <section
-        id="how-it-works"
-        aria-labelledby="how-it-works-heading"
-        className="mx-auto max-w-5xl px-6 py-16"
-      >
-        <h2
-          id="how-it-works-heading"
-          className="mb-10 text-2xl font-semibold tracking-tight text-ink-900"
-        >
-          How it works
-        </h2>
-        <ol className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {STEPS.map((step) => (
-            <li
-              key={step.step}
-              className="space-y-3 rounded-[14px] border border-ink-200 bg-paper-raised p-6"
-            >
-              <div className="flex items-baseline gap-3">
-                <span className="font-mono text-sm tabular-nums text-vermillion-700">
-                  {step.step}
-                </span>
-                <span className="text-xs uppercase tracking-[0.16em] text-ink-500">
-                  {step.label}
-                </span>
-              </div>
-              <h3 className="text-lg font-medium tracking-tight text-ink-900">
-                {step.title}
-              </h3>
-              <p className="text-sm text-ink-600">{step.body}</p>
-              {step.code && (
-                <CodeBlock
-                  code={step.code.body}
-                  {...(step.code.prompt !== undefined ? { prompt: step.code.prompt } : {})}
-                />
-              )}
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section
-        aria-labelledby="gallery-heading"
-        className="mx-auto max-w-5xl px-6 py-16"
-      >
-        <div className="mb-10 flex items-end justify-between gap-4">
-          <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-vermillion-700">
-              In the gallery
-            </p>
+        <SlideCapture slideId="how-it-works">
+          <section
+            id="how-it-works"
+            aria-labelledby="how-it-works-heading"
+            className="mx-auto max-w-5xl px-6 py-16"
+          >
             <h2
-              id="gallery-heading"
-              className="text-2xl font-semibold tracking-tight text-ink-900"
+              id="how-it-works-heading"
+              className="mb-10 text-2xl font-semibold tracking-tight text-ink-900"
             >
-              Recent fieldwork.
+              How it works
             </h2>
-            <p className="mt-1 text-sm text-ink-600">
-              Real QA runs, hand-curated.
-            </p>
-          </div>
-          {clips.length > 0 && (
-            <p className="text-xs uppercase tracking-[0.16em] text-ink-500">
-              {clips.length} clips
-            </p>
-          )}
-        </div>
-        <GalleryGrid clips={clips} />
-      </section>
+            <ol className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {STEPS.map((step) => (
+                <li
+                  key={step.step}
+                  className="space-y-3 rounded-[14px] border border-ink-200 bg-paper-raised p-6"
+                >
+                  <div className="flex items-baseline gap-3">
+                    <span className="font-mono text-sm tabular-nums text-vermillion-700">
+                      {step.step}
+                    </span>
+                    <span className="text-xs uppercase tracking-[0.16em] text-ink-500">
+                      {step.label}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-medium tracking-tight text-ink-900">
+                    {step.title}
+                  </h3>
+                  <p className="text-sm text-ink-600">{step.body}</p>
+                  {step.code && (
+                    <CodeBlock
+                      code={step.code.body}
+                      {...(step.code.prompt !== undefined ? { prompt: step.code.prompt } : {})}
+                    />
+                  )}
+                </li>
+              ))}
+            </ol>
+          </section>
+        </SlideCapture>
 
-      <section className="mx-auto max-w-3xl px-6 py-16 text-center">
-        <p className="text-base text-ink-600">
-          Open source. Receipts for the work agents quietly do.
-        </p>
-      </section>
+        <SlideCapture slideId="gallery">
+          <section
+            aria-labelledby="gallery-heading"
+            className="mx-auto max-w-5xl px-6 py-16"
+          >
+            <div className="mb-10 flex items-end justify-between gap-4">
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-vermillion-700">
+                  In the gallery
+                </p>
+                <h2
+                  id="gallery-heading"
+                  className="text-2xl font-semibold tracking-tight text-ink-900"
+                >
+                  Recent fieldwork.
+                </h2>
+                <p className="mt-1 text-sm text-ink-600">
+                  Real QA runs, hand-curated.
+                </p>
+              </div>
+              {clips.length > 0 && (
+                <p className="text-xs uppercase tracking-[0.16em] text-ink-500">
+                  {clips.length} clips
+                </p>
+              )}
+            </div>
+            <GalleryGrid clips={clips} />
+          </section>
+        </SlideCapture>
+
+        <SlideCapture slideId="closing">
+          <section className="mx-auto max-w-3xl px-6 py-16 text-center">
+            <p className="text-base text-ink-600">
+              Open source. Receipts for the work agents quietly do.
+            </p>
+          </section>
+        </SlideCapture>
 
       <footer className="border-t border-ink-200 bg-paper-raised">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-xs uppercase tracking-[0.14em] text-ink-500">
@@ -213,6 +257,16 @@ export default async function HomePage() {
           </a>
         </div>
       </footer>
+
+        {/* Capture stack — fixed to the right edge on xl+ screens.
+            Renders the slot strip + the dormant "Your walkthrough →"
+            CTA that activates once every section has been captured.
+            Linked to the featured clip itself (the meta clip in
+            v0.1; eventually a per-visitor capture). */}
+        {featured && (
+          <CaptureStack walkthroughHref={`/s/${featured.shareToken}`} />
+        )}
+      </PageViewfinder>
     </RecordingProvider>
   )
 }

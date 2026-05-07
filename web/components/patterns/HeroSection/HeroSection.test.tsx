@@ -56,7 +56,7 @@ describe('HeroSection', () => {
     expect(screen.queryByRole('tab', { name: /install yourself/i })).not.toBeInTheDocument()
   })
 
-  it('renders the Easter-egg note when a featured clip is provided', () => {
+  it('renders the embedded HeroPreview when a featured clip is provided', () => {
     render(
       <HeroSection
         featured={{
@@ -65,7 +65,7 @@ describe('HeroSection', () => {
           slides: [
             {
               position: 1,
-              caption: 'first',
+              caption: 'first slide',
               mediaUrl: 'https://cdn.example/1.png',
               mediaKind: 'image',
             },
@@ -73,26 +73,13 @@ describe('HeroSection', () => {
         }}
       />,
     )
-    // Advance through reveal cascade so the Easter-egg note has mounted.
     act(() => {
       vi.advanceTimersByTime(3000)
     })
-    expect(
-      screen.getByText(/This page recorded itself while you read it/),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Watch the clip/i })).toHaveAttribute(
+    expect(screen.getByText('first slide')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Open clip/i })).toHaveAttribute(
       'href',
       '/s/abc123',
     )
-  })
-
-  it('does NOT render the Easter-egg note when no featured clip is provided', () => {
-    render(<HeroSection />)
-    act(() => {
-      vi.advanceTimersByTime(3000)
-    })
-    expect(
-      screen.queryByText(/This page recorded itself/),
-    ).not.toBeInTheDocument()
   })
 })

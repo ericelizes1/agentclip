@@ -1,7 +1,7 @@
 'use client'
 
 import { motion, useReducedMotion, type Transition } from 'framer-motion'
-import { ArrowRight, ArrowUp } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { SiGithub } from '@icons-pack/react-simple-icons'
 import { useEffect, useState } from 'react'
 
@@ -214,45 +214,21 @@ export function HeroSection({
       )}
 
       {featured && featured.slides.length > 0 && (
-        <>
-          <motion.div
-            initial={reduce ? false : { opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ ...at(5), delay: reduce ? 0 : 1.85 }}
-            className="pt-6"
-          >
-            <HeroPreview
-              shareToken={featured.shareToken}
-              title={featured.title}
-              {...(featured.creatorName !== undefined
-                ? { creatorName: featured.creatorName }
-                : {})}
-              slides={featured.slides}
-            />
-          </motion.div>
-
-          {/* Easter-egg note. The page-recorded-itself moment. */}
-          <motion.p
-            initial={reduce ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ ...at(6), delay: reduce ? 0 : 2.4 }}
-            className="mt-2 flex items-start gap-2 text-sm italic text-ink-500"
-          >
-            <ArrowUp
-              aria-hidden="true"
-              className="mt-0.5 size-4 shrink-0 text-vermillion-500"
-            />
-            <span>
-              This page recorded itself while you read it.{' '}
-              <a
-                href={`/s/${featured.shareToken}`}
-                className="font-medium not-italic text-vermillion-700 underline decoration-vermillion-500/30 underline-offset-2 transition-colors hover:text-vermillion-600 hover:decoration-vermillion-500"
-              >
-                Watch the clip&nbsp;→
-              </a>
-            </span>
-          </motion.p>
-        </>
+        <motion.div
+          initial={reduce ? false : { opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...at(5), delay: reduce ? 0 : 1.85 }}
+          className="pt-6"
+        >
+          <HeroPreview
+            shareToken={featured.shareToken}
+            title={featured.title}
+            {...(featured.creatorName !== undefined
+              ? { creatorName: featured.creatorName }
+              : {})}
+            slides={featured.slides}
+          />
+        </motion.div>
       )}
     </section>
   )
