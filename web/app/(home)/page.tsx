@@ -61,7 +61,11 @@ const STEPS: HowItWorksStep[] = [
   },
 ]
 
-async function fetchGallery(): Promise<GalleryClip[]> {
+interface CuratedRow extends GalleryClip {
+  isHero: boolean
+}
+
+async function fetchGallery(): Promise<CuratedRow[]> {
   try {
     const { data } = await api.GET('/api/v1/gallery/')
     if (!data) return []
@@ -71,6 +75,7 @@ async function fetchGallery(): Promise<GalleryClip[]> {
       description: row.description ?? '',
       coverImageUrl: row.cover_image_url ?? null,
       meta: `${row.slide_count} clips`,
+      isHero: row.is_hero ?? false,
     }))
   } catch {
     return []
@@ -102,27 +107,16 @@ async function fetchFullSlideshow(token: string): Promise<HeroFeaturedClip | nul
   }
 }
 
-// Detects the AgentClip-on-AgentClip "meta" clips so we can prefer
-// real fieldwork in the hero polaroid. Pure-paper screenshots of our
-// own site read as bland next to the colorful product captures
-// elsewhere in the gallery — the hero earns more attention with a
-// real-world example. Falls back to the first clip when the gallery
-// has nothing but meta clips (early days, empty curation, etc).
-function isLikelyMeta(row: { title: string; description?: string }): boolean {
-  const haystack = `${row.title} ${row.description ?? ''}`.toLowerCase()
-  return /agentclip|screencast\.?$|agentclip\.dev/i.test(haystack)
-}
-
 export default async function HomePage() {
   const galleryRows = await fetchGallery()
 
-  // Pick the most visually rich clip for the hero polaroid: the first
-  // non-meta entry, falling back to position 0 if everything looks
-  // self-referential. The remaining rows become gallery cards in
-  // their original curation order so the env-var ordering still
-  // controls the gallery section directly.
+  // Hero pick is curated server-side via Slideshow.is_hero (admin /
+  // Django admin / future agentclip CLI command). The frontend just
+  // honors the flag — first row with is_hero=true wins, falling back
+  // to position 0 if the operator hasn't picked a hero yet. The rest
+  // become gallery cards in their original curation order.
   const heroIdx = (() => {
-    const idx = galleryRows.findIndex((row) => !isLikelyMeta(row))
+    const idx = galleryRows.findIndex((row) => row.isHero)
     return idx >= 0 ? idx : 0
   })()
   const heroRow = galleryRows[heroIdx]

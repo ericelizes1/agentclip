@@ -29,6 +29,7 @@ class SlideInline(TabularInline):
 class SlideshowAdmin(ModelAdmin):
     list_display = (
         'title_or_id',
+        'is_hero',
         'is_gallery',
         'gallery_position',
         'slide_count',
@@ -38,8 +39,8 @@ class SlideshowAdmin(ModelAdmin):
     )
     # Inline-editable from the changelist so curating the gallery is a
     # one-click flip; no need to drill into each slideshow.
-    list_editable = ('is_gallery', 'gallery_position')
-    list_filter = ('is_gallery', 'created_at')
+    list_editable = ('is_hero', 'is_gallery', 'gallery_position')
+    list_filter = ('is_hero', 'is_gallery', 'created_at')
     search_fields = ('title', 'description', 'summary', 'id', 'share_token')
     date_hierarchy = 'created_at'
     ordering = ('-created_at',)
@@ -62,11 +63,16 @@ class SlideshowAdmin(ModelAdmin):
         (
             'Gallery curation',
             {
-                'fields': ('is_gallery', 'gallery_position'),
+                'fields': ('is_hero', 'is_gallery', 'gallery_position'),
                 'description': (
-                    'Flip is_gallery=True to surface this clip on the '
-                    'home-page gallery. gallery_position controls sort '
-                    'order (ascending; ties broken by -created_at).'
+                    'is_hero=True puts this clip in the home-page hero '
+                    'polaroid (only one row should typically have this '
+                    'flag; the API picks the most-recently-featured if '
+                    'multiple do). Independent of is_gallery — the hero '
+                    'clip can also live in the gallery cards. '
+                    'is_gallery=True surfaces this clip in the gallery '
+                    'section; gallery_position controls sort order '
+                    '(ascending; ties broken by -created_at).'
                 ),
             },
         ),

@@ -42,7 +42,7 @@
         "/api/slideshow/{slideshow_id}/": {
             "patch": {
                 "operationId": "slideshow_partial_update",
-                "description": "Patch title, description, or summary. Auth: Bearer <write_token>.",
+                "description": "PATCH title/description/summary or DELETE the whole slideshow.\n\nAuth: Bearer <write_token>. DELETE cascades to all slides via the\nSlide.slideshow FK; the underlying R2 objects are NOT cleaned up\nhere (django-storages doesn't delete files on model.delete by\ndefault), so empty bucket cruft accumulates. Acceptable for v0.1\nwith low traffic; revisit when storage costs matter.",
                 "parameters": [
                     {
                         "in": "path",
@@ -82,6 +82,48 @@
                             }
                         },
                         "description": ""
+                    },
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "slideshow_destroy",
+                "description": "PATCH title/description/summary or DELETE the whole slideshow.\n\nAuth: Bearer <write_token>. DELETE cascades to all slides via the\nSlide.slideshow FK; the underlying R2 objects are NOT cleaned up\nhere (django-storages doesn't delete files on model.delete by\ndefault), so empty bucket cruft accumulates. Acceptable for v0.1\nwith low traffic; revisit when storage costs matter.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "slideshow_id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "slideshows"
+                ],
+                "security": [
+                    {
+                        "WriteTokenAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SlideshowPatch"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             }
@@ -201,7 +243,7 @@
         "/api/v1/gallery/": {
             "get": {
                 "operationId": "v1_gallery_list",
-                "description": "Curated gallery feed for the home page.\n\nReturns slideshows with `is_gallery=True`, ordered by\n`gallery_position` ascending then `-created_at`. Capped at a sane\nupper bound so a misconfigured admin entry can't blow up the\npayload.\n\nPublic, unauthenticated, rate-limited per the same throttling as\nthe rest of the API.",
+                "description": "Curated gallery feed for the home page.\n\nReturns slideshows with `is_gallery=True`, ordered by\n`gallery_position` ascending then `-created_at`. Capped at 12 so a\nmisconfigured admin entry can't blow up the payload.\n\nCuration flips the `is_gallery` flag and sets `gallery_position`.\nTwo ways to flip it:\n- Django admin (privileged user account)\n- The `agentclip slideshow feature <token>` CLI, which hits the\n  admin endpoint at `/api/v1/slideshow/<share_token>/feature/`\n  authenticated by `AGENTCLIP_ADMIN_TOKEN`. The CLI path lets a\n  curator (or an agent given the admin token) reorder the gallery\n  without a Django admin trip — and without a redeploy.\n\nPublic, unauthenticated, rate-limit-free (read-only).",
                 "tags": [
                     "v1"
                 ],
@@ -292,6 +334,97 @@
                             }
                         },
                         "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/slideshow/{share_token}/feature/": {
+            "post": {
+                "operationId": "v1_slideshow_feature_create",
+                "description": "Flip is_gallery on a slideshow. Auth: Bearer AGENTCLIP_ADMIN_TOKEN.\n\nPOST   {position?: int} → set is_gallery=True, gallery_position=<position>\nDELETE                  → set is_gallery=False (drops from gallery)\n\nThe slideshow row is the source of truth for curation. Calling\nPOST repeatedly with different positions is the supported way to\nreorder. POST is idempotent in the is_gallery sense — calling it\ntwice on a featured slideshow is fine; the second call updates\nthe position.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "share_token",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "requestBody": {
+                    "content": {
+                        "type": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {},
+                                "description": "Unspecified request body"
+                            }
+                        },
+                        "properties": {
+                            "schema": {
+                                "position": {
+                                    "type": "integer",
+                                    "description": "gallery_position to assign; lower sorts first."
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SlideshowPublic"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "v1_slideshow_feature_destroy",
+                "description": "Flip is_gallery on a slideshow. Auth: Bearer AGENTCLIP_ADMIN_TOKEN.\n\nPOST   {position?: int} → set is_gallery=True, gallery_position=<position>\nDELETE                  → set is_gallery=False (drops from gallery)\n\nThe slideshow row is the source of truth for curation. Calling\nPOST repeatedly with different positions is the supported way to\nreorder. POST is idempotent in the is_gallery sense — calling it\ntwice on a featured slideshow is fine; the second call updates\nthe position.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "share_token",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "admin"
+                ],
+                "security": [
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SlideshowPublic"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "204": {
+                        "description": "No response body"
                     }
                 }
             }
@@ -506,6 +639,11 @@
                     "share_url": {
                         "type": "string",
                         "readOnly": true
+                    },
+                    "is_hero": {
+                        "type": "boolean",
+                        "readOnly": true,
+                        "description": "Show as the home-page hero polaroid. Curated via the admin. When multiple slideshows have is_hero=True the API picks the most recently featured. Independent of is_gallery."
                     }
                 },
                 "required": [
@@ -515,6 +653,7 @@
                     "created_by_url",
                     "description",
                     "id",
+                    "is_hero",
                     "share_token",
                     "share_url",
                     "slide_count",

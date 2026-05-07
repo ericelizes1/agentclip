@@ -44,10 +44,27 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * @description PATCH title/description/summary or DELETE the whole slideshow.
+         *
+         *     Auth: Bearer <write_token>. DELETE cascades to all slides via the
+         *     Slide.slideshow FK; the underlying R2 objects are NOT cleaned up
+         *     here (django-storages doesn't delete files on model.delete by
+         *     default), so empty bucket cruft accumulates. Acceptable for v0.1
+         *     with low traffic; revisit when storage costs matter.
+         */
+        delete: operations["slideshow_destroy"];
         options?: never;
         head?: never;
-        /** @description Patch title, description, or summary. Auth: Bearer <write_token>. */
+        /**
+         * @description PATCH title/description/summary or DELETE the whole slideshow.
+         *
+         *     Auth: Bearer <write_token>. DELETE cascades to all slides via the
+         *     Slide.slideshow FK; the underlying R2 objects are NOT cleaned up
+         *     here (django-storages doesn't delete files on model.delete by
+         *     default), so empty bucket cruft accumulates. Acceptable for v0.1
+         *     with low traffic; revisit when storage costs matter.
+         */
         patch: operations["slideshow_partial_update"];
         trace?: never;
     };
@@ -103,12 +120,19 @@ export interface paths {
          * @description Curated gallery feed for the home page.
          *
          *     Returns slideshows with `is_gallery=True`, ordered by
-         *     `gallery_position` ascending then `-created_at`. Capped at a sane
-         *     upper bound so a misconfigured admin entry can't blow up the
-         *     payload.
+         *     `gallery_position` ascending then `-created_at`. Capped at 12 so a
+         *     misconfigured admin entry can't blow up the payload.
          *
-         *     Public, unauthenticated, rate-limited per the same throttling as
-         *     the rest of the API.
+         *     Curation flips the `is_gallery` flag and sets `gallery_position`.
+         *     Two ways to flip it:
+         *     - Django admin (privileged user account)
+         *     - The `agentclip slideshow feature <token>` CLI, which hits the
+         *       admin endpoint at `/api/v1/slideshow/<share_token>/feature/`
+         *       authenticated by `AGENTCLIP_ADMIN_TOKEN`. The CLI path lets a
+         *       curator (or an agent given the admin token) reorder the gallery
+         *       without a Django admin trip — and without a redeploy.
+         *
+         *     Public, unauthenticated, rate-limit-free (read-only).
          */
         get: operations["v1_gallery_list"];
         put?: never;
@@ -166,6 +190,46 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slideshow/{share_token}/feature/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Flip is_gallery on a slideshow. Auth: Bearer AGENTCLIP_ADMIN_TOKEN.
+         *
+         *     POST   {position?: int} → set is_gallery=True, gallery_position=<position>
+         *     DELETE                  → set is_gallery=False (drops from gallery)
+         *
+         *     The slideshow row is the source of truth for curation. Calling
+         *     POST repeatedly with different positions is the supported way to
+         *     reorder. POST is idempotent in the is_gallery sense — calling it
+         *     twice on a featured slideshow is fine; the second call updates
+         *     the position.
+         */
+        post: operations["v1_slideshow_feature_create"];
+        /**
+         * @description Flip is_gallery on a slideshow. Auth: Bearer AGENTCLIP_ADMIN_TOKEN.
+         *
+         *     POST   {position?: int} → set is_gallery=True, gallery_position=<position>
+         *     DELETE                  → set is_gallery=False (drops from gallery)
+         *
+         *     The slideshow row is the source of truth for curation. Calling
+         *     POST repeatedly with different positions is the supported way to
+         *     reorder. POST is idempotent in the is_gallery sense — calling it
+         *     twice on a featured slideshow is fine; the second call updates
+         *     the position.
+         */
+        delete: operations["v1_slideshow_feature_destroy"];
         options?: never;
         head?: never;
         patch?: never;
@@ -277,6 +341,8 @@ export interface components {
             readonly cover_image_url: string | null;
             readonly slide_count: number;
             readonly share_url: string;
+            /** @description Show as the home-page hero polaroid. Curated via the admin. When multiple slideshows have is_hero=True the API picks the most recently featured. Independent of is_gallery. */
+            readonly is_hero: boolean;
         };
         /**
          * @description * `image` - Image
@@ -497,6 +563,34 @@ export interface operations {
             };
         };
     };
+    slideshow_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slideshow_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlideshowPatch"];
+                };
+            };
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     slideshow_partial_update: {
         parameters: {
             query?: never;
@@ -519,6 +613,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SlideshowPatch"];
                 };
+            };
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -633,6 +734,69 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["EditToken"];
                 };
+            };
+        };
+    };
+    v1_slideshow_feature_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                share_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                type: {
+                    [key: string]: unknown;
+                };
+                properties: unknown;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlideshowPublic"];
+                };
+            };
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    v1_slideshow_feature_destroy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                share_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlideshowPublic"];
+                };
+            };
+            /** @description No response body */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

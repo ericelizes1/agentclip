@@ -122,6 +122,9 @@ class GallerySlideshowSerializer(serializers.ModelSerializer):
             'cover_image_url',
             'slide_count',
             'share_url',
+            # Hero curation flag — clients use this to pick which row
+            # gets the home-page hero polaroid. Most rows return false.
+            'is_hero',
         )
         read_only_fields = fields
 

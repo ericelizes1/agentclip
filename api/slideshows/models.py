@@ -205,6 +205,20 @@ class Slideshow(models.Model):
         db_index=True,
         help_text='Sort order within the gallery (ascending). Ties broken by -created_at.',
     )
+    # Hero curation: a single slideshow surfaces in the home-page hero
+    # polaroid above all gallery cards. Independent of `is_gallery` —
+    # the hero clip can be in the gallery too (typical) or live as a
+    # standalone feature. We don't enforce single-hero at the DB
+    # level; the API picks the most-recently-featured matching row.
+    is_hero = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text=(
+            'Show as the home-page hero polaroid. Curated via the admin. '
+            'When multiple slideshows have is_hero=True the API picks the '
+            'most recently featured. Independent of is_gallery.'
+        ),
+    )
     # Audit trail for curation. Set on every successful feature; left
     # alone on unfeature so we retain "last featured at X" even after
     # a slideshow drops out of the gallery. Useful for retrospectives
