@@ -150,10 +150,10 @@ export function HeroSection({
         transition={{ ...at(2), delay: reduce ? 0 : 1.5 }}
         className="max-w-[58ch] text-lg text-ink-600 sm:text-xl"
       >
-        With AgentClip, your coding agent records its own work and sends you
-        a captioned walkthrough — one URL anyone can watch in 30 seconds. No
-        Loom, no narration takes, no &ldquo;let me record one more
-        time.&rdquo;
+        With AgentClip, your coding agent runs the flow, narrates each
+        screen, and sends you a walkthrough — the Loom you&rsquo;d have made,
+        made automatically. No screen recording, no narration takes, no
+        &ldquo;let me try one more time.&rdquo;
       </motion.p>
 
       {/*
@@ -231,14 +231,14 @@ export function HeroSection({
             slides={featured.slides}
           />
 
-          {/* Italic caption pulls the featured clip's actual title +
-              slide count so the editor's note matches whatever clip is
-              currently in the hero slot — not hardcoded. The stamp
-              underneath is a curated flourish, not data-driven. */}
+          {/* Italic caption pulls the featured clip's actual title so
+              the editor's note matches whatever clip is currently in
+              the hero slot. Avoids slide-count language to keep the
+              page on the Loom-competitor side of the future
+              positioning. The stamp underneath is curated flourish. */}
           <figcaption className="font-display text-[15px] italic leading-snug text-ink-500">
             <span className="text-vermillion-700">↑</span>{' '}
-            {featured.title} — one real agent run,{' '}
-            {featured.slides.length} shareable frames.
+            {featured.title} — recorded by the agent that ran it.
           </figcaption>
 
           <div

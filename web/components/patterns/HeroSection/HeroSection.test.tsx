@@ -31,7 +31,7 @@ describe('HeroSection', () => {
     )
     expect(screen.getByText('demo.')).toBeInTheDocument()
     expect(
-      screen.getByText(/With AgentClip, your coding agent records its own work and sends you/),
+      screen.getByText(/With AgentClip, your coding agent runs the flow, narrates each/),
     ).toBeInTheDocument()
     // GitHub demoted to a small secondary text link.
     expect(

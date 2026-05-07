@@ -29,16 +29,16 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: 'AgentClip · Skip the demo',
   description:
-    'With AgentClip, your coding agent records its own work and sends you ' +
-    'a captioned walkthrough — one URL anyone can watch in 30 seconds. No ' +
-    'Loom, no narration takes, no "let me record one more time."',
+    'With AgentClip, your coding agent runs the flow, narrates each screen, ' +
+    'and sends you a walkthrough — the Loom you’d have made, made ' +
+    'automatically. No screen recording, no narration takes.',
   metadataBase: new URL('https://agentclip.dev'),
   openGraph: {
     title: 'AgentClip · Skip the demo',
     description:
-      'With AgentClip, your coding agent records its own work and sends you ' +
-      'a captioned walkthrough — one URL anyone can watch in 30 seconds. No ' +
-      'Loom, no narration takes, no "let me record one more time."',
+      'With AgentClip, your coding agent runs the flow, narrates each ' +
+      'screen, and sends you a walkthrough — the Loom you’d have made, ' +
+      'made automatically. No screen recording, no narration takes.',
     url: 'https://agentclip.dev',
     siteName: 'AgentClip',
     type: 'website',
