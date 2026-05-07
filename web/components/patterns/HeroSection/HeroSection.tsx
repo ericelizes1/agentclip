@@ -111,24 +111,6 @@ export function HeroSection({
       )}
     >
       <div className="flex flex-col gap-10 lg:gap-9">
-      {/*
-        Editorial issue chip — small magazine-style marker at the top
-        of the hero. Signals "this is a published piece" rather than
-        "this is a generic landing page".
-      */}
-      <motion.div
-        initial={reduce ? false : { opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={at(0)}
-        className="-mb-4 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-ink-500"
-      >
-        <span className="font-mono tabular-nums text-vermillion-700">
-          Issue 01
-        </span>
-        <span aria-hidden="true" className="h-px w-8 bg-ink-300" />
-        <span>2026 · Open source</span>
-      </motion.div>
-
       <motion.h1
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -174,33 +156,33 @@ export function HeroSection({
       </motion.p>
 
       {/*
-        Install card is the PRIMARY action. Two tabs: a copy-pasteable
-        pip command for visitors who'll set it up themselves, and a
-        natural-language prompt visitors can hand to their agent. The
-        product is "your agent uses it" — both paths are first-class.
-        GitHub demoted to a small text link below.
+        Install — the primary action. Tabs sit as plain text-style
+        toggles directly above the CodeBlock with no outer card chrome
+        wrapping them, so we don't end up with three nested rectangles
+        (outer card → tab strip → snippet box). Two visible boxes
+        max: the tab strip (transparent) and the code block.
       */}
       <motion.div
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ ...at(3), delay: reduce ? 0 : 1.6 }}
-        className="max-w-[640px] rounded-[14px] border border-ink-200 bg-paper shadow-[var(--shadow-whisper)]"
+        className="max-w-[640px]"
       >
         <Tabs.Root defaultValue="pip">
-          <Tabs.List className="m-2">
+          <Tabs.List className="mb-3 h-auto gap-4 rounded-none border-0 bg-transparent p-0">
             <Tabs.Trigger value="pip">Install yourself</Tabs.Trigger>
             <Tabs.Trigger value="agent">Have your agent do it</Tabs.Trigger>
           </Tabs.List>
-          <Tabs.Content value="pip" className="mt-0 px-2 pb-2">
+          <Tabs.Content value="pip" className="mt-0">
             <CodeBlock prompt="$" code="pip install agentclip" />
-            <p className="mt-2 px-2 pb-1 text-xs text-ink-500">
+            <p className="mt-2 text-xs text-ink-500">
               No install?{' '}
               <span className="font-mono text-ink-700">
                 uvx agentclip --help
               </span>
             </p>
           </Tabs.Content>
-          <Tabs.Content value="agent" className="mt-0 px-2 pb-2">
+          <Tabs.Content value="agent" className="mt-0">
             <CodeBlock code="Read agentclip.dev/install.md and set up AgentClip for me." />
           </Tabs.Content>
         </Tabs.Root>
