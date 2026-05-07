@@ -92,3 +92,18 @@ body {
   background: var(--color-vermillion-500);
   color: var(--color-paper);
 }
+
+/*
+ * Marquee keyframe — drives MarqueeBand's auto-scrolling clip strip.
+ * The list is duplicated in the markup; translating exactly -50%
+ * over one cycle wraps seamlessly because the second half mirrors
+ * the first. Speed is set per-instance via --marquee-speed.
+ */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}

@@ -2,15 +2,16 @@
  * AgentClip home page.
  *
  * Server Component — fetches the curated gallery from the API at
- * request time. Layout is full-bleed with a floating AgentWidget on
- * the left (LinkedIn-style sticky sidebar) that contains the brand,
- * the agent character, the slot stack, and the walkthrough CTA.
+ * request time. Single-column full-width layout: top NavBar, hero,
+ * marquee band of clip thumbnails, "How it works", gallery, closing
+ * pull-quote, footer. No sidebar — the product's variety IS the
+ * decoration.
  */
 
 import { SiGithub } from '@icons-pack/react-simple-icons'
 
-import { AgentWidget } from '@/components/composites/AgentWidget/AgentWidget'
 import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
+import { NavBar } from '@/components/composites/NavBar/NavBar'
 import { SectionHeader } from '@/components/composites/SectionHeader/SectionHeader'
 import { RecordingProvider } from '@/components/context/RecordingProvider/RecordingProvider'
 import { TicketMark } from '@/components/primitives/TicketMark/TicketMark'
@@ -20,10 +21,9 @@ import {
   type HeroFeaturedClip,
 } from '@/components/patterns/HeroSection/HeroSection'
 import {
-  PageViewfinder,
-  type ViewfinderSlide,
-} from '@/components/patterns/PageViewfinder/PageViewfinder'
-import { SlideCapture } from '@/components/patterns/PageViewfinder/SlideCapture'
+  MarqueeBand,
+  type MarqueeClip,
+} from '@/components/patterns/MarqueeBand/MarqueeBand'
 import { api } from '@/lib/api'
 
 const GITHUB_URL = 'https://github.com/ericelizes1/agentclip'
@@ -101,181 +101,136 @@ async function fetchFullSlideshow(token: string): Promise<HeroFeaturedClip | nul
   }
 }
 
-const SECTION_CAPTIONS: Record<string, string> = {
-  hero: 'Hero — agentclip.dev introduces itself.',
-  'how-it-works': 'How it works — install, run, share.',
-  gallery: 'Recent fieldwork — curated agent runs.',
-  closing: 'Open source. Receipts for the work agents quietly do.',
-}
-
 export default async function HomePage() {
   const galleryRows = await fetchGallery()
   const [heroRow, ...galleryCards] = galleryRows
   const featured = heroRow ? await fetchFullSlideshow(heroRow.shareToken) : null
   const clips = galleryCards
 
-  const sectionIds = ['hero', 'how-it-works', 'gallery', 'closing'] as const
-  const viewfinderSlides: ViewfinderSlide[] = featured
-    ? sectionIds.map((id, idx) => {
-        const slide = featured.slides[idx]
-        return {
-          id,
-          thumbnailUrl: slide?.mediaUrl ?? '',
-          caption: SECTION_CAPTIONS[id] ?? slide?.caption ?? '',
-          position: idx + 1,
-        }
-      })
-    : []
+  // Marquee uses every available clip (hero + gallery cards). With
+  // only a handful of curated clips today, this still loops cleanly
+  // because MarqueeBand duplicates the sequence internally. As the
+  // gallery grows the band gets richer for free.
+  const marqueeClips: MarqueeClip[] = galleryRows.map((row) => ({
+    shareToken: row.shareToken,
+    title: row.title,
+    coverImageUrl: row.coverImageUrl,
+    meta: row.meta,
+  }))
 
+  // RecordingProvider is still wrapped on the home page to drive the
+  // hero's typewriter sequence. The "page-recording" conceit and its
+  // viewfinder/sidebar machinery are gone — what's left is just the
+  // hero animation timing.
   const initialRecordingState = featured ? 'recording' : 'idle'
 
   return (
     <RecordingProvider initial={initialRecordingState}>
-      <PageViewfinder slides={viewfinderSlides}>
-        {/*
-          Full-bleed layout. Page content sits in a centered column
-          (no screen-card framing). On lg+, the AgentWidget floats on
-          the left as a sticky sidebar — the brand, the agent stage,
-          the slot stack, and the walkthrough CTA all live in there.
-          On mobile we collapse to a single column with a small inline
-          brand row at the top.
-        */}
-        <div className="min-h-screen bg-paper">
-          <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-10 px-4 pt-4 pb-10 sm:px-6 sm:pt-6 lg:grid-cols-[244px_minmax(0,1fr)] lg:gap-12 lg:px-8 lg:pt-8">
-            {/* MOBILE — inline brand row at the top of the page. */}
-            <div className="flex items-center justify-between lg:hidden">
-              <a href="/" className="flex items-center gap-2 text-ink-900">
-                <TicketMark size={18} className="text-vermillion-500" />
-                <span className="font-semibold tracking-tight">AgentClip</span>
-              </a>
+      <div className="min-h-screen bg-paper">
+        <NavBar githubUrl={GITHUB_URL} />
+
+        <main>
+          <HeroSection githubUrl={GITHUB_URL} featured={featured} />
+
+          {marqueeClips.length > 0 && (
+            <section
+              aria-label="Featured agent runs"
+              className="border-y border-ink-200 bg-paper-raised py-10"
+            >
+              <MarqueeBand clips={marqueeClips} />
+            </section>
+          )}
+
+          <section
+            id="how-it-works"
+            aria-labelledby="how-it-works-heading"
+            className="bg-paper"
+          >
+            <div className="mx-auto max-w-5xl px-6 py-24">
+              <SectionHeader
+                index="02"
+                eyebrow="How it works"
+                title="Three steps. No screencast software."
+                description="First-run wires the skill and browser drivers. Point your agent at any flow."
+                headingId="how-it-works-heading"
+                meta={`${STEPS.length} steps`}
+              />
+              <ol className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {STEPS.map((step) => (
+                  <li
+                    key={step.step}
+                    className="space-y-3 rounded-[14px] border border-ink-200 bg-paper-raised p-6"
+                  >
+                    <div className="flex items-baseline gap-3">
+                      <span className="font-mono text-sm tabular-nums text-vermillion-700">
+                        {step.step}
+                      </span>
+                      <span className="text-xs uppercase tracking-[0.16em] text-ink-500">
+                        {step.label}
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-medium tracking-tight text-ink-900">
+                      {step.title}
+                    </h3>
+                    <p className="text-sm text-ink-600">{step.body}</p>
+                    {step.code && (
+                      <CodeBlock
+                        code={step.code.body}
+                        {...(step.code.prompt !== undefined
+                          ? { prompt: step.code.prompt }
+                          : {})}
+                      />
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </section>
+
+          <section
+            aria-labelledby="gallery-heading"
+            className="border-t border-ink-200 bg-paper-raised"
+          >
+            <div className="mx-auto max-w-6xl px-6 py-24">
+              <SectionHeader
+                index="03"
+                eyebrow="In the gallery"
+                title="Recent fieldwork."
+                description="Real QA runs, hand-curated. Click any thumbnail to watch the run."
+                headingId="gallery-heading"
+                meta={clips.length > 0 ? `${clips.length} clips` : undefined}
+              />
+              <GalleryGrid clips={clips} />
+            </div>
+          </section>
+
+          <section className="border-t border-ink-200 bg-paper">
+            <div className="mx-auto max-w-3xl px-6 py-28 text-center">
+              <p className="font-display text-2xl tracking-tight text-ink-800 sm:text-3xl">
+                Open source. Receipts for the work agents quietly do.
+              </p>
+            </div>
+          </section>
+
+          <footer className="border-t border-ink-200 bg-paper-raised">
+            <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-xs uppercase tracking-[0.14em] text-ink-500">
+              <span className="flex items-center gap-2 text-ink-700">
+                <TicketMark size={14} className="text-vermillion-500" />
+                AgentClip
+              </span>
               <a
                 href={GITHUB_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-ink-700 hover:text-ink-900"
+                className="flex items-center gap-2 text-ink-700 hover:text-ink-900"
               >
-                <SiGithub aria-hidden="true" className="size-4" />
-                <span>GitHub</span>
+                <SiGithub aria-hidden="true" className="size-3.5" />
+                GitHub
               </a>
             </div>
-
-            {/* LEFT — floating live-capture widget. Sticky on lg+. */}
-            <aside className="hidden lg:block">
-              <div className="sticky top-8">
-                {featured && (
-                  <AgentWidget walkthroughHref={`/s/${featured.shareToken}`} />
-                )}
-              </div>
-            </aside>
-
-            {/* RIGHT — page content, full-bleed (no card framing). */}
-            <main>
-              <SlideCapture slideId="hero">
-                <HeroSection githubUrl={GITHUB_URL} featured={featured} />
-              </SlideCapture>
-
-              {/* Sections alternate background tones (paper / paper-raised)
-                  so they read as discrete chapters rather than one long
-                  continuous slab. Each opens with a SectionHeader for
-                  consistent rhythm: numbered chip → H2 → description. */}
-              <SlideCapture slideId="how-it-works">
-                <section
-                  id="how-it-works"
-                  aria-labelledby="how-it-works-heading"
-                  className="border-t border-ink-200/60 bg-paper-raised"
-                >
-                  <div className="mx-auto max-w-5xl px-2 py-20 sm:px-4">
-                    <SectionHeader
-                      index="02"
-                      eyebrow="How it works"
-                      title="Three steps. No screencast software."
-                      description="First-run wires the skill and browser drivers. Point your agent at any flow."
-                      headingId="how-it-works-heading"
-                      meta={`${STEPS.length} steps`}
-                    />
-                    <ol className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                      {STEPS.map((step) => (
-                        <li
-                          key={step.step}
-                          className="space-y-3 rounded-[14px] border border-ink-200 bg-paper p-6"
-                        >
-                          <div className="flex items-baseline gap-3">
-                            <span className="font-mono text-sm tabular-nums text-vermillion-700">
-                              {step.step}
-                            </span>
-                            <span className="text-xs uppercase tracking-[0.16em] text-ink-500">
-                              {step.label}
-                            </span>
-                          </div>
-                          <h3 className="text-lg font-medium tracking-tight text-ink-900">
-                            {step.title}
-                          </h3>
-                          <p className="text-sm text-ink-600">{step.body}</p>
-                          {step.code && (
-                            <CodeBlock
-                              code={step.code.body}
-                              {...(step.code.prompt !== undefined
-                                ? { prompt: step.code.prompt }
-                                : {})}
-                            />
-                          )}
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                </section>
-              </SlideCapture>
-
-              <SlideCapture slideId="gallery">
-                <section
-                  aria-labelledby="gallery-heading"
-                  className="border-t border-ink-200/60 bg-paper"
-                >
-                  <div className="mx-auto max-w-5xl px-2 py-20 sm:px-4">
-                    <SectionHeader
-                      index="03"
-                      eyebrow="In the gallery"
-                      title="Recent fieldwork."
-                      description="Real QA runs, hand-curated."
-                      headingId="gallery-heading"
-                      meta={clips.length > 0 ? `${clips.length} clips` : undefined}
-                    />
-                    <GalleryGrid clips={clips} />
-                  </div>
-                </section>
-              </SlideCapture>
-
-              <SlideCapture slideId="closing">
-                <section className="border-t border-ink-200/60 bg-paper-raised">
-                  <div className="mx-auto max-w-3xl px-2 py-24 text-center sm:px-4">
-                    <p className="font-display text-2xl tracking-tight text-ink-800 sm:text-3xl">
-                      Open source. Receipts for the work agents quietly do.
-                    </p>
-                  </div>
-                </section>
-              </SlideCapture>
-
-              <footer className="border-t border-ink-200 bg-paper">
-                <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-2 py-8 text-xs uppercase tracking-[0.14em] text-ink-500 sm:px-4">
-                  <span className="flex items-center gap-2 text-ink-700">
-                    <TicketMark size={14} className="text-vermillion-500" />
-                    AgentClip
-                  </span>
-                  <a
-                    href={GITHUB_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-ink-700 hover:text-ink-900"
-                  >
-                    <SiGithub aria-hidden="true" className="size-3.5" />
-                    GitHub
-                  </a>
-                </div>
-              </footer>
-            </main>
-          </div>
-        </div>
-      </PageViewfinder>
+          </footer>
+        </main>
+      </div>
     </RecordingProvider>
   )
 }

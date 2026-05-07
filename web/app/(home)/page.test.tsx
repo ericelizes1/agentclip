@@ -76,7 +76,10 @@ describe('HomePage', () => {
       screen.getByRole('heading', { name: 'Three steps. No screencast software.' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Recent fieldwork.' })).toBeInTheDocument()
-    expect(screen.getByText('Onboarding regression')).toBeInTheDocument()
+    // The marquee band duplicates clip titles in markup for its
+    // looping animation, so the gallery row plus the marquee yields
+    // multiple text matches — assert at least one renders.
+    expect(screen.getAllByText('Onboarding regression').length).toBeGreaterThan(0)
   })
 
   it('renders the empty-gallery state when the API returns no rows', async () => {
