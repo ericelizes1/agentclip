@@ -33,12 +33,12 @@ export interface HeroSectionProps {
   className?: string
 }
 
-const HEADLINE_TEXT = 'Your agent shows its work.'
-const PUNCHLINE = 'work.'
+const HEADLINE_TEXT = 'Skip the demo.'
+const PUNCHLINE = 'demo.'
 const HEADLINE_LEAD = HEADLINE_TEXT.slice(
   0,
   HEADLINE_TEXT.length - PUNCHLINE.length,
-) // "Your agent shows its "
+) // "Skip the "
 
 const stagger: Transition = { duration: 0.45, ease: [0.2, 0.7, 0.2, 1] }
 
@@ -150,9 +150,10 @@ export function HeroSection({
         transition={{ ...at(2), delay: reduce ? 0 : 1.5 }}
         className="max-w-[58ch] text-lg text-ink-600 sm:text-xl"
       >
-        With AgentClip, your agent turns every feature into a captured demo.
-        One shareable URL — drop in a Slack thread, embed in a PR, or just
-        bounce ideas around.
+        With AgentClip, your coding agent records its own work and ships you
+        a captioned slideshow — one URL anyone can watch in 30 seconds. No
+        Loom, no narration takes, no &ldquo;let me record one more
+        time.&rdquo;
       </motion.p>
 
       {/*
