@@ -151,7 +151,7 @@ export function HeroSection({
         className="max-w-[58ch] text-lg text-ink-600 sm:text-xl"
       >
         Your coding agent now sends you narrated, shareable walkthroughs of
-        your work. Drop them in PRs, Slack threads, release notes.
+        your work. Drop in PRs, Slack threads, release notes.
       </motion.p>
 
       {/*
