@@ -161,6 +161,8 @@ export default async function HomePage() {
                 <div className="flex items-end justify-between gap-4">
                   <div>
                     <span className="inline-flex items-center gap-2 rounded-full border border-vermillion-500/30 bg-vermillion-500/[0.06] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-vermillion-700">
+                      <span className="font-mono tabular-nums">★</span>
+                      <span aria-hidden="true" className="text-vermillion-500/50">·</span>
                       <span>Featured runs</span>
                     </span>
                     <h2
