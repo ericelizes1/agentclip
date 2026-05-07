@@ -10,7 +10,7 @@
 import { SiGithub } from '@icons-pack/react-simple-icons'
 
 import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
-import { NavBar } from '@/components/composites/NavBar/NavBar'
+import { HomeSidebar } from '@/components/composites/HomeSidebar/HomeSidebar'
 import { RecordingProvider } from '@/components/context/RecordingProvider/RecordingProvider'
 import { TicketMark } from '@/components/primitives/TicketMark/TicketMark'
 import { GalleryGrid, type GalleryClip } from '@/components/patterns/GalleryGrid/GalleryGrid'
@@ -154,18 +154,51 @@ export default async function HomePage() {
   return (
     <RecordingProvider initial={initialRecordingState}>
       <PageViewfinder slides={viewfinderSlides}>
-        <NavBar githubUrl={GITHUB_URL} />
-
         {/*
-          Camera-body layout. The whole page sits inside a centered,
-          bordered "screen" with rounded corners and an inset shadow,
-          on top of a slightly darker paper backdrop. The CaptureStack
-          lives in the right margin of the outer container, sticky-
-          positioned so it stays alongside the screen as the visitor
-          scrolls. On mobile the frame collapses to a normal page.
+          Three-column home layout — no top navbar, no sticky overlay.
+          The screen scrolls cleanly under nothing. Brand + viewfinder
+          chrome live in the left sidebar; capture stack lives in the
+          right sidebar; the page itself sits in a bordered "screen"
+          card in the middle. Both sidebars are sticky so they stay
+          alongside the screen as the visitor scrolls.
+
+          On mobile (< lg), the layout collapses to a single column:
+          a small inline brand row at the top, then the screen, then
+          the page footer. No sidebars below lg.
         */}
-        <div className="bg-paper-raised">
-          <div className="mx-auto grid max-w-[1480px] grid-cols-1 gap-6 px-3 pt-3 pb-8 sm:px-5 sm:pt-5 lg:grid-cols-[minmax(0,1fr)_184px]">
+        <div className="min-h-screen bg-paper-raised">
+          <div className="mx-auto grid max-w-[1520px] grid-cols-1 gap-6 px-4 pt-4 pb-10 sm:px-6 sm:pt-6 lg:grid-cols-[200px_minmax(0,1fr)_184px] lg:px-7 lg:pt-7">
+            {/* LEFT — sidebar with brand + viewfinder chrome (lg+ only). */}
+            <aside className="hidden lg:block">
+              <div className="sticky top-7">
+                <HomeSidebar githubUrl={GITHUB_URL} />
+              </div>
+            </aside>
+
+            {/* MOBILE — inline brand row at the top of the page. */}
+            <div className="flex items-center justify-between lg:hidden">
+              <a
+                href="/"
+                className="flex items-center gap-2 text-ink-900"
+              >
+                <TicketMark
+                  size={18}
+                  className="text-vermillion-500"
+                />
+                <span className="font-semibold tracking-tight">AgentClip</span>
+              </a>
+              <a
+                href={GITHUB_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-sm text-ink-700 hover:text-ink-900"
+              >
+                <SiGithub aria-hidden="true" className="size-4" />
+                <span>GitHub</span>
+              </a>
+            </div>
+
+            {/* CENTER — the screen. */}
             <div className="relative overflow-hidden rounded-[18px] border border-ink-200 bg-paper shadow-[0_24px_60px_-30px_rgba(20,20,19,0.18),0_2px_8px_-4px_rgba(20,20,19,0.06)]">
               {/* Inner corner brackets — the "lens" of the camera. */}
               <ScreenCorner position="top-left" />
@@ -278,11 +311,9 @@ export default async function HomePage() {
               </footer>
             </div>
 
-            {/* Side panel column — sticky-positioned alongside the screen.
-                Hidden on mobile; surfaces from xl up where the layout
-                has room for the contact-sheet strip. */}
+            {/* RIGHT — capture stack column, sticky alongside the screen. */}
             <aside className="hidden lg:block">
-              <div className="sticky top-[88px]">
+              <div className="sticky top-7">
                 {featured && (
                   <CaptureStack
                     walkthroughHref={`/s/${featured.shareToken}`}
