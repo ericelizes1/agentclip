@@ -48,7 +48,7 @@ wherever it shows up. Reality today:
   reviewer is on a locked-down corp network.
 
 This plan closes all four gaps with a single rendering pipeline (render_version
-+ R2-cached artifacts + django-rq worker) and a small set of share-page
++ R2-cached artifacts + Celery worker) and a small set of share-page
 affordances. No origin requirements document exists — requirements were
 established in a chat brainstorm captured below.
 
@@ -77,7 +77,7 @@ established in a chat brainstorm captured below.
   + delete-slide). Edits invalidate the cached MP4 and PDF; subsequent external
   fetches re-render lazily.
 - **R8.** Render is execution-isolated: a separate Fly process group runs
-  django-rq workers backed by the existing Redis URL. ffmpeg and WeasyPrint
+  Celery workers backed by the existing Redis URL. ffmpeg and WeasyPrint
   ship in the worker image. Render failures don't block the API.
 - **R9.** The agent-facing CLI surfaces the new artifact URLs in the response of
   `slideshow create` / `add` / `summary` so the bundled skill can echo them
@@ -142,7 +142,7 @@ established in a chat brainstorm captured below.
 - `api/agentclip_app/settings.py` `STORAGES` (lines 161-197) — R2 backend wiring;
   rendered files use the same backend transparently via FileField.
 - `api/fly.toml` — current single-process app config. Worker process group is a
-  copy-paste expansion; the existing Redis URL secret feeds django-rq directly.
+  copy-paste expansion; the existing Redis URL secret feeds Celery directly.
 - `web/components/patterns/VideoClipPlayer/VideoClipPlayer.tsx` — keep as-is;
   it's the in-app watch surface for both `/s/<token>` and `/embed/<token>`.
 - `web/app/s/[token]/page.tsx` — current detail page; today it doesn't render
@@ -201,11 +201,14 @@ established in a chat brainstorm captured below.
   The MP4 file exists for *external* surfaces (GitHub PRs, OG video unfurls)
   that demand a real video file. This avoids loading-state complexity inside
   the app and keeps in-app playback instant.
-- **Render execution = django-rq + Redis + Fly worker process group.** No
-  managed video service. Existing Redis URL feeds django-rq directly; ffmpeg
-  and WeasyPrint ship in the worker image. Trade managed-service cost and
-  vendor lock-in for owning the render path. Renders are short (max ~3-min
-  clips, sub-30s render time), volume is tiny, and we already have Redis.
+- **Render execution = Celery + Redis + Fly worker process group.** No
+  managed video service. Existing `REDIS_URL` is reused as Celery's broker
+  (and result backend, though we don't read results — jobs are fire-and-forget
+  side effects on the Slideshow row). Celery brings retries with exponential
+  backoff, chains, and a familiar deploy/observability story for the (future)
+  case where renders need orchestration beyond "run this once". ffmpeg and
+  WeasyPrint ship in the worker image. Trade slightly heavier setup vs.
+  Celery for the operational maturity.
 - **Worker image vs API image.** Both use the same Dockerfile but the worker
   layer additionally `apt-get install`s ffmpeg and adds WeasyPrint's system
   deps. Different process group in `fly.toml`, same machine class, auto-stops
@@ -514,45 +517,58 @@ shape of `mp4.py`.
 
 ---
 
-- [ ] **Unit 4: Worker infrastructure + render jobs**
+- [ ] **Unit 4: Worker infrastructure + render jobs (Celery)**
 
-**Goal:** A second Fly process group that runs django-rq workers, consuming
-render jobs that call into Units 2 and 3 and persist the resulting bytes onto
-the `Slideshow` FileFields.
+**Goal:** A second Fly process group that runs Celery workers, consuming
+render tasks that call into Units 2 and 3 and persist the resulting bytes
+onto the `Slideshow` FileFields.
 
 **Requirements:** R8, R10
 
 **Dependencies:** Unit 1 (FileFields exist), Units 2 & 3 (pure modules exist)
 
 **Files:**
-- Create: `api/slideshows/jobs.py`
-- Modify: `api/agentclip_app/settings.py` (django-rq config)
-- Modify: `api/requirements.txt` (`django-rq`)
+- Create: `api/agentclip_app/celery.py` (Celery app definition)
+- Modify: `api/agentclip_app/__init__.py` (eager-load Celery app on Django start)
+- Create: `api/slideshows/tasks.py` (`render_clip_mp4`, `render_clip_pdf`)
+- Modify: `api/agentclip_app/settings.py` (Celery config: broker URL, task autodiscovery, queue routing)
+- Modify: `api/requirements.txt` (`celery[redis]`)
 - Modify: `api/Dockerfile` (install ffmpeg + WeasyPrint system deps)
-- Modify: `api/fly.toml` (worker process group)
-- Modify: `api/slideshows/views.py` (`set_summary` triggers pre-warm enqueue)
-- Test: `api/slideshows/test_jobs.py`
+- Modify: `api/fly.toml` (`[processes]` table with `app` + `worker`)
+- Modify: `api/slideshows/views.py` (`slideshow_detail` PATCH triggers
+  pre-warm enqueue when `summary` lands)
+- Test: `api/slideshows/test_tasks.py`
 
 **Approach:**
-- Two rq jobs: `render_clip_mp4(slideshow_id)` and `render_clip_pdf(slideshow_id)`.
-  Each loads the slideshow + ordered slides, calls the relevant pure module,
-  saves the result bytes to the appropriate FileField via `field.save(name, ContentFile(bytes))`,
-  and only saves if the slideshow's `render_version` hasn't moved during the
-  render (otherwise discard — a newer render is queued anyway).
-- The `render_version` recheck is the safety net for the race: edit happens
-  during render, render finishes, but its output is stale. Compare the
-  pre-render version to the post-render slideshow row; if they differ, drop
-  the result silently and let the new edit's enqueue produce the fresh artifact.
-- Pre-warm on `set_summary`: after the existing endpoint commits, enqueue both
-  jobs at low priority via `django_rq.get_queue('renders').enqueue(...)`.
-  Same `transaction.on_commit` pattern as Unit 1.
-- Fly worker process group: in `fly.toml`, add `[processes]` with
-  `app = "..."` and `worker = "python manage.py rqworker default renders"`.
-  Each process group becomes its own machine pool. Auto-stops when queue is
-  empty.
-- Dockerfile changes: `RUN apt-get install -y ffmpeg` for video; WeasyPrint's
-  system deps (cairo, pango, gdk-pixbuf, libffi). Worker image inherits from
-  the same base image as the API.
+- Two Celery tasks: `render_clip_mp4(slideshow_id)` and
+  `render_clip_pdf(slideshow_id)`. Each loads the slideshow + ordered slides,
+  calls the relevant pure module, and saves the result bytes to the
+  appropriate FileField via `field.save(name, ContentFile(bytes))`. The
+  task records the slideshow's `render_version` at task entry and
+  re-checks it before persisting — if the version moved during the render
+  (concurrent edit), the output is discarded and the newer edit's enqueue
+  re-renders.
+- Celery config: `broker_url = REDIS_URL`, `result_backend` left unset
+  (jobs are fire-and-forget; we don't read results), `task_acks_late=True`,
+  `worker_prefetch_multiplier=1` (renders are heavy; don't prefetch a queue
+  of unfinished work into a worker process). Single queue named `renders`.
+- Auto-retry config on the task decorator: `autoretry_for=(MP4RenderError,
+  PDFRenderError)`, `retry_backoff=True`, `retry_kwargs={'max_retries': 3}`.
+  Transient ffmpeg / WeasyPrint failures (e.g., R2 fetch hiccups) self-heal
+  without operator intervention; deterministic failures end up in the
+  failed-task store after 3 tries.
+- Pre-warm on `set_summary`: when `slideshow_detail` PATCH includes
+  `summary`, after the bump on_commit fires, enqueue both tasks via
+  `transaction.on_commit(lambda: render_clip_mp4.delay(str(slideshow.id)))`.
+- Fly worker process group: `[processes]` table in `fly.toml` with
+  `app = "gunicorn ..."` and `worker = "celery -A agentclip_app worker
+  -Q renders -l info"`. Auto-stops on queue idle (Fly's default behavior
+  for a non-`http_service` process group with `auto_start_machines=true`
+  and a separate `[[mounts]]` config — keep the existing single-machine
+  shape for the worker too).
+- Dockerfile: `RUN apt-get install -y ffmpeg fonts-liberation libcairo2
+  libpango-1.0-0 libpangoft2-1.0-0 libgdk-pixbuf-2.0-0 libffi8 shared-mime-info`.
+  Worker and API share the image; the entrypoint differs by process group.
 
 **Patterns to follow:**
 - `api/slideshows/management/commands/narrate.py` for the model-touching
@@ -946,7 +962,7 @@ them. Lazy render means agents never have to call render explicitly. A
 | WeasyPrint system deps balloon the worker image / break the build. | Use the official Debian package set documented by WeasyPrint; pin to a single base image; build the worker image in CI to catch regressions before deploy. |
 | ffmpeg subprocess on a 768MB Fly machine OOMs on a long clip. | Worker process group runs on its own machine pool (separate from the API). Set `--max-muxing-queue-size` modestly and impose a hard timeout per render. Bump machine size if real renders OOM; cheap. |
 | Edit happens during render, render output is stale, gets persisted, external consumer sees stale output. | Post-render `render_version` recheck in the job (Unit 4) — discard if stale, let the new edit's enqueue produce the fresh artifact. |
-| Hot-retry loops on a pathological render (broken slideshow) overwhelm the worker. | Lazy-enqueue rate limit (60s) in the public endpoint (Unit 5). Failed jobs go to rq's failure queue and are not auto-retried; operator clears them via `rqworker` admin or a future maintenance command. |
+| Hot-retry loops on a pathological render (broken slideshow) overwhelm the worker. | Lazy-enqueue rate limit (60s) in the public endpoint (Unit 5). Celery's `autoretry_for` + `retry_backoff=True` + `max_retries=3` keeps transient failures self-healing without runaway retries; deterministic failures land in the failed-task store after the third try and are observable via `celery inspect`. |
 | Storage grows unbounded as edits accumulate `v<n>` paths. | Acceptable in v1 — single-digit MB per clip, edits are infrequent. Future GC management command listed in Deferred to Separate Tasks. |
 | OG video unfurl uses `og:video:secure_url` pointing at an MP4 that hasn't rendered yet → first paste in Slack shows broken player. | Pre-warm on `set_summary` and the OG poster fallback to first slide's `media_url` in Unit 6 means the unfurl always has an image even if the video isn't ready. Slack re-fetches OG tags periodically; subsequent paste lands the working video. |
 
@@ -955,8 +971,10 @@ them. Lazy render means agents never have to call render explicitly. A
 - Update bundled skill (`agentclip-python/src/agentclip/skill/SKILL.md`) per Unit 9.
 - Operator runbook: a new entry under `agentclip/api/README.md` (or wherever
   ops notes live) describing how to inspect failed renders via
-  `fly logs --process-group worker` and how to manually re-enqueue via the
-  Django shell.
+  `fly logs --process-group worker`, how to inspect the Celery queue depth
+  via `celery -A agentclip_app inspect active` from a Fly SSH shell, and how
+  to manually re-enqueue via `python manage.py shell` (the
+  `regenerate_clip` SDK call wraps this for end users).
 - New worker process group is observable via `fly status` and `fly logs`.
   Add a smoke check to the deploy: after deploy, fetch a known clip's
   `.mp4` URL once to ensure the worker pipeline is healthy.
