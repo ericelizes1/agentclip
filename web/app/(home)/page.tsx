@@ -165,7 +165,7 @@ export default async function HomePage() {
           scrolls. On mobile the frame collapses to a normal page.
         */}
         <div className="bg-paper-raised">
-          <div className="mx-auto grid max-w-[1480px] grid-cols-1 gap-6 px-3 pt-3 pb-8 sm:px-5 sm:pt-5 xl:grid-cols-[minmax(0,1fr)_184px]">
+          <div className="mx-auto grid max-w-[1480px] grid-cols-1 gap-6 px-3 pt-3 pb-8 sm:px-5 sm:pt-5 lg:grid-cols-[minmax(0,1fr)_184px]">
             <div className="relative overflow-hidden rounded-[18px] border border-ink-200 bg-paper shadow-[0_24px_60px_-30px_rgba(20,20,19,0.18),0_2px_8px_-4px_rgba(20,20,19,0.06)]">
               {/* Inner corner brackets — the "lens" of the camera. */}
               <ScreenCorner position="top-left" />
@@ -281,7 +281,7 @@ export default async function HomePage() {
             {/* Side panel column — sticky-positioned alongside the screen.
                 Hidden on mobile; surfaces from xl up where the layout
                 has room for the contact-sheet strip. */}
-            <aside className="hidden xl:block">
+            <aside className="hidden lg:block">
               <div className="sticky top-[88px]">
                 {featured && (
                   <CaptureStack
