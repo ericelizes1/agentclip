@@ -100,18 +100,21 @@ export function HeroSection({
   return (
     <section
       className={cn(
-        // Editorial hero: wider container, oversized headline, generous
-        // negative space. Each block lands as a separate beat rather
-        // than running into the next.
-        'relative mx-auto flex max-w-5xl flex-col gap-10 px-6 py-24 sm:px-10 sm:py-32',
+        // Two-column hero on lg+: text/CTA stack on the left, polaroid
+        // embed of a real clip on the right. Above the fold the visitor
+        // sees both the pitch and the proof. On mobile the columns
+        // collapse and the polaroid follows the CTA, preserving the
+        // single-column reading order.
+        'relative mx-auto grid max-w-6xl grid-cols-1 gap-y-12 px-6 py-24 sm:px-10 sm:py-28',
+        'lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] lg:gap-x-12',
         className,
       )}
     >
+      <div className="flex flex-col gap-10 lg:gap-9">
       {/*
         Editorial issue chip — small magazine-style marker at the top
-        of the hero. Replaces the now-removed brand-mark beat with
-        something that signals "this is a published piece" rather
-        than "this is a generic landing page".
+        of the hero. Signals "this is a published piece" rather than
+        "this is a generic landing page".
       */}
       <motion.div
         initial={reduce ? false : { opacity: 0, y: 4 }}
@@ -133,10 +136,10 @@ export function HeroSection({
         className={cn(
           // Display serif (Fraunces) for the hero headline only — the
           // signature voice of the page. Body and chrome stay Geist.
-          // Magazine-cover scale: pushes to 7rem on desktop so the
-          // hero feels like a STATEMENT, not a feature header.
+          // Slightly smaller cap than full-width to leave room for the
+          // polaroid in the right column on lg+ — still reads big.
           'font-display font-semibold tracking-[-0.025em] leading-[0.98] text-ink-900',
-          'text-[clamp(2.75rem,1.4rem+6vw,6.25rem)]',
+          'text-[clamp(2.5rem,1.6rem+4.2vw,5rem)]',
         )}
       >
         <Typewriter
@@ -218,18 +221,22 @@ export function HeroSection({
           View source on GitHub
         </a>
       </motion.div>
+      </div>
 
+      {/* RIGHT COLUMN — polaroid embed of a real agent run. Sits at
+          the top of the column, slightly tilted, with an editorial
+          caption + a "rubber stamp" detail underneath that fills the
+          remaining vertical space without bloating the embed itself. */}
       {featured && featured.slides.length > 0 && (
         <motion.figure
-          initial={reduce ? false : { opacity: 0, y: 16, rotate: -1.3 }}
-          animate={{ opacity: 1, y: 0, rotate: reduce ? 0 : -0.6 }}
+          initial={reduce ? false : { opacity: 0, y: 16, rotate: -1.5 }}
+          animate={{ opacity: 1, y: 0, rotate: reduce ? 0 : -1 }}
           transition={{ ...at(5), delay: reduce ? 0 : 1.85 }}
           className={cn(
-            // Polaroid-style framing: rotated slightly so the embed
-            // reads as a curated artifact pinned to the page rather
-            // than another centered widget. Hovering lifts + levels.
-            'group/embed relative mt-6 transition-transform duration-300 ease-out',
+            'group/embed relative flex flex-col gap-5 self-start',
+            'transition-transform duration-300 ease-out',
             'hover:rotate-0 hover:scale-[1.005]',
+            'lg:sticky lg:top-24',
           )}
         >
           <HeroPreview
@@ -240,16 +247,23 @@ export function HeroSection({
               : {})}
             slides={featured.slides}
           />
-          {/*
-            Italic caption beneath the embed — magazine-style. Reads
-            as the editor's note, not as functional UI text. The em
-            dash is decorative, not a typo.
-          */}
-          <figcaption className="mt-4 max-w-[60ch] font-display text-sm italic leading-snug text-ink-500">
+
+          {/* Italic caption + rubber-stamp detail. The stamp gives the
+              right column an editorial flourish so the polaroid + text
+              read as a single curated artifact. */}
+          <figcaption className="font-display text-[15px] italic leading-snug text-ink-500">
             <span className="text-vermillion-700">↑</span>{' '}
             agentclip.dev itself, captured by the agent that built it.
             One real run, four shareable frames.
           </figcaption>
+
+          <div
+            aria-hidden="true"
+            className="ml-auto mt-1 inline-flex rotate-[-4deg] flex-col items-center gap-0.5 rounded-[6px] border-2 border-vermillion-500/70 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-vermillion-700/85"
+          >
+            <span className="font-mono tabular-nums">REC · 00:00:42</span>
+            <span className="text-[8px] tracking-[0.3em]">FILED 2026</span>
+          </div>
         </motion.figure>
       )}
     </section>
