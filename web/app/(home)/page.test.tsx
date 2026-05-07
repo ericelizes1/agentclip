@@ -100,10 +100,17 @@ describe('HomePage', () => {
     mockedGet.mockResolvedValueOnce({ data: [], error: undefined } as never)
     await renderHome()
 
+    // Closing statement is split across spans for the italic + underlined
+    // emphasis on "Receipts" — match by content instead of exact string.
     expect(
-      screen.getByText('Open source. Receipts for the work agents quietly do.'),
+      screen.getByText(
+        (_, node) =>
+          node?.textContent ===
+          'Open source. Receipts for the work agents quietly do.',
+      ),
     ).toBeInTheDocument()
-    const githubLinks = screen.getAllByRole('link', { name: /github/i })
-    expect(githubLinks.length).toBeGreaterThanOrEqual(1)
+    expect(
+      screen.getByRole('link', { name: /Read the source/ }),
+    ).toBeInTheDocument()
   })
 })
