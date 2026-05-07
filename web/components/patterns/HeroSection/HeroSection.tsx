@@ -248,13 +248,14 @@ export function HeroSection({
             slides={featured.slides}
           />
 
-          {/* Italic caption + rubber-stamp detail. The stamp gives the
-              right column an editorial flourish so the polaroid + text
-              read as a single curated artifact. */}
+          {/* Italic caption pulls the featured clip's actual title +
+              slide count so the editor's note matches whatever clip is
+              currently in the hero slot — not hardcoded. The stamp
+              underneath is a curated flourish, not data-driven. */}
           <figcaption className="font-display text-[15px] italic leading-snug text-ink-500">
             <span className="text-vermillion-700">↑</span>{' '}
-            agentclip.dev itself, captured by the agent that built it.
-            One real run, four shareable frames.
+            {featured.title} — one real agent run,{' '}
+            {featured.slides.length} shareable frames.
           </figcaption>
 
           <div

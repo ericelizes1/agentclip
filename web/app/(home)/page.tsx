@@ -102,9 +102,31 @@ async function fetchFullSlideshow(token: string): Promise<HeroFeaturedClip | nul
   }
 }
 
+// Detects the AgentClip-on-AgentClip "meta" clips so we can prefer
+// real fieldwork in the hero polaroid. Pure-paper screenshots of our
+// own site read as bland next to the colorful product captures
+// elsewhere in the gallery — the hero earns more attention with a
+// real-world example. Falls back to the first clip when the gallery
+// has nothing but meta clips (early days, empty curation, etc).
+function isLikelyMeta(row: { title: string; description?: string }): boolean {
+  const haystack = `${row.title} ${row.description ?? ''}`.toLowerCase()
+  return /agentclip|screencast\.?$|agentclip\.dev/i.test(haystack)
+}
+
 export default async function HomePage() {
   const galleryRows = await fetchGallery()
-  const [heroRow, ...galleryCards] = galleryRows
+
+  // Pick the most visually rich clip for the hero polaroid: the first
+  // non-meta entry, falling back to position 0 if everything looks
+  // self-referential. The remaining rows become gallery cards in
+  // their original curation order so the env-var ordering still
+  // controls the gallery section directly.
+  const heroIdx = (() => {
+    const idx = galleryRows.findIndex((row) => !isLikelyMeta(row))
+    return idx >= 0 ? idx : 0
+  })()
+  const heroRow = galleryRows[heroIdx]
+  const galleryCards = galleryRows.filter((_, i) => i !== heroIdx)
   const featured = heroRow ? await fetchFullSlideshow(heroRow.shareToken) : null
   const clips = galleryCards
 
