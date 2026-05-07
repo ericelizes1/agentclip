@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ slideshow.title|default:"AgentClip walkthrough" }}</title>
+<style>
+@page {
+  size: A4 portrait;
+  margin: 18mm 18mm 22mm 18mm;
+  @bottom-center {
+    content: "Made with AgentClip — agentclip.dev";
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 9pt;
+    color: #6f6f6f;
+  }
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 9pt;
+    color: #6f6f6f;
+  }
+}
+@page:first {
+  /* Cover page hides the running footer numbers since it isn't a slide. */
+  @bottom-center { content: ""; }
+  @bottom-right { content: ""; }
+}
+* { box-sizing: border-box; }
+html, body {
+  font-family: Helvetica, Arial, sans-serif;
+  color: #181818;
+  font-size: 11pt;
+  line-height: 1.45;
+  margin: 0;
+  padding: 0;
+}
+.cover {
+  page-break-after: always;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 245mm;
+  text-align: center;
+}
+.cover .eyebrow {
+  font-size: 9pt;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #c8281a;
+  margin-bottom: 18mm;
+}
+.cover h1 {
+  font-size: 28pt;
+  line-height: 1.15;
+  margin: 0 0 12mm;
+  font-weight: 700;
+}
+.cover .summary {
+  max-width: 145mm;
+  margin: 0 auto 14mm;
+  font-size: 12pt;
+  line-height: 1.55;
+  color: #2a2a2a;
+}
+.cover .credit {
+  font-size: 10pt;
+  color: #5a5a5a;
+}
+.cover .credit a {
+  color: #c8281a;
+  text-decoration: none;
+}
+.slide {
+  page-break-before: always;
+  display: flex;
+  flex-direction: column;
+}
+.slide .position {
+  font-size: 8.5pt;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #9a9a9a;
+  margin-bottom: 4mm;
+}
+.slide h2 {
+  font-size: 16pt;
+  line-height: 1.25;
+  margin: 0 0 6mm;
+  font-weight: 700;
+}
+.slide .media-wrap {
+  background: #111;
+  border-radius: 4mm;
+  overflow: hidden;
+  width: 100%;
+  /* Leave room below for the caption. The image is letterboxed inside. */
+  height: 130mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6mm;
+}
+.slide img {
+  max-width: 100%;
+  max-height: 130mm;
+  object-fit: contain;
+  display: block;
+}
+.slide .video-placeholder {
+  color: #c8c8c8;
+  font-size: 11pt;
+  letter-spacing: 0.05em;
+}
+.slide .caption {
+  font-size: 11pt;
+  line-height: 1.55;
+  color: #181818;
+}
+.endcard {
+  page-break-before: always;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 245mm;
+  text-align: center;
+}
+.endcard .brand {
+  font-size: 9pt;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #c8281a;
+  margin-bottom: 14mm;
+}
+.endcard h2 {
+  font-size: 22pt;
+  margin: 0 0 8mm;
+}
+.endcard .share {
+  font-size: 12pt;
+  color: #2a2a2a;
+}
+.endcard .share .url {
+  display: inline-block;
+  margin-top: 4mm;
+  padding: 3mm 8mm;
+  border: 1pt solid #181818;
+  border-radius: 2mm;
+  font-family: Menlo, monospace;
+  font-size: 10pt;
+  color: #181818;
+}
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="eyebrow">AgentClip walkthrough</div>
+  <h1>{{ slideshow.title|default:"Untitled walkthrough" }}</h1>
+  {% if slideshow.summary %}
+    <p class="summary">{{ slideshow.summary }}</p>
+  {% elif slideshow.description %}
+    <p class="summary">{{ slideshow.description }}</p>
+  {% endif %}
+  {% if slideshow.created_by %}
+    <p class="credit">
+      by
+      {% if slideshow.created_by_url %}
+        <a href="{{ slideshow.created_by_url }}">{{ slideshow.created_by }}</a>
+      {% else %}
+        {{ slideshow.created_by }}
+      {% endif %}
+    </p>
+  {% endif %}
+</section>
+
+{% for slide in slides %}
+<section class="slide">
+  <div class="position">Slide {{ forloop.counter }} of {{ slides|length }}</div>
+  {% if slide.title %}
+    <h2>{{ slide.title }}</h2>
+  {% endif %}
+  <div class="media-wrap">
+    {% if slide.media_kind == "video" and not slide.image_bytes %}
+      <span class="video-placeholder">▶ video clip — view at {{ slideshow.share_url }}</span>
+    {% else %}
+      <img src="{{ slide.image_data_url }}" alt="">
+    {% endif %}
+  </div>
+  <p class="caption">{{ slide.caption }}</p>
+</section>
+{% endfor %}
+
+<section class="endcard">
+  <div class="brand">AgentClip</div>
+  <h2>Watch the live version</h2>
+  <p class="share">
+    The narrated, interactive walkthrough lives at:
+    <br>
+    <span class="url">{{ slideshow.share_url }}</span>
+  </p>
+</section>
+
+</body>
+</html>
