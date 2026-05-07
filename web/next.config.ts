@@ -40,7 +40,7 @@ const nextConfig: NextConfig = {
     ]
   },
   async rewrites() {
-    const apiOrigin = process.env.AGENTCLIP_API_ORIGIN ?? 'http://localhost:8000'
+    const apiOrigin = process.env.AGENTCLIP_API_URL ?? 'http://localhost:8000'
     return [
       { source: '/media/:path*', destination: `${apiOrigin}/media/:path*` },
       // Render artifacts: GitHub PRs only render inline `.mp4` URLs, so
