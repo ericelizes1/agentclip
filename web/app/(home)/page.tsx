@@ -352,10 +352,10 @@ function ScreenCorner({
   position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
 }) {
   const placement = {
-    'top-left': 'top-3 left-3',
-    'top-right': 'top-3 right-3',
-    'bottom-left': 'bottom-3 left-3',
-    'bottom-right': 'bottom-3 right-3',
+    'top-left': 'top-2 left-2',
+    'top-right': 'top-2 right-2',
+    'bottom-left': 'bottom-2 left-2',
+    'bottom-right': 'bottom-2 right-2',
   }[position]
   const rotation = {
     'top-left': 0,
@@ -369,12 +369,15 @@ function ScreenCorner({
       className={`pointer-events-none absolute z-30 ${placement}`}
       style={{ transform: `rotate(${rotation}deg)` }}
     >
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      {/* Big, bold corner. 44×44 with a thick stroke reads clearly at
+          viewport scale and asserts the "lens" framing. */}
+      <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
         <path
-          d="M2 11 V2 H11"
+          d="M3 24 L3 3 L24 3"
           stroke="var(--color-vermillion-500, #d94824)"
-          strokeWidth="1.4"
+          strokeWidth="2.75"
           strokeLinecap="round"
+          strokeLinejoin="round"
         />
       </svg>
     </span>
