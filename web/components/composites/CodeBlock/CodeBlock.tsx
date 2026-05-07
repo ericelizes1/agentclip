@@ -18,21 +18,22 @@ export interface CodeBlockProps {
 /**
  * Click-to-copy code panel. The entire block is the click target —
  * no separate button — and the copy/check glyph in the corner is a
- * pure visual indicator (it shows what will happen, then confirms
- * it). Activating with Enter or Space also copies, so keyboard users
- * get the same affordance.
+ * pure visual indicator. On copy, a small burst of vermillion
+ * particles radiates from the indicator and a "Copied" tooltip fades
+ * in for 1.6s.
  *
- * Resets the "Copied" feedback after 1.6s — long enough for the eye
- * to land on it, short enough that a second copy attempt isn't
- * blocked by stale UI state.
+ * Activating with Enter or Space also copies, so keyboard users get
+ * the same affordance.
  */
 export function CodeBlock({ code, prompt, label, className }: CodeBlockProps) {
   const [copied, setCopied] = useState(false)
+  const [burstKey, setBurstKey] = useState(0)
 
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(code)
       setCopied(true)
+      setBurstKey((k) => k + 1)
       setTimeout(() => setCopied(false), 1600)
     } catch {
       // Clipboard API can fail in insecure contexts or when the user
@@ -68,7 +69,7 @@ export function CodeBlock({ code, prompt, label, className }: CodeBlockProps) {
           {label}
         </div>
       )}
-      <pre className="overflow-x-auto px-4 py-3 pr-10 font-mono text-sm leading-6 text-ink-800">
+      <pre className="overflow-x-auto px-4 py-3 pr-12 font-mono text-sm leading-6 text-ink-800">
         {code.split('\n').map((line, i) => (
           <div key={i}>
             {prompt && <span className="select-none text-ink-400">{prompt} </span>}
@@ -76,25 +77,79 @@ export function CodeBlock({ code, prompt, label, className }: CodeBlockProps) {
           </div>
         ))}
       </pre>
-      {/* Pure visual indicator — the actual click target is the whole
-          panel above. Vertically centered against the panel so single-
-          line snippets read balanced; multi-line panels still show the
-          icon at the visual midline. Swaps to a vermillion check on
-          copy and resets after 1.6s. */}
+      {/* Indicator stack: glyph + burst particles + 'Copied' tooltip.
+          The whole stack is centered against the panel's vertical
+          midline so single-line snippets look balanced. */}
       <span
         aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 inline-flex size-4 items-center justify-center',
-          'transition-colors duration-150',
-          copied ? 'text-vermillion-600' : 'text-ink-400 group-hover:text-ink-700',
+          'pointer-events-none absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center',
         )}
       >
-        {copied ? (
-          <Check className="size-4" />
-        ) : (
-          <Copy className="size-3.5" />
-        )}
+        {/* "Copied" floating label — fades in on copy, fades out on
+            reset. Sits to the LEFT of the glyph. */}
+        <span
+          className={cn(
+            'mr-2 inline-block text-[10px] font-semibold uppercase tracking-[0.14em] text-vermillion-700',
+            'transition-all duration-200',
+            copied
+              ? 'translate-x-0 opacity-100'
+              : 'translate-x-1 opacity-0',
+          )}
+        >
+          Copied
+        </span>
+        {/* Glyph + radiating particle burst */}
+        <span
+          className={cn(
+            'relative inline-flex size-4 items-center justify-center',
+            'transition-colors duration-150',
+            copied ? 'text-vermillion-600' : 'text-ink-400 group-hover:text-ink-700',
+          )}
+        >
+          {copied ? (
+            <Check className="size-4" />
+          ) : (
+            <Copy className="size-3.5" />
+          )}
+          {/* Six small vermillion sparks radiating outward on each
+              copy. Re-keyed via burstKey so the animation replays on
+              repeat copies. CSS-only — no framer-motion needed. */}
+          {copied && <Sparks key={burstKey} />}
+        </span>
       </span>
     </div>
+  )
+}
+
+function Sparks() {
+  // Six particles arranged in a hex pattern. Each fades + travels
+  // outward then disappears. Vermillion, ~6px diameter.
+  const positions = [
+    { x: -10, y: 0 },
+    { x: -7, y: -7 },
+    { x: 7, y: -7 },
+    { x: 10, y: 0 },
+    { x: 7, y: 7 },
+    { x: -7, y: 7 },
+  ]
+  return (
+    <span className="pointer-events-none absolute inset-0">
+      {positions.map((pos, i) => (
+        <span
+          key={i}
+          aria-hidden="true"
+          className="absolute left-1/2 top-1/2 inline-block size-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-vermillion-500 opacity-0"
+          style={{
+            animation: `spark-out 0.55s ease-out forwards`,
+            animationDelay: `${i * 0.015}s`,
+            // CSS variables consumed by the keyframe (defined in
+            // globals.css) so each particle travels to its slot.
+            ['--spark-x' as string]: `${pos.x}px`,
+            ['--spark-y' as string]: `${pos.y}px`,
+          }}
+        />
+      ))}
+    </span>
   )
 }

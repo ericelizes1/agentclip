@@ -13,7 +13,10 @@ import { SiGithub } from '@icons-pack/react-simple-icons'
 import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
 import { NavBar } from '@/components/composites/NavBar/NavBar'
 import { SectionHeader } from '@/components/composites/SectionHeader/SectionHeader'
+import { TrustBar, fetchStarCount } from '@/components/composites/TrustBar/TrustBar'
 import { RecordingProvider } from '@/components/context/RecordingProvider/RecordingProvider'
+import { Magnetic } from '@/components/primitives/Magnetic/Magnetic'
+import { ScrollReveal } from '@/components/primitives/ScrollReveal/ScrollReveal'
 import { TicketMark } from '@/components/primitives/TicketMark/TicketMark'
 import { GalleryGrid, type GalleryClip } from '@/components/patterns/GalleryGrid/GalleryGrid'
 import {
@@ -108,7 +111,10 @@ async function fetchFullSlideshow(token: string): Promise<HeroFeaturedClip | nul
 }
 
 export default async function HomePage() {
-  const galleryRows = await fetchGallery()
+  const [galleryRows, starCount] = await Promise.all([
+    fetchGallery(),
+    fetchStarCount('ericelizes1/agentclip'),
+  ])
 
   // Hero pick is curated server-side via Slideshow.is_hero (admin /
   // Django admin / future agentclip CLI command). The frontend just
@@ -149,7 +155,15 @@ export default async function HomePage() {
         <main>
           <HeroSection githubUrl={GITHUB_URL} featured={featured} />
 
+          {/* Trust bar — tiny row of legitimacy signals between hero
+              and marquee. Live GitHub star count, plus "Free" / "Open
+              source" / "Self-hosted" facts. Honest, not theatrical. */}
+          <div className="mx-auto max-w-5xl px-6 pb-10">
+            <TrustBar repo="ericelizes1/agentclip" stars={starCount} />
+          </div>
+
           {marqueeClips.length > 0 && (
+            <ScrollReveal>
             <section
               aria-labelledby="marquee-heading"
               className="border-y border-ink-200 bg-paper-raised pb-12 pt-12"
@@ -179,8 +193,10 @@ export default async function HomePage() {
               </div>
               <MarqueeBand clips={marqueeClips} />
             </section>
+            </ScrollReveal>
           )}
 
+          <ScrollReveal>
           <section
             id="how-it-works"
             aria-labelledby="how-it-works-heading"
@@ -262,7 +278,9 @@ export default async function HomePage() {
               </ol>
             </div>
           </section>
+          </ScrollReveal>
 
+          <ScrollReveal>
           <section
             aria-labelledby="gallery-heading"
             className="border-t border-ink-200 bg-paper-raised"
@@ -279,6 +297,7 @@ export default async function HomePage() {
               <GalleryGrid clips={clips} />
             </div>
           </section>
+          </ScrollReveal>
 
           {/*
             End-credits closing. Big Fraunces statement with the key
@@ -286,6 +305,7 @@ export default async function HomePage() {
             a callback to the hero punchline. Followed by a real CTA
             pair so the page ends in an action rather than a sigh.
           */}
+          <ScrollReveal>
           <section className="border-t border-ink-200 bg-paper">
             <div className="mx-auto max-w-4xl px-6 py-32 text-center">
               <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-ink-300 bg-paper px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-500">
@@ -301,6 +321,7 @@ export default async function HomePage() {
                 for the work agents quietly do.
               </p>
               <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+                <Magnetic>
                 <a
                   href="#how-it-works"
                   className="inline-flex items-center gap-2 rounded-full bg-vermillion-500 px-5 py-2.5 text-sm font-medium tracking-tight text-paper shadow-[0_8px_22px_-12px_rgba(217,72,36,0.65)] transition-transform duration-200 ease-out hover:-translate-y-px"
@@ -316,6 +337,7 @@ export default async function HomePage() {
                     />
                   </svg>
                 </a>
+                </Magnetic>
                 <a
                   href={GITHUB_URL}
                   target="_blank"
@@ -328,6 +350,7 @@ export default async function HomePage() {
               </div>
             </div>
           </section>
+          </ScrollReveal>
 
           <footer className="border-t border-ink-200 bg-paper-raised">
             <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-xs uppercase tracking-[0.14em] text-ink-500">

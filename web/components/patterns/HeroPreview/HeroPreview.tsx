@@ -1,8 +1,8 @@
 'use client'
 
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Pause, Play } from 'lucide-react'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { CreatorChip } from '@/components/composites/CreatorChip/CreatorChip'
 import { MediaFrame, type MediaKind } from '@/components/composites/MediaFrame/MediaFrame'
@@ -28,11 +28,17 @@ export interface HeroPreviewProps {
   className?: string
 }
 
+const AUTOPLAY_INTERVAL_MS = 2800
+
 /**
- * Embedded mini-viewer used in the home-page hero. Minimal-technical
- * treatment: media frame, plain caption, restrained pagination dots,
- * link to the full viewer page. No eyebrows, no decorative labels —
- * the parent page supplies all the framing.
+ * Embedded mini-viewer used in the home-page hero. Click the polaroid
+ * to start autoplay — slides cycle every ~2.8s with a vermillion play
+ * indicator that flips to a pause icon while running. The "Open clip"
+ * link still routes to the full viewer for visitors who want the
+ * unabbreviated experience.
+ *
+ * The pagination dots also work as scrubber tabs — clicking one jumps
+ * directly to that slide and pauses autoplay.
  */
 export function HeroPreview({
   shareToken,
@@ -42,12 +48,31 @@ export function HeroPreview({
   className,
 }: HeroPreviewProps) {
   const [active, setActive] = useState(0)
+  const [playing, setPlaying] = useState(false)
   const total = slides.length
   const slide = slides[active]
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    if (!playing) {
+      if (timerRef.current) clearInterval(timerRef.current)
+      return
+    }
+    timerRef.current = setInterval(() => {
+      setActive((i) => (i + 1) % total)
+    }, AUTOPLAY_INTERVAL_MS)
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
+  }, [playing, total])
 
   if (!slide) return null
 
-  const advance = () => setActive((i) => (i + 1) % total)
+  const togglePlay = () => setPlaying((p) => !p)
+  const jumpTo = (i: number) => {
+    setActive(i)
+    setPlaying(false)
+  }
 
   return (
     <figure
@@ -56,10 +81,14 @@ export function HeroPreview({
     >
       <button
         type="button"
-        onClick={advance}
-        aria-label={`Slide ${slide.position} of ${total}. Click to advance.`}
+        onClick={togglePlay}
+        aria-label={
+          playing
+            ? `Pause autoplay (slide ${slide.position} of ${total})`
+            : `Play walkthrough (${total} slides)`
+        }
         className={cn(
-          'group block w-full overflow-hidden rounded-[14px]',
+          'group/play relative block w-full overflow-hidden rounded-[14px]',
           'border border-ink-200 bg-paper-raised',
           'shadow-[var(--shadow-whisper)] transition-shadow duration-200 ease-out',
           'hover:shadow-[0_22px_44px_-22px_rgba(20,20,19,0.18),0_8px_18px_-8px_rgba(20,20,19,0.12)]',
@@ -73,6 +102,45 @@ export function HeroPreview({
           position={slide.position}
           hideBadge
         />
+        {/* Play / pause indicator centered on the polaroid. Idle: a
+            soft vermillion pill with a play triangle. Playing: a
+            pause icon. Hover-scales for clear affordance. */}
+        <span
+          aria-hidden="true"
+          className={cn(
+            'pointer-events-none absolute inset-0 flex items-center justify-center',
+            'transition-opacity duration-200',
+            playing ? 'opacity-0 group-hover/play:opacity-100' : 'opacity-100',
+          )}
+        >
+          <span
+            className={cn(
+              'inline-flex size-14 items-center justify-center rounded-full',
+              'bg-vermillion-500/95 text-paper shadow-[0_8px_22px_-8px_rgba(217,72,36,0.65)]',
+              'transition-transform duration-200 ease-out',
+              'group-hover/play:scale-110',
+            )}
+          >
+            {playing ? (
+              <Pause className="size-5" />
+            ) : (
+              <Play className="size-5 translate-x-[1px]" />
+            )}
+          </span>
+        </span>
+        {/* Live progress bar at the bottom edge — fills toward the
+            next advance during autoplay. Resets per slide via the
+            keyed remount. */}
+        {playing && (
+          <span
+            key={`${active}-${playing}`}
+            aria-hidden="true"
+            className="absolute bottom-0 left-0 h-[3px] bg-vermillion-500"
+            style={{
+              animation: `hero-progress ${AUTOPLAY_INTERVAL_MS}ms linear forwards`,
+            }}
+          />
+        )}
       </button>
 
       <figcaption className="mt-5 text-base leading-relaxed text-ink-700">
@@ -94,7 +162,7 @@ export function HeroPreview({
                 role="tab"
                 aria-selected={isActive}
                 aria-label={`Jump to slide ${s.position}`}
-                onClick={() => setActive(i)}
+                onClick={() => jumpTo(i)}
                 className={cn(
                   'h-[3px] rounded-full transition-all',
                   isActive

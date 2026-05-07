@@ -29,16 +29,15 @@ describe('HeroPreview', () => {
     expect(screen.getByText('Opened agentclip.dev. Hero loads.')).toBeInTheDocument()
   })
 
-  it('advances on body click and wraps back to first', () => {
+  it('toggles autoplay when the polaroid is clicked', () => {
     render(<HeroPreview shareToken="abc123" title="Login flow QA" slides={SLIDES} />)
-    const advance = screen.getByLabelText(/Slide 1 of 3/)
-    fireEvent.click(advance)
-    expect(screen.getByText('Scrolled to How it works.')).toBeInTheDocument()
-    fireEvent.click(screen.getByLabelText(/Slide 2 of 3/))
-    expect(screen.getByText('Recent fieldwork section.')).toBeInTheDocument()
-    fireEvent.click(screen.getByLabelText(/Slide 3 of 3/))
-    // Wraps back to first
-    expect(screen.getByText('Opened agentclip.dev. Hero loads.')).toBeInTheDocument()
+    // Idle: button announces "Play walkthrough".
+    const play = screen.getByLabelText(/Play walkthrough/)
+    fireEvent.click(play)
+    // After clicking, the same button announces the "Pause autoplay" state
+    // for whatever slide is currently visible (still slide 1 immediately
+    // after clicking — autoplay only advances after the interval).
+    expect(screen.getByLabelText(/Pause autoplay/)).toBeInTheDocument()
   })
 
   it('jumps directly when a position dot is clicked', () => {
