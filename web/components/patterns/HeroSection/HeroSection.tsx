@@ -3,13 +3,14 @@
 import { motion, useReducedMotion, type Transition } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
 import { SiGithub } from '@icons-pack/react-simple-icons'
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/primitives/Button/Button'
 import { Tabs } from '@/components/primitives/Tabs/Tabs'
+import { TicketMark } from '@/components/primitives/TicketMark/TicketMark'
 import { Typewriter } from '@/components/primitives/Typewriter/Typewriter'
 import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
-import { RecordingPill } from '@/components/composites/RecordingPill/RecordingPill'
 import { useRecording } from '@/components/context/RecordingProvider/RecordingProvider'
 import {
   HeroPreview,
@@ -127,7 +128,13 @@ export function HeroSection({
         animate={{ opacity: 1, y: 0 }}
         transition={at(0)}
       >
-        <RecordingPill finalContent={<>v0.1 · open source · MCP</>} />
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 text-ink-900"
+        >
+          <TicketMark size={22} className="text-vermillion-500" />
+          <span className="font-semibold tracking-tight">AgentClip</span>
+        </Link>
       </motion.div>
 
       <motion.h1

@@ -297,17 +297,15 @@ export default async function HomePage() {
               </footer>
             </div>
 
-            {/* RIGHT — unified rail: brand, GitHub, viewfinder chrome,
-                walkthrough CTA, capture slot stack. Sticky alongside
-                the screen as the visitor scrolls. */}
+            {/* RIGHT — capture stack with morphing status pill at top
+                (Clipping… → Your walkthrough →) and four slot cards
+                below. Sticky alongside the screen as the visitor
+                scrolls. Brand mark + GitHub live in the hero, not here. */}
             <aside className="hidden lg:block">
               <div className="sticky top-7">
-                <HomeSidebar
-                  githubUrl={GITHUB_URL}
-                  {...(featured
-                    ? { walkthroughHref: `/s/${featured.shareToken}` }
-                    : {})}
-                />
+                {featured && (
+                  <HomeSidebar walkthroughHref={`/s/${featured.shareToken}`} />
+                )}
               </div>
             </aside>
           </div>

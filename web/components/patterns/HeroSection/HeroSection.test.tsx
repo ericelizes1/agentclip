@@ -16,10 +16,11 @@ describe('HeroSection', () => {
     vi.useRealTimers()
   })
 
-  it('renders the pill (idle), headline, lede, and CTAs', () => {
+  it('renders the brand mark, headline, lede, and CTAs', () => {
     render(<HeroSection githubUrl="https://github.com/ericelizes1/agentclip" />)
-    // Without a RecordingProvider the pill falls through to its idle content.
-    expect(screen.getByText(/v0.1 · open source · MCP/)).toBeInTheDocument()
+    // Brand mark above the headline links back to the home page.
+    const brandLink = screen.getByRole('link', { name: /AgentClip/ })
+    expect(brandLink).toHaveAttribute('href', '/')
     // Advance through the typewriter so the lead phrase renders into the DOM.
     act(() => {
       vi.advanceTimersByTime(2000)
