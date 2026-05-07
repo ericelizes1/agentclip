@@ -4,6 +4,7 @@ import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 
+import { CreatorChip } from '@/components/composites/CreatorChip/CreatorChip'
 import { MediaFrame, type MediaKind } from '@/components/composites/MediaFrame/MediaFrame'
 import { cn } from '@/lib/utils'
 
@@ -104,9 +105,9 @@ export function HeroPreview({
             )
           })}
         </div>
-        <div className="flex items-center gap-3 text-sm text-ink-500">
+        <div className="flex items-center gap-4 text-sm text-ink-500">
           {creatorName && (
-            <span className="hidden sm:inline">By {creatorName}</span>
+            <CreatorChip name={creatorName} size="sm" className="hidden sm:inline-flex" />
           )}
           <Link
             href={`/s/${shareToken}`}

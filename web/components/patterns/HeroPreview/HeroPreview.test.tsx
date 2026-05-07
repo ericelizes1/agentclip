@@ -60,7 +60,10 @@ describe('HeroPreview', () => {
     // but no h2 inside the embed competes with the page's <h1>.
     expect(screen.getByLabelText('Preview of: Stripe checkout QA')).toBeInTheDocument()
     expect(screen.queryByRole('heading')).not.toBeInTheDocument()
-    expect(screen.getByText('By Eric Elizes')).toBeInTheDocument()
+    // Creator credit is now a CreatorChip — gradient avatar + visible
+    // name. Asserting on the visible name keeps the test resilient to
+    // chip styling changes.
+    expect(screen.getByText('Eric Elizes')).toBeInTheDocument()
   })
 
   it('links Open clip to the full viewer page', () => {

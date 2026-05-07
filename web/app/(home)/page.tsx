@@ -11,6 +11,7 @@ import { SiGithub } from '@icons-pack/react-simple-icons'
 
 import { AgentWidget } from '@/components/composites/AgentWidget/AgentWidget'
 import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
+import { SectionHeader } from '@/components/composites/SectionHeader/SectionHeader'
 import { RecordingProvider } from '@/components/context/RecordingProvider/RecordingProvider'
 import { TicketMark } from '@/components/primitives/TicketMark/TicketMark'
 import { GalleryGrid, type GalleryClip } from '@/components/patterns/GalleryGrid/GalleryGrid'
@@ -173,90 +174,89 @@ export default async function HomePage() {
                 <HeroSection githubUrl={GITHUB_URL} featured={featured} />
               </SlideCapture>
 
+              {/* Sections alternate background tones (paper / paper-raised)
+                  so they read as discrete chapters rather than one long
+                  continuous slab. Each opens with a SectionHeader for
+                  consistent rhythm: numbered chip → H2 → description. */}
               <SlideCapture slideId="how-it-works">
                 <section
                   id="how-it-works"
                   aria-labelledby="how-it-works-heading"
-                  className="mx-auto max-w-5xl py-16"
+                  className="border-t border-ink-200/60 bg-paper-raised"
                 >
-                  <h2
-                    id="how-it-works-heading"
-                    className="mb-10 text-2xl font-semibold tracking-tight text-ink-900"
-                  >
-                    How it works
-                  </h2>
-                  <ol className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                    {STEPS.map((step) => (
-                      <li
-                        key={step.step}
-                        className="space-y-3 rounded-[14px] border border-ink-200 bg-paper-raised p-6"
-                      >
-                        <div className="flex items-baseline gap-3">
-                          <span className="font-mono text-sm tabular-nums text-vermillion-700">
-                            {step.step}
-                          </span>
-                          <span className="text-xs uppercase tracking-[0.16em] text-ink-500">
-                            {step.label}
-                          </span>
-                        </div>
-                        <h3 className="text-lg font-medium tracking-tight text-ink-900">
-                          {step.title}
-                        </h3>
-                        <p className="text-sm text-ink-600">{step.body}</p>
-                        {step.code && (
-                          <CodeBlock
-                            code={step.code.body}
-                            {...(step.code.prompt !== undefined
-                              ? { prompt: step.code.prompt }
-                              : {})}
-                          />
-                        )}
-                      </li>
-                    ))}
-                  </ol>
+                  <div className="mx-auto max-w-5xl px-2 py-20 sm:px-4">
+                    <SectionHeader
+                      index="02"
+                      eyebrow="How it works"
+                      title="Three steps. No screencast software."
+                      description="First-run wires the skill and browser drivers. Point your agent at any flow."
+                      headingId="how-it-works-heading"
+                      meta={`${STEPS.length} steps`}
+                    />
+                    <ol className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                      {STEPS.map((step) => (
+                        <li
+                          key={step.step}
+                          className="space-y-3 rounded-[14px] border border-ink-200 bg-paper p-6"
+                        >
+                          <div className="flex items-baseline gap-3">
+                            <span className="font-mono text-sm tabular-nums text-vermillion-700">
+                              {step.step}
+                            </span>
+                            <span className="text-xs uppercase tracking-[0.16em] text-ink-500">
+                              {step.label}
+                            </span>
+                          </div>
+                          <h3 className="text-lg font-medium tracking-tight text-ink-900">
+                            {step.title}
+                          </h3>
+                          <p className="text-sm text-ink-600">{step.body}</p>
+                          {step.code && (
+                            <CodeBlock
+                              code={step.code.body}
+                              {...(step.code.prompt !== undefined
+                                ? { prompt: step.code.prompt }
+                                : {})}
+                            />
+                          )}
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
                 </section>
               </SlideCapture>
 
               <SlideCapture slideId="gallery">
                 <section
                   aria-labelledby="gallery-heading"
-                  className="mx-auto max-w-5xl py-16"
+                  className="border-t border-ink-200/60 bg-paper"
                 >
-                  <div className="mb-10 flex items-end justify-between gap-4">
-                    <div>
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-vermillion-700">
-                        In the gallery
-                      </p>
-                      <h2
-                        id="gallery-heading"
-                        className="text-2xl font-semibold tracking-tight text-ink-900"
-                      >
-                        Recent fieldwork.
-                      </h2>
-                      <p className="mt-1 text-sm text-ink-600">
-                        Real QA runs, hand-curated.
-                      </p>
-                    </div>
-                    {clips.length > 0 && (
-                      <p className="text-xs uppercase tracking-[0.16em] text-ink-500">
-                        {clips.length} clips
-                      </p>
-                    )}
+                  <div className="mx-auto max-w-5xl px-2 py-20 sm:px-4">
+                    <SectionHeader
+                      index="03"
+                      eyebrow="In the gallery"
+                      title="Recent fieldwork."
+                      description="Real QA runs, hand-curated."
+                      headingId="gallery-heading"
+                      meta={clips.length > 0 ? `${clips.length} clips` : undefined}
+                    />
+                    <GalleryGrid clips={clips} />
                   </div>
-                  <GalleryGrid clips={clips} />
                 </section>
               </SlideCapture>
 
               <SlideCapture slideId="closing">
-                <section className="mx-auto max-w-3xl py-16 text-center">
-                  <p className="text-base text-ink-600">
-                    Open source. Receipts for the work agents quietly do.
-                  </p>
+                <section className="border-t border-ink-200/60 bg-paper-raised">
+                  <div className="mx-auto max-w-3xl px-2 py-24 text-center sm:px-4">
+                    <p className="font-display text-2xl tracking-tight text-ink-800 sm:text-3xl">
+                      Open source. Receipts for the work agents quietly do.
+                    </p>
+                  </div>
                 </section>
               </SlideCapture>
 
-              <footer className="mt-12 border-t border-ink-200 pt-8">
-                <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 text-xs uppercase tracking-[0.14em] text-ink-500">
+              <footer className="border-t border-ink-200 bg-paper">
+                <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-2 py-8 text-xs uppercase tracking-[0.14em] text-ink-500 sm:px-4">
                   <span className="flex items-center gap-2 text-ink-700">
                     <TicketMark size={14} className="text-vermillion-500" />
                     AgentClip
