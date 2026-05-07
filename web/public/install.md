@@ -47,6 +47,6 @@ When the run finishes, surface two URLs back to the user:
 
 - Don't store the share URL in a public location without confirming with the user.
 - The edit URL is a credential. Never paste it into chat logs the user can't see, never commit it to a repo.
-- `agentclip whoami "Their Name"` is optional but improves the "Filed by" credit on the public viewer.
+- `agentclip whoami "Their Name"` is optional but adds the user's name to the credit chip on every clip they make.
 
 That's it. The user can now ask you to QA flows, repro bugs, or record walkthroughs, and you'll ship them URLs.

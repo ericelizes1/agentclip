@@ -30,10 +30,13 @@ from django.core.files.base import ContentFile
 
 from .models import Slideshow
 from .mp4 import (
+    BookendInput,
     MP4RenderConfigError,
     MP4RenderError,
     SlideInput,
+    build_end_card,
     build_mp4,
+    build_title_card,
     extract_poster,
 )
 from .pdf import (
@@ -145,8 +148,69 @@ def render_clip_mp4(slideshow_id: str) -> dict:
         if not poster_source and slide.media_kind == 'image':
             poster_source = media_bytes
 
+    # Build the spoken intro / outro bookends. Synthesize the audio if
+    # we don't have it cached on the row yet (re-renders of an
+    # unchanged clip just reuse the persisted audio file). When
+    # description / summary is empty, the bookend audio stays None and
+    # the corresponding card is held silently for a default duration.
+    # NarrationConfigError falls through with no audio — the card still
+    # renders, it's just held silently.
+    intro_audio_bytes: bytes | None = None
+    outro_audio_bytes: bytes | None = None
     try:
-        result = build_mp4(inputs)
+        if (slideshow.description or '').strip():
+            if slideshow.intro_audio:
+                intro_audio_bytes = _read_field(slideshow.intro_audio)
+            else:
+                intro_result = narration.synthesize_intro(slideshow)
+                if intro_result.mp3_bytes:
+                    # save=True so the FileField commits to DB right
+                    # away — synth is expensive and the later
+                    # refresh_from_db (stale recheck) would otherwise
+                    # wipe our in-memory state.
+                    slideshow.intro_audio.save(
+                        'intro.mp3',
+                        ContentFile(intro_result.mp3_bytes),
+                        save=True,
+                    )
+                    intro_audio_bytes = intro_result.mp3_bytes
+        if (slideshow.summary or '').strip():
+            if slideshow.outro_audio:
+                outro_audio_bytes = _read_field(slideshow.outro_audio)
+            else:
+                outro_result = narration.synthesize_outro(slideshow)
+                if outro_result.mp3_bytes:
+                    slideshow.outro_audio.save(
+                        'outro.mp3',
+                        ContentFile(outro_result.mp3_bytes),
+                        save=True,
+                    )
+                    outro_audio_bytes = outro_result.mp3_bytes
+    except narration.NarrationConfigError:
+        logger.warning(
+            'render_clip_mp4: narration config error on %s while building bookend audio; '
+            'rendering with silent cards',
+            slideshow_id,
+        )
+
+    title_card_bytes = build_title_card(
+        title=slideshow.title or 'Untitled run',
+        credit=slideshow.created_by or '',
+    )
+    end_card_bytes = build_end_card(
+        share_url=_public_share_url(slideshow),
+    )
+    intro_bookend = BookendInput(
+        image_bytes=title_card_bytes,
+        audio_bytes=intro_audio_bytes,
+    )
+    outro_bookend = BookendInput(
+        image_bytes=end_card_bytes,
+        audio_bytes=outro_audio_bytes,
+    )
+
+    try:
+        result = build_mp4(inputs, intro=intro_bookend, outro=outro_bookend)
     except MP4RenderConfigError:
         # Operator-fixable; don't retry.
         logger.exception('render_clip_mp4: config error on %s', slideshow_id)
@@ -184,7 +248,9 @@ def render_clip_mp4(slideshow_id: str) -> dict:
             # Poster failure is non-fatal — the MP4 is the load-bearing
             # artifact. Log and continue.
             logger.exception('render_clip_mp4: poster extraction failed for %s', slideshow_id)
-    slideshow.save(update_fields=['rendered_mp4', 'poster_image', 'updated_at'])
+    slideshow.save(update_fields=[
+        'rendered_mp4', 'poster_image', 'intro_audio', 'outro_audio', 'updated_at',
+    ])
 
     return {
         'status': 'ok',

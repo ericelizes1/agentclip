@@ -133,6 +133,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/SlideWriteRequest'
+        required: true
       security:
       - WriteTokenAuth: []
       - {}
@@ -666,6 +667,12 @@ components:
         callers identify the slide by its URL position, not its database id.
         ``media_kind`` and ``media_content_type`` are server-set from the
         upload's content type via the views' validator.
+
+        ``caption`` is required on create. Silent slides with no spoken
+        context are not a valid output state — the agent should always
+        write a caption, even one sentence ("Step 4: same result"). The
+        PATCH path remains tolerant via partial=True (a caller updating
+        just the media doesn't have to repeat the caption).
       properties:
         title:
           type: string
@@ -683,8 +690,8 @@ components:
           minLength: 1
     PatchedSlideshowPatchRequest:
       type: object
-      description: Patch shape. Title, description, summary, and creator credit all
-        optional.
+      description: Patch shape. Title, description, summary, run_type, and creator
+        credit all optional.
       properties:
         title:
           type: string
@@ -693,6 +700,18 @@ components:
           type: string
         summary:
           type: string
+        run_type:
+          allOf:
+          - $ref: '#/components/schemas/RunTypeEnum'
+          description: |-
+            What kind of QA run this clip represents. Drives the narration voice + pacing for the whole clip; the agent skill picks one heuristically from the trigger phrase.
+
+            * `bug_repro` - Bug repro
+            * `smoke_test` - Smoke test
+            * `demo` - Demo
+            * `onboarding_eval` - Onboarding eval
+            * `competitive_teardown` - Competitive teardown
+            * `generic` - Generic
         created_by:
           type: string
           description: Display credit for the run, e.g. "Eric Elizes". Optional.
@@ -703,6 +722,22 @@ components:
           description: Optional URL the creator credit links to (portfolio, GitHub,
             etc.).
           maxLength: 200
+    RunTypeEnum:
+      enum:
+      - bug_repro
+      - smoke_test
+      - demo
+      - onboarding_eval
+      - competitive_teardown
+      - generic
+      type: string
+      description: |-
+        * `bug_repro` - Bug repro
+        * `smoke_test` - Smoke test
+        * `demo` - Demo
+        * `onboarding_eval` - Onboarding eval
+        * `competitive_teardown` - Competitive teardown
+        * `generic` - Generic
     SlidePublic:
       type: object
       properties:
@@ -768,6 +803,12 @@ components:
         callers identify the slide by its URL position, not its database id.
         ``media_kind`` and ``media_content_type`` are server-set from the
         upload's content type via the views' validator.
+
+        ``caption`` is required on create. Silent slides with no spoken
+        context are not a valid output state — the agent should always
+        write a caption, even one sentence ("Step 4: same result"). The
+        PATCH path remains tolerant via partial=True (a caller updating
+        just the media doesn't have to repeat the caption).
       properties:
         id:
           type: integer
@@ -797,6 +838,7 @@ components:
             * `image` - Image
             * `video` - Video
       required:
+      - caption
       - id
       - media_kind
       - media_url
@@ -810,6 +852,12 @@ components:
         callers identify the slide by its URL position, not its database id.
         ``media_kind`` and ``media_content_type`` are server-set from the
         upload's content type via the views' validator.
+
+        ``caption`` is required on create. Silent slides with no spoken
+        context are not a valid output state — the agent should always
+        write a caption, even one sentence ("Step 4: same result"). The
+        PATCH path remains tolerant via partial=True (a caller updating
+        just the media doesn't have to repeat the caption).
       properties:
         title:
           type: string
@@ -825,6 +873,8 @@ components:
         caption:
           type: string
           minLength: 1
+      required:
+      - caption
     SlideshowCreate:
       type: object
       description: |-
@@ -849,6 +899,18 @@ components:
           maxLength: 200
         description:
           type: string
+        run_type:
+          allOf:
+          - $ref: '#/components/schemas/RunTypeEnum'
+          description: |-
+            What kind of QA run this clip represents. Drives the narration voice + pacing for the whole clip; the agent skill picks one heuristically from the trigger phrase.
+
+            * `bug_repro` - Bug repro
+            * `smoke_test` - Smoke test
+            * `demo` - Demo
+            * `onboarding_eval` - Onboarding eval
+            * `competitive_teardown` - Competitive teardown
+            * `generic` - Generic
         created_by:
           type: string
           description: Display credit for the run, e.g. "Eric Elizes". Optional.
@@ -905,6 +967,18 @@ components:
           maxLength: 200
         description:
           type: string
+        run_type:
+          allOf:
+          - $ref: '#/components/schemas/RunTypeEnum'
+          description: |-
+            What kind of QA run this clip represents. Drives the narration voice + pacing for the whole clip; the agent skill picks one heuristically from the trigger phrase.
+
+            * `bug_repro` - Bug repro
+            * `smoke_test` - Smoke test
+            * `demo` - Demo
+            * `onboarding_eval` - Onboarding eval
+            * `competitive_teardown` - Competitive teardown
+            * `generic` - Generic
         created_by:
           type: string
           description: Display credit for the run, e.g. "Eric Elizes". Optional.
@@ -917,8 +991,8 @@ components:
           maxLength: 200
     SlideshowPatch:
       type: object
-      description: Patch shape. Title, description, summary, and creator credit all
-        optional.
+      description: Patch shape. Title, description, summary, run_type, and creator
+        credit all optional.
       properties:
         id:
           type: string
@@ -931,6 +1005,18 @@ components:
           type: string
         summary:
           type: string
+        run_type:
+          allOf:
+          - $ref: '#/components/schemas/RunTypeEnum'
+          description: |-
+            What kind of QA run this clip represents. Drives the narration voice + pacing for the whole clip; the agent skill picks one heuristically from the trigger phrase.
+
+            * `bug_repro` - Bug repro
+            * `smoke_test` - Smoke test
+            * `demo` - Demo
+            * `onboarding_eval` - Onboarding eval
+            * `competitive_teardown` - Competitive teardown
+            * `generic` - Generic
         created_by:
           type: string
           description: Display credit for the run, e.g. "Eric Elizes". Optional.

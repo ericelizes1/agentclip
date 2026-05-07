@@ -267,6 +267,108 @@ class BuildMP4Tests(unittest.TestCase):
                 ])
 
 
+class BuildTitleCardTests(unittest.TestCase):
+    def test_returns_valid_jpeg_at_1080p(self) -> None:
+        bytes_out = mp4.build_title_card(
+            title='Login regression on prod',
+            credit='Eric Elizes',
+        )
+        self.assertGreater(len(bytes_out), 0)
+        img = Image.open(io.BytesIO(bytes_out))
+        self.assertEqual(img.size, (mp4.OUTPUT_WIDTH, mp4.OUTPUT_HEIGHT))
+        self.assertEqual(img.format, 'JPEG')
+
+    def test_handles_long_title_via_wrap(self) -> None:
+        # Long title shouldn't crash; wrapping fills multiple lines.
+        long_title = ' '.join(['supercalifragilistic'] * 6)
+        bytes_out = mp4.build_title_card(title=long_title)
+        img = Image.open(io.BytesIO(bytes_out))
+        self.assertEqual(img.size, (mp4.OUTPUT_WIDTH, mp4.OUTPUT_HEIGHT))
+
+    def test_no_credit_renders_cleanly(self) -> None:
+        # Empty credit means the subtitle line is omitted; render
+        # still produces a valid JPEG.
+        bytes_out = mp4.build_title_card(title='Quick test')
+        self.assertGreater(len(bytes_out), 0)
+
+
+class BuildEndCardTests(unittest.TestCase):
+    def test_returns_valid_jpeg_at_1080p(self) -> None:
+        bytes_out = mp4.build_end_card(share_url='https://agentclip.dev/s/abc/')
+        img = Image.open(io.BytesIO(bytes_out))
+        self.assertEqual(img.size, (mp4.OUTPUT_WIDTH, mp4.OUTPUT_HEIGHT))
+        self.assertEqual(img.format, 'JPEG')
+
+    def test_handles_empty_share_url(self) -> None:
+        # Defensive: empty share URL shouldn't crash; falls back to
+        # a brand-string in the URL slot.
+        bytes_out = mp4.build_end_card(share_url='')
+        self.assertGreater(len(bytes_out), 0)
+
+
+class BookendMP4Tests(unittest.TestCase):
+    def setUp(self) -> None:
+        if not shutil.which('ffmpeg'):
+            raise unittest.SkipTest('ffmpeg required')
+
+    def test_intro_outro_prepend_and_append_segments(self) -> None:
+        audio = _mp3_bytes(0.5)
+        slides = [
+            mp4.SlideInput(
+                media_bytes=_png_bytes(),
+                media_kind='image',
+                media_filename='slide1.png',
+                audio_bytes=audio,
+                audio_duration_ms=500,
+            ),
+        ]
+        intro_card = mp4.build_title_card(title='Test')
+        end_card = mp4.build_end_card(share_url='https://agentclip.dev/s/x/')
+        result = mp4.build_mp4(
+            slides,
+            intro=mp4.BookendInput(image_bytes=intro_card, audio_bytes=audio),
+            outro=mp4.BookendInput(image_bytes=end_card, audio_bytes=audio),
+        )
+        # 1 intro + 1 slide + 1 outro = 3 segments
+        self.assertEqual(result.segment_count, 3)
+        self.assertGreater(len(result.mp4_bytes), 0)
+
+    def test_silent_bookends_use_default_duration(self) -> None:
+        audio = _mp3_bytes(0.5)
+        slides = [
+            mp4.SlideInput(
+                media_bytes=_png_bytes(),
+                media_kind='image',
+                media_filename='slide1.png',
+                audio_bytes=audio,
+                audio_duration_ms=500,
+            ),
+        ]
+        intro_card = mp4.build_title_card(title='Test')
+        result = mp4.build_mp4(
+            slides,
+            intro=mp4.BookendInput(image_bytes=intro_card, audio_bytes=None, duration_s=2.0),
+        )
+        # Total should be ≈ 2.0s intro + 0.5s slide = 2500ms (within ±300ms)
+        self.assertGreater(result.duration_ms, 2000)
+        self.assertLess(result.duration_ms, 3500)
+
+    def test_no_bookends_keeps_legacy_behavior(self) -> None:
+        # build_mp4 with no intro/outro produces exactly len(slides) segments.
+        audio = _mp3_bytes(0.5)
+        slides = [
+            mp4.SlideInput(
+                media_bytes=_png_bytes(),
+                media_kind='image',
+                media_filename='slide.png',
+                audio_bytes=audio,
+                audio_duration_ms=500,
+            ),
+        ]
+        result = mp4.build_mp4(slides)
+        self.assertEqual(result.segment_count, 1)
+
+
 class ExtractPosterTests(unittest.TestCase):
     def test_returns_valid_jpeg_at_target_size(self) -> None:
         poster = mp4.extract_poster(_png_bytes(size=(800, 600)))

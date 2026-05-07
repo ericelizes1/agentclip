@@ -220,6 +220,7 @@ class SlideshowCreateSerializer(serializers.ModelSerializer):
             'id',
             'title',
             'description',
+            'run_type',
             'created_by',
             'created_by_url',
             'share_url',
@@ -234,6 +235,11 @@ class SlideshowCreateSerializer(serializers.ModelSerializer):
             'clip_mp4_url', 'clip_pdf_url', 'embed_url',
             'write_token',
         )
+        extra_kwargs = {
+            # run_type defaults to GENERIC at the model level; clients
+            # can omit it. When set, drives narration voice + pacing.
+            'run_type': {'required': False},
+        }
 
     def get_share_url(self, obj: Slideshow) -> str:
         return _build_absolute(f'/s/{obj.share_token}/', self.context.get('request'))
@@ -255,7 +261,7 @@ class SlideshowCreateSerializer(serializers.ModelSerializer):
 
 
 class SlideshowPatchSerializer(serializers.ModelSerializer):
-    '''Patch shape. Title, description, summary, and creator credit all optional.'''
+    '''Patch shape. Title, description, summary, run_type, and creator credit all optional.'''
 
     class Meta:
         model = Slideshow
@@ -264,6 +270,7 @@ class SlideshowPatchSerializer(serializers.ModelSerializer):
             'title',
             'description',
             'summary',
+            'run_type',
             'created_by',
             'created_by_url',
         )
@@ -301,6 +308,12 @@ class SlideWriteSerializer(serializers.ModelSerializer):
     callers identify the slide by its URL position, not its database id.
     ``media_kind`` and ``media_content_type`` are server-set from the
     upload's content type via the views' validator.
+
+    ``caption`` is required on create. Silent slides with no spoken
+    context are not a valid output state — the agent should always
+    write a caption, even one sentence ("Step 4: same result"). The
+    PATCH path remains tolerant via partial=True (a caller updating
+    just the media doesn't have to repeat the caption).
     '''
 
     media_url = serializers.SerializerMethodField()
@@ -312,7 +325,9 @@ class SlideWriteSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'media': {'write_only': True, 'required': False},
             'title': {'required': False},
-            'caption': {'required': False},
+            # Required + non-blank: empty captions return 400 instead
+            # of silently shipping a slide with no spoken context.
+            'caption': {'required': True, 'allow_blank': False},
         }
 
     def get_media_url(self, obj: Slide) -> str:

@@ -93,6 +93,64 @@ class RenderClipMP4Tests(TestCase):
             slide.save()
         return slide
 
+    def test_persists_intro_and_outro_audio_on_render(self) -> None:
+        '''Pin: a slideshow with description + summary set produces
+        intro/outro audio persisted to the row when the render task
+        runs. Bookend audio synth is mocked so we don't hit OpenAI;
+        cards still render via Pillow.'''
+        from slideshows import tasks
+        from decimal import Decimal
+        audio = _mp3_bytes()
+        self.slideshow.description = 'A short walkthrough.'
+        self.slideshow.summary = 'It went well.'
+        self.slideshow.save()
+        self._add_slide(1, audio_bytes=audio)
+
+        def fake_intro(slideshow):
+            from slideshows.narration import BookendNarrationResult
+            return BookendNarrationResult(
+                mp3_bytes=_mp3_bytes(0.3), voice='nova',
+                cost_usd=Decimal('0.001'), chars=20,
+            )
+
+        def fake_outro(slideshow):
+            from slideshows.narration import BookendNarrationResult
+            return BookendNarrationResult(
+                mp3_bytes=_mp3_bytes(0.3), voice='nova',
+                cost_usd=Decimal('0.001'), chars=14,
+            )
+
+        with mock.patch('slideshows.narration.synthesize_intro', side_effect=fake_intro), \
+             mock.patch('slideshows.narration.synthesize_outro', side_effect=fake_outro):
+            result = tasks.render_clip_mp4(str(self.slideshow.id))
+
+        self.assertEqual(result['status'], 'ok')
+        self.slideshow.refresh_from_db()
+        self.assertTrue(self.slideshow.intro_audio)
+        self.assertTrue(self.slideshow.outro_audio)
+        # MP4 segment count = intro + 1 slide + outro = 3.
+        self.assertEqual(result['segments'], 3)
+
+    def test_skips_bookend_synth_when_description_and_summary_empty(self) -> None:
+        '''Empty description / summary means no bookend synth call —
+        cheaper for clips that haven't been finalized yet.'''
+        from slideshows import tasks
+        audio = _mp3_bytes()
+        self.slideshow.description = ''
+        self.slideshow.summary = ''
+        self.slideshow.save()
+        self._add_slide(1, audio_bytes=audio)
+
+        with mock.patch('slideshows.narration.synthesize_intro') as intro_mock, \
+             mock.patch('slideshows.narration.synthesize_outro') as outro_mock:
+            result = tasks.render_clip_mp4(str(self.slideshow.id))
+
+        self.assertEqual(result['status'], 'ok')
+        intro_mock.assert_not_called()
+        outro_mock.assert_not_called()
+        # Bookend cards still render (silent), so we get 3 segments.
+        self.assertEqual(result['segments'], 3)
+
     def test_renders_and_persists_mp4_and_poster(self) -> None:
         from slideshows import tasks
         audio = _mp3_bytes()
@@ -199,8 +257,8 @@ class RenderClipMP4Tests(TestCase):
         # Simulate an edit racing the render: bump the version partway
         # through by patching build_mp4 to bump before returning.
         original_build = tasks.build_mp4
-        def racing_build(slides):
-            r = original_build(slides)
+        def racing_build(slides, *, intro=None, outro=None):
+            r = original_build(slides, intro=intro, outro=outro)
             self.slideshow.bump_render_version()
             return r
         with mock.patch('slideshows.tasks.build_mp4', side_effect=racing_build):

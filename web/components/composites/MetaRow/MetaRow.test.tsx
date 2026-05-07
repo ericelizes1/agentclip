@@ -10,7 +10,7 @@ describe('MetaRow', () => {
     expect(screen.getByText('sales-demo')).toBeInTheDocument()
   })
 
-  it('renders the creator avatar as a link when createdByUrl is set', () => {
+  it('renders the creator chip as a link when createdByUrl is set', () => {
     render(
       <MetaRow
         labels={['Mar 14, 2026']}
@@ -21,18 +21,19 @@ describe('MetaRow', () => {
     const link = screen.getByRole('link')
     expect(link).toHaveAttribute('href', 'https://github.com/elizes')
     expect(link).toHaveAttribute('target', '_blank')
-    // The avatar's accessible name carries the credit copy.
-    expect(screen.getByLabelText('By Eric Elizes')).toBeInTheDocument()
+    // The chip renders the creator's name visibly next to the avatar
+    // — no "By" prefix; just the bare name as a credit chip.
+    expect(screen.getByText('Eric Elizes')).toBeInTheDocument()
   })
 
-  it('renders the avatar without a link when no URL is given', () => {
+  it('renders the chip without a link when no URL is given', () => {
     render(<MetaRow labels={['Mar 14, 2026']} createdBy="Eric Elizes" />)
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('By Eric Elizes')).toBeInTheDocument()
+    expect(screen.getByText('Eric Elizes')).toBeInTheDocument()
   })
 
   it('omits the credit segment entirely when createdBy is empty', () => {
     render(<MetaRow labels={['Mar 14, 2026']} createdBy="" />)
-    expect(screen.queryByLabelText(/By /)).not.toBeInTheDocument()
+    expect(screen.queryByText('Eric Elizes')).not.toBeInTheDocument()
   })
 })

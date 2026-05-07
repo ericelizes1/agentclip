@@ -811,7 +811,7 @@ class OpenAPISchemaTests(TestCase):
         component = schema['components']['schemas'][component_name]
         self.assertEqual(
             set(component['properties'].keys()),
-            {'title', 'description', 'created_by', 'created_by_url'},
+            {'title', 'description', 'run_type', 'created_by', 'created_by_url'},
         )
 
 
@@ -1819,8 +1819,8 @@ class SlideshowNarrateEndpointTests(TestCase):
         from decimal import Decimal
         from slideshows.narration import NarrationResult
         calls = []
-        def stub(text, *, voice='nova', model='tts-1-hd'):
-            calls.append({'text': text, 'voice': voice, 'model': model})
+        def stub(text, *, voice='nova', model='tts-1-hd', speed=1.0):
+            calls.append({'text': text, 'voice': voice, 'model': model, 'speed': speed})
             return NarrationResult(
                 mp3_bytes=mp3_bytes,
                 voice=voice,

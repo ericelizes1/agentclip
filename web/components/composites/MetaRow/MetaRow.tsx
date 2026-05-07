@@ -1,4 +1,4 @@
-import { CreatorAvatar } from '@/components/composites/CreatorAvatar/CreatorAvatar'
+import { CreatorChip } from '@/components/composites/CreatorChip/CreatorChip'
 import { cn } from '@/lib/utils'
 
 export interface MetaRowProps {
@@ -12,13 +12,12 @@ export interface MetaRowProps {
 }
 
 /**
- * Reads as: `Mar 14, 2026 · 7 clips · sales-demo   [EE]`.
+ * Reads as: `Mar 14, 2026 · 7 clips · [EE] Eric Elizes`.
  *
- * The creator credit is a circular gradient avatar with initials
- * (CreatorAvatar) instead of a "By Eric" text run. The full
- * name appears on hover via the avatar's tooltip; clicking opens
- * the portfolio URL when one is set. Visual signature stays compact
- * so the row reads as facts + identity, not facts + sentence.
+ * Renders the creator's name next to a circular gradient avatar
+ * (via CreatorChip). No "Filed by" / "By Eric" prefix — the chip
+ * itself is the credit, name plus initials. Clicking opens the
+ * portfolio URL when one is set.
  */
 export function MetaRow({ labels, createdBy, createdByUrl, className }: MetaRowProps) {
   const showCredit = Boolean(createdBy && createdBy.trim())
@@ -41,10 +40,10 @@ export function MetaRow({ labels, createdBy, createdByUrl, className }: MetaRowP
           <span aria-hidden="true" className="mr-3 hidden sm:inline">
             ·
           </span>
-          <CreatorAvatar
+          <CreatorChip
             name={createdBy as string}
             {...(createdByUrl ? { url: createdByUrl } : {})}
-            size={32}
+            size="sm"
           />
         </span>
       )}

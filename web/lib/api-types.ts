@@ -444,6 +444,12 @@ export interface components {
          *     callers identify the slide by its URL position, not its database id.
          *     ``media_kind`` and ``media_content_type`` are server-set from the
          *     upload's content type via the views' validator.
+         *
+         *     ``caption`` is required on create. Silent slides with no spoken
+         *     context are not a valid output state — the agent should always
+         *     write a caption, even one sentence ("Step 4: same result"). The
+         *     PATCH path remains tolerant via partial=True (a caller updating
+         *     just the media doesn't have to repeat the caption).
          */
         PatchedSlideWriteRequest: {
             /** @description Short eyebrow title for the slide. Renders above the image in the viewer; gives the slideshow visual hierarchy and makes long runs skimmable. The bundled agentclip skill tells agents to write a 3-7 word title plus a longer caption per slide. */
@@ -452,11 +458,22 @@ export interface components {
             media?: string;
             caption?: string;
         };
-        /** @description Patch shape. Title, description, summary, and creator credit all optional. */
+        /** @description Patch shape. Title, description, summary, run_type, and creator credit all optional. */
         PatchedSlideshowPatchRequest: {
             title?: string;
             description?: string;
             summary?: string;
+            /**
+             * @description What kind of QA run this clip represents. Drives the narration voice + pacing for the whole clip; the agent skill picks one heuristically from the trigger phrase.
+             *
+             *     * `bug_repro` - Bug repro
+             *     * `smoke_test` - Smoke test
+             *     * `demo` - Demo
+             *     * `onboarding_eval` - Onboarding eval
+             *     * `competitive_teardown` - Competitive teardown
+             *     * `generic` - Generic
+             */
+            run_type?: components["schemas"]["RunTypeEnum"];
             /** @description Display credit for the run, e.g. "Eric Elizes". Optional. */
             created_by?: string;
             /**
@@ -465,6 +482,16 @@ export interface components {
              */
             created_by_url?: string;
         };
+        /**
+         * @description * `bug_repro` - Bug repro
+         *     * `smoke_test` - Smoke test
+         *     * `demo` - Demo
+         *     * `onboarding_eval` - Onboarding eval
+         *     * `competitive_teardown` - Competitive teardown
+         *     * `generic` - Generic
+         * @enum {string}
+         */
+        RunTypeEnum: "bug_repro" | "smoke_test" | "demo" | "onboarding_eval" | "competitive_teardown" | "generic";
         SlidePublic: {
             readonly id: number;
             readonly position: number;
@@ -492,13 +519,19 @@ export interface components {
          *     callers identify the slide by its URL position, not its database id.
          *     ``media_kind`` and ``media_content_type`` are server-set from the
          *     upload's content type via the views' validator.
+         *
+         *     ``caption`` is required on create. Silent slides with no spoken
+         *     context are not a valid output state — the agent should always
+         *     write a caption, even one sentence ("Step 4: same result"). The
+         *     PATCH path remains tolerant via partial=True (a caller updating
+         *     just the media doesn't have to repeat the caption).
          */
         SlideWrite: {
             readonly id: number;
             readonly position: number;
             /** @description Short eyebrow title for the slide. Renders above the image in the viewer; gives the slideshow visual hierarchy and makes long runs skimmable. The bundled agentclip skill tells agents to write a 3-7 word title plus a longer caption per slide. */
             title?: string;
-            caption?: string;
+            caption: string;
             readonly media_url: string;
             /**
              * @description image | video; sniffed from upload Content-Type at the API boundary.
@@ -515,13 +548,19 @@ export interface components {
          *     callers identify the slide by its URL position, not its database id.
          *     ``media_kind`` and ``media_content_type`` are server-set from the
          *     upload's content type via the views' validator.
+         *
+         *     ``caption`` is required on create. Silent slides with no spoken
+         *     context are not a valid output state — the agent should always
+         *     write a caption, even one sentence ("Step 4: same result"). The
+         *     PATCH path remains tolerant via partial=True (a caller updating
+         *     just the media doesn't have to repeat the caption).
          */
         SlideWriteRequest: {
             /** @description Short eyebrow title for the slide. Renders above the image in the viewer; gives the slideshow visual hierarchy and makes long runs skimmable. The bundled agentclip skill tells agents to write a 3-7 word title plus a longer caption per slide. */
             title?: string;
             /** Format: binary */
             media?: string;
-            caption?: string;
+            caption: string;
         };
         /**
          * @description Create-time shape. Renders ``write_token`` and ``edit_url`` exactly once.
@@ -541,6 +580,17 @@ export interface components {
             readonly id: string;
             title?: string;
             description?: string;
+            /**
+             * @description What kind of QA run this clip represents. Drives the narration voice + pacing for the whole clip; the agent skill picks one heuristically from the trigger phrase.
+             *
+             *     * `bug_repro` - Bug repro
+             *     * `smoke_test` - Smoke test
+             *     * `demo` - Demo
+             *     * `onboarding_eval` - Onboarding eval
+             *     * `competitive_teardown` - Competitive teardown
+             *     * `generic` - Generic
+             */
+            run_type?: components["schemas"]["RunTypeEnum"];
             /** @description Display credit for the run, e.g. "Eric Elizes". Optional. */
             created_by?: string;
             /**
@@ -571,6 +621,17 @@ export interface components {
         SlideshowCreateRequest: {
             title?: string;
             description?: string;
+            /**
+             * @description What kind of QA run this clip represents. Drives the narration voice + pacing for the whole clip; the agent skill picks one heuristically from the trigger phrase.
+             *
+             *     * `bug_repro` - Bug repro
+             *     * `smoke_test` - Smoke test
+             *     * `demo` - Demo
+             *     * `onboarding_eval` - Onboarding eval
+             *     * `competitive_teardown` - Competitive teardown
+             *     * `generic` - Generic
+             */
+            run_type?: components["schemas"]["RunTypeEnum"];
             /** @description Display credit for the run, e.g. "Eric Elizes". Optional. */
             created_by?: string;
             /**
@@ -579,13 +640,24 @@ export interface components {
              */
             created_by_url?: string;
         };
-        /** @description Patch shape. Title, description, summary, and creator credit all optional. */
+        /** @description Patch shape. Title, description, summary, run_type, and creator credit all optional. */
         SlideshowPatch: {
             /** Format: uuid */
             readonly id: string;
             title?: string;
             description?: string;
             summary?: string;
+            /**
+             * @description What kind of QA run this clip represents. Drives the narration voice + pacing for the whole clip; the agent skill picks one heuristically from the trigger phrase.
+             *
+             *     * `bug_repro` - Bug repro
+             *     * `smoke_test` - Smoke test
+             *     * `demo` - Demo
+             *     * `onboarding_eval` - Onboarding eval
+             *     * `competitive_teardown` - Competitive teardown
+             *     * `generic` - Generic
+             */
+            run_type?: components["schemas"]["RunTypeEnum"];
             /** @description Display credit for the run, e.g. "Eric Elizes". Optional. */
             created_by?: string;
             /**
@@ -720,7 +792,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
                 "multipart/form-data": components["schemas"]["SlideWriteRequest"];
                 "application/json": components["schemas"]["SlideWriteRequest"];
