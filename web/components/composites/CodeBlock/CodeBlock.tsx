@@ -77,12 +77,14 @@ export function CodeBlock({ code, prompt, label, className }: CodeBlockProps) {
         ))}
       </pre>
       {/* Pure visual indicator — the actual click target is the whole
-          panel above. Lives in the upper-right corner; swaps to a
-          vermillion check on copy and resets after 1.6s. */}
+          panel above. Vertically centered against the panel so single-
+          line snippets read balanced; multi-line panels still show the
+          icon at the visual midline. Swaps to a vermillion check on
+          copy and resets after 1.6s. */}
       <span
         aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute right-3 top-3 inline-flex size-4 items-center justify-center',
+          'pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 inline-flex size-4 items-center justify-center',
           'transition-colors duration-150',
           copied ? 'text-vermillion-600' : 'text-ink-400 group-hover:text-ink-700',
         )}
