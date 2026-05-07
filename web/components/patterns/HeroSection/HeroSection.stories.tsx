@@ -11,10 +11,6 @@ const meta = {
 export default meta
 type Story = StoryObj<typeof meta>
 
-export const WithInstall: Story = {
+export const Default: Story = {
   args: {},
-}
-
-export const WithoutInstall: Story = {
-  args: { showInstall: false },
 }

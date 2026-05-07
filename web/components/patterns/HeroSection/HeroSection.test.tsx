@@ -36,10 +36,10 @@ describe('HeroSection', () => {
       'href',
       'https://github.com/ericelizes1/agentclip',
     )
-    expect(screen.getByRole('link', { name: /how it works/i })).toHaveAttribute(
-      'href',
-      '#how-it-works',
-    )
+    // 'How it works' secondary CTA dropped — single primary action only.
+    expect(
+      screen.queryByRole('link', { name: /how it works/i }),
+    ).not.toBeInTheDocument()
   })
 
   it('renders the punchline word with a vermillion underline class', () => {
@@ -48,12 +48,8 @@ describe('HeroSection', () => {
     expect(punchline.className).toMatch(/decoration-vermillion-500/)
   })
 
-  it('renders both install tabs by default and hides them when showInstall is false', () => {
-    const { rerender } = render(<HeroSection />)
-    expect(screen.getByRole('tab', { name: /install yourself/i })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /have your agent do it/i })).toBeInTheDocument()
-
-    rerender(<HeroSection showInstall={false} />)
+  it('does not render install tabs in the hero — those moved to the How it works section', () => {
+    render(<HeroSection />)
     expect(screen.queryByRole('tab', { name: /install yourself/i })).not.toBeInTheDocument()
   })
 

@@ -1,16 +1,13 @@
 'use client'
 
 import { motion, useReducedMotion, type Transition } from 'framer-motion'
-import { ArrowRight } from 'lucide-react'
 import { SiGithub } from '@icons-pack/react-simple-icons'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/primitives/Button/Button'
-import { Tabs } from '@/components/primitives/Tabs/Tabs'
 import { TicketMark } from '@/components/primitives/TicketMark/TicketMark'
 import { Typewriter } from '@/components/primitives/Typewriter/Typewriter'
-import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
 import { useRecording } from '@/components/context/RecordingProvider/RecordingProvider'
 import {
   HeroPreview,
@@ -28,16 +25,10 @@ export interface HeroFeaturedClip {
 export interface HeroSectionProps {
   /** GitHub URL the primary CTA points at. */
   githubUrl?: string
-  /** Bare pip command — locked default per plan. Tests override this. */
-  pipInstall?: string
-  /** Agent prompt the second tab puts on the clipboard. */
-  agentPrompt?: string
-  /** Hides the install card on pages that don't need it. */
-  showInstall?: boolean
   /**
-   * Real clip rendered as the punchline below the install snippet, plus
-   * the link target for the "this page recorded itself" Easter egg.
-   * When absent, the section ends at the install card.
+   * Real clip rendered as the punchline below the headline + CTA.
+   * Headline leads; embed is the payoff. When absent, the hero ends
+   * at the View on GitHub button.
    */
   featured?: HeroFeaturedClip | null
   className?: string
@@ -49,9 +40,6 @@ const HEADLINE_LEAD = HEADLINE_TEXT.slice(
   0,
   HEADLINE_TEXT.length - PUNCHLINE.length,
 ) // "Walkthroughs that record "
-
-const PIP_INSTALL_DEFAULT = 'pip install agentclip'
-const AGENT_PROMPT_DEFAULT = 'Read agentclip.dev/install.md and set up AgentClip for me.'
 
 const stagger: Transition = { duration: 0.45, ease: [0.2, 0.7, 0.2, 1] }
 
@@ -79,9 +67,6 @@ const RECORDED_HOLD_MS = 1400
  */
 export function HeroSection({
   githubUrl = 'https://github.com/ericelizes1/agentclip',
-  pipInstall = PIP_INSTALL_DEFAULT,
-  agentPrompt = AGENT_PROMPT_DEFAULT,
-  showInstall = true,
   featured,
   className,
 }: HeroSectionProps) {
@@ -119,7 +104,9 @@ export function HeroSection({
         // Wider container so the hero doesn't float in dead space inside
         // the screen card on lg+ viewports. Inner elements (sub copy,
         // install snippet) have their own max-widths for readability.
-        'mx-auto flex max-w-4xl flex-col gap-8 px-6 py-20 sm:px-10 sm:py-24',
+        // Generous gap-12 between hero blocks so each lands as a separate
+        // moment instead of running into the next.
+        'mx-auto flex max-w-4xl flex-col gap-12 px-6 py-24 sm:px-10 sm:py-28',
         className,
       )}
     >
@@ -142,8 +129,11 @@ export function HeroSection({
         animate={{ opacity: 1, y: 0 }}
         transition={at(1)}
         className={cn(
-          // Display serif for the hero; everything else stays Geist.
-          'font-display font-semibold tracking-[-0.02em] leading-[1.05] text-ink-900',
+          // Single typeface (Geist) at heavy weight for the headline —
+          // keeps the page typographically consistent. Punchline word
+          // is set in italic + vermillion underline as the only visual
+          // emphasis.
+          'font-extrabold tracking-[-0.035em] leading-[1.05] text-ink-900',
           'text-[clamp(2.5rem,1.6rem+4vw,4.25rem)]',
         )}
       >
@@ -182,7 +172,6 @@ export function HeroSection({
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ ...at(3), delay: reduce ? 0 : 1.6 }}
-        className="flex flex-wrap items-center gap-3"
       >
         <Button asChild variant="primary" size="lg">
           <a href={githubUrl} target="_blank" rel="noopener noreferrer">
@@ -190,38 +179,7 @@ export function HeroSection({
             View on GitHub
           </a>
         </Button>
-        <Button asChild variant="ghost" size="lg">
-          <a href="#how-it-works">
-            How it works
-            <ArrowRight aria-hidden="true" className="size-4" />
-          </a>
-        </Button>
       </motion.div>
-
-      {showInstall && (
-        <motion.div
-          initial={reduce ? false : { opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...at(4), delay: reduce ? 0 : 1.7 }}
-          className="rounded-[14px] border border-ink-200 bg-paper shadow-[var(--shadow-whisper)]"
-        >
-          <Tabs.Root defaultValue="pip">
-            <Tabs.List className="m-2">
-              <Tabs.Trigger value="pip">Install yourself</Tabs.Trigger>
-              <Tabs.Trigger value="agent">Have your agent do it</Tabs.Trigger>
-            </Tabs.List>
-            <Tabs.Content value="pip" className="mt-0 px-2 pb-2">
-              <CodeBlock prompt="$" code={pipInstall} />
-              <p className="mt-2 px-2 pb-2 text-xs text-ink-500">
-                No install? <span className="font-mono text-ink-700">uvx agentclip --help</span>
-              </p>
-            </Tabs.Content>
-            <Tabs.Content value="agent" className="mt-0 px-2 pb-2">
-              <CodeBlock code={agentPrompt} />
-            </Tabs.Content>
-          </Tabs.Root>
-        </motion.div>
-      )}
 
       {featured && featured.slides.length > 0 && (
         <motion.div
