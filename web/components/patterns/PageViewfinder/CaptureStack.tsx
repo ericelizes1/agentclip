@@ -56,7 +56,7 @@ export function CaptureStack({ walkthroughHref, className }: CaptureStackProps) 
                 !reduce && 'animate-[pulse_2.4s_ease-in-out_infinite]',
               )}
             >
-              <span className="font-mono text-[10px] uppercase tracking-[0.16em]">
+              <span className="text-[13px] font-medium tracking-tight">
                 Your walkthrough
               </span>
               <ArrowRight aria-hidden="true" className="size-3.5" />
@@ -69,7 +69,7 @@ export function CaptureStack({ walkthroughHref, className }: CaptureStackProps) 
                 'border border-dashed border-ink-300 text-ink-400',
               )}
             >
-              <span className="font-mono text-[10px] uppercase tracking-[0.16em]">
+              <span className="text-[13px] font-medium tracking-tight">
                 Your walkthrough
               </span>
               <ArrowRight aria-hidden="true" className="size-3.5" />
@@ -126,7 +126,7 @@ function SlotCard({
       {/* Position chip top-left, like a film slate. */}
       <span
         className={cn(
-          'absolute top-1.5 left-1.5 z-10 rounded-[4px] px-1.5 py-0.5 font-mono text-[9px] font-semibold tracking-[0.18em]',
+          'absolute top-1.5 left-1.5 z-10 rounded-[4px] px-1.5 py-0.5 font-mono text-[10px] font-semibold tabular-nums',
           filled
             ? 'bg-ink-900/85 text-paper'
             : 'border border-ink-300/70 text-ink-400',

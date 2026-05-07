@@ -109,18 +109,18 @@ function ViewfinderStatus({
   const timecode = useTimecode()
 
   return (
-    <span className="hidden items-center gap-2.5 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-500 lg:flex">
+    <span className="hidden items-center gap-2.5 text-[13px] text-ink-500 lg:flex">
       <span className="inline-flex items-center gap-1.5">
         <span
           aria-hidden="true"
           className={cn(
-            'inline-block size-2 rounded-full',
+            'inline-block size-[7px] rounded-full',
             allCaptured ? 'bg-ink-400' : 'animate-pulse bg-vermillion-500',
           )}
         />
         <span
           className={cn(
-            'font-semibold',
+            'font-medium',
             allCaptured ? 'text-ink-500' : 'text-vermillion-700',
           )}
         >
@@ -130,14 +130,21 @@ function ViewfinderStatus({
       <span aria-hidden="true" className="text-ink-300">
         ·
       </span>
-      <span className="tabular-nums text-ink-700">{timecode}</span>
+      <span className="font-mono text-[12px] tabular-nums text-ink-600">
+        {timecode}
+      </span>
       <span aria-hidden="true" className="text-ink-300">
         ·
       </span>
-      <span className="tabular-nums">
+      <span>
         Slide{' '}
-        <span className="text-ink-700">{String(captured).padStart(2, '0')}</span>{' '}
-        / {String(total).padStart(2, '0')}
+        <span className="font-mono tabular-nums text-ink-700">
+          {String(captured).padStart(2, '0')}
+        </span>{' '}
+        <span className="text-ink-300">/</span>{' '}
+        <span className="font-mono tabular-nums">
+          {String(total).padStart(2, '0')}
+        </span>
       </span>
     </span>
   )
