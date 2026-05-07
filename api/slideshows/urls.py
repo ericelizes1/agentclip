@@ -71,6 +71,19 @@ urlpatterns = [
         name='slideshow_public',
     ),
 
+    # Render artifacts — lazy on miss, 302 to R2 on hit. The web edge
+    # routes ``/s/<token>.mp4`` and ``/s/<token>.pdf`` proxy here.
+    path(
+        'api/v1/slideshow/<str:share_token>/clip.mp4',
+        views.slideshow_clip_mp4,
+        name='slideshow_clip_mp4',
+    ),
+    path(
+        'api/v1/slideshow/<str:share_token>/clip.pdf',
+        views.slideshow_clip_pdf,
+        name='slideshow_clip_pdf',
+    ),
+
     # Edit-token recovery + rotation (slug-keyed, write_token-authenticated)
     path(
         'api/v1/slideshow/<str:share_token>/edit-token/',

@@ -171,6 +171,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/slideshow/{share_token}/clip.mp4": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Serve the rendered MP4 for a slideshow, lazy-render on miss.
+         *
+         *     Public, unauthenticated — the share_token IS the access credential.
+         *     Consumers: GitHub PR inline-video fetcher, Slack/Discord unfurl,
+         *     Twitter Player Card resolver, anyone who pastes the link.
+         */
+        get: operations["v1_slideshow_clip.mp4_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/slideshow/{share_token}/clip.pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Serve the rendered PDF walkthrough, lazy-render on miss. */
+        get: operations["v1_slideshow_clip.pdf_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/slideshow/{share_token}/edit-token/": {
         parameters: {
             query?: never;
@@ -510,6 +550,9 @@ export interface components {
             created_by_url?: string;
             readonly share_url: string;
             readonly edit_url: string;
+            readonly clip_mp4_url: string;
+            readonly clip_pdf_url: string;
+            readonly embed_url: string;
             readonly write_token: string;
         };
         /**
@@ -570,6 +613,10 @@ export interface components {
             /** Format: date-time */
             readonly updated_at: string;
             readonly share_url: string;
+            readonly clip_mp4_url: string;
+            readonly clip_pdf_url: string;
+            readonly embed_url: string;
+            readonly poster_image_url: string | null;
             readonly slides: components["schemas"]["SlidePublic"][];
         };
     };
@@ -754,6 +801,74 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SlideshowPublic"];
                 };
+            };
+        };
+    };
+    "v1_slideshow_clip.mp4_retrieve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                share_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No response body */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No response body */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "v1_slideshow_clip.pdf_retrieve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                share_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No response body */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No response body */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No response body */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

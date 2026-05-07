@@ -782,6 +782,8 @@ class OpenAPISchemaTests(TestCase):
             '/api/slideshow/{slideshow_id}/slides/{position}/',
             '/api/v1/gallery/',
             '/api/v1/slideshow/{share_token}/',
+            '/api/v1/slideshow/{share_token}/clip.mp4',
+            '/api/v1/slideshow/{share_token}/clip.pdf',
             '/api/v1/slideshow/{share_token}/edit-token/',
             '/api/v1/slideshow/{share_token}/feature/',
             '/api/v1/slideshow/{share_token}/narrate/',

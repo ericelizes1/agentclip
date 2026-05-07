@@ -96,6 +96,17 @@ class SlideshowPublicSerializer(serializers.ModelSerializer):
 
     slides = SlidePublicSerializer(many=True, read_only=True)
     share_url = serializers.SerializerMethodField()
+    # Stable artifact URLs. The MP4/PDF paths always resolve — when the
+    # artifact hasn't rendered yet the endpoint returns 202 with a
+    # Retry-After header and enqueues a render. Once rendered, it 302s
+    # to the R2 public URL. Consumers (GitHub PR fetcher, Slack unfurl,
+    # etc.) don't need to know the difference.
+    clip_mp4_url = serializers.SerializerMethodField()
+    clip_pdf_url = serializers.SerializerMethodField()
+    embed_url = serializers.SerializerMethodField()
+    # OG / Twitter card image. Null when the poster hasn't rendered yet;
+    # the web edge falls back to the first slide's media for unfurls.
+    poster_image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Slideshow
@@ -109,12 +120,32 @@ class SlideshowPublicSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
             'share_url',
+            'clip_mp4_url',
+            'clip_pdf_url',
+            'embed_url',
+            'poster_image_url',
             'slides',
         )
         read_only_fields = fields
 
     def get_share_url(self, obj: Slideshow) -> str:
         return _build_absolute(f'/s/{obj.share_token}/', self.context.get('request'))
+
+    def get_clip_mp4_url(self, obj: Slideshow) -> str:
+        # Web-edge path: ends in .mp4 so GitHub recognizes it as inline
+        # video. The web service rewrites this to the API endpoint.
+        return _build_absolute(f'/s/{obj.share_token}.mp4', self.context.get('request'))
+
+    def get_clip_pdf_url(self, obj: Slideshow) -> str:
+        return _build_absolute(f'/s/{obj.share_token}.pdf', self.context.get('request'))
+
+    def get_embed_url(self, obj: Slideshow) -> str:
+        return _build_absolute(f'/embed/{obj.share_token}', self.context.get('request'))
+
+    def get_poster_image_url(self, obj: Slideshow) -> str | None:
+        if not obj.poster_image:
+            return None
+        return _build_absolute(obj.poster_image.url, self.context.get('request'))
 
 
 class GallerySlideshowSerializer(serializers.ModelSerializer):
@@ -179,6 +210,9 @@ class SlideshowCreateSerializer(serializers.ModelSerializer):
     write_token = serializers.CharField(read_only=True)
     share_url = serializers.SerializerMethodField()
     edit_url = serializers.SerializerMethodField()
+    clip_mp4_url = serializers.SerializerMethodField()
+    clip_pdf_url = serializers.SerializerMethodField()
+    embed_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Slideshow
@@ -190,9 +224,16 @@ class SlideshowCreateSerializer(serializers.ModelSerializer):
             'created_by_url',
             'share_url',
             'edit_url',
+            'clip_mp4_url',
+            'clip_pdf_url',
+            'embed_url',
             'write_token',
         )
-        read_only_fields = ('id', 'share_url', 'edit_url', 'write_token')
+        read_only_fields = (
+            'id', 'share_url', 'edit_url',
+            'clip_mp4_url', 'clip_pdf_url', 'embed_url',
+            'write_token',
+        )
 
     def get_share_url(self, obj: Slideshow) -> str:
         return _build_absolute(f'/s/{obj.share_token}/', self.context.get('request'))
@@ -202,6 +243,15 @@ class SlideshowCreateSerializer(serializers.ModelSerializer):
             f'/s/{obj.share_token}/edit?t={obj.edit_token}',
             self.context.get('request'),
         )
+
+    def get_clip_mp4_url(self, obj: Slideshow) -> str:
+        return _build_absolute(f'/s/{obj.share_token}.mp4', self.context.get('request'))
+
+    def get_clip_pdf_url(self, obj: Slideshow) -> str:
+        return _build_absolute(f'/s/{obj.share_token}.pdf', self.context.get('request'))
+
+    def get_embed_url(self, obj: Slideshow) -> str:
+        return _build_absolute(f'/embed/{obj.share_token}', self.context.get('request'))
 
 
 class SlideshowPatchSerializer(serializers.ModelSerializer):

@@ -626,6 +626,111 @@ class GalleryListView(generics.ListAPIView):
     )
 
 
+# ----- Public: GET /api/v1/slideshow/<share_token>/clip.mp4|pdf -----
+#
+# The lazy-render endpoints. External consumers (GitHub PR fetcher,
+# Slack unfurl, etc.) hit these via the web edge ``/s/<token>.mp4`` and
+# ``/s/<token>.pdf`` routes. When the artifact exists, we 302 to the
+# R2 public URL (CDN-served). When it doesn't, we enqueue the render
+# task and respond 202 with a Retry-After header. Subsequent fetches
+# either land the redirect (render finished) or re-enqueue with a
+# rate limit guard so a hot-retry consumer doesn't spam the worker.
+
+# 60s window between lazy enqueues for the same artifact. Long enough
+# to absorb GitHub-style "fetched, not ready, retry" loops; short
+# enough that a deploy-fixed render comes back online quickly.
+_ENQUEUE_RATE_LIMIT_SECONDS = 60
+
+
+def _lazy_render_response(
+    request,
+    slideshow: 'Slideshow',
+    *,
+    field_name: str,
+    enqueue_task,
+) -> Response:
+    '''Shared 302/202 response shape for the lazy MP4/PDF endpoints.'''
+    from django.http import HttpResponseRedirect
+    from django.core.cache import cache as _cache
+
+    artifact = getattr(slideshow, field_name)
+    if artifact:
+        # 302 to the R2 public URL. The redirect target itself is
+        # versioned (renders/v<n>/...), so consumers can cache it
+        # aggressively without staleness risk.
+        return HttpResponseRedirect(artifact.url)
+
+    # No artifact yet. Enqueue (rate-limited per slideshow) and tell
+    # the caller to come back.
+    cache_key = f'agentclip:render-enqueue:{field_name}:{slideshow.id}'
+    if _cache.add(cache_key, '1', timeout=_ENQUEUE_RATE_LIMIT_SECONDS):
+        enqueue_task.delay(str(slideshow.id))
+    response = Response(
+        {
+            'status': 'rendering',
+            'detail': (
+                f'{field_name} for this slideshow is being generated. '
+                f'Retry the same URL after a few seconds.'
+            ),
+        },
+        status=status.HTTP_202_ACCEPTED,
+    )
+    response['Retry-After'] = '10'
+    response['Cache-Control'] = 'no-store'
+    return response
+
+
+@extend_schema(
+    responses={302: None, 202: None, 404: None},
+    tags=['render'],
+)
+@api_view(['GET'])
+@authentication_classes([])
+def slideshow_clip_mp4(request, share_token):
+    '''Serve the rendered MP4 for a slideshow, lazy-render on miss.
+
+    Public, unauthenticated — the share_token IS the access credential.
+    Consumers: GitHub PR inline-video fetcher, Slack/Discord unfurl,
+    Twitter Player Card resolver, anyone who pastes the link.
+    '''
+    from .tasks import render_clip_mp4 as render_task
+    slideshow = get_object_or_404(
+        Slideshow.objects.prefetch_related('slides'),
+        share_token=share_token,
+    )
+    if not slideshow.slides.exists():
+        return Response({'detail': 'slideshow has no slides'}, status=404)
+    return _lazy_render_response(
+        request,
+        slideshow,
+        field_name='rendered_mp4',
+        enqueue_task=render_task,
+    )
+
+
+@extend_schema(
+    responses={302: None, 202: None, 404: None},
+    tags=['render'],
+)
+@api_view(['GET'])
+@authentication_classes([])
+def slideshow_clip_pdf(request, share_token):
+    '''Serve the rendered PDF walkthrough, lazy-render on miss.'''
+    from .tasks import render_clip_pdf as render_task
+    slideshow = get_object_or_404(
+        Slideshow.objects.prefetch_related('slides'),
+        share_token=share_token,
+    )
+    if not slideshow.slides.exists():
+        return Response({'detail': 'slideshow has no slides'}, status=404)
+    return _lazy_render_response(
+        request,
+        slideshow,
+        field_name='rendered_pdf',
+        enqueue_task=render_task,
+    )
+
+
 # ----- Public: POST /api/v1/slideshow/<share_token>/narrate/ -----
 
 

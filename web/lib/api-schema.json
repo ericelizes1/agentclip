@@ -1,1096 +1,1022 @@
-{
-    "openapi": "3.0.3",
-    "info": {
-        "title": "AgentClip API",
-        "version": "0.1.0",
-        "description": "Public HTTP API for AgentClip. Powers the agentclip Python SDK, the agentclip.dev web client, and any third-party tooling that wants to publish or read slideshows."
-    },
-    "paths": {
-        "/api/slideshow/": {
-            "post": {
-                "operationId": "slideshow_create",
-                "description": "Anonymous create. Returns id, share_url, write_token, edit_url.\n\nThe write_token is rendered exactly once, here. Losing it freezes\nthe slideshow forever, which is why the SDK caches it locally\nimmediately on the response.\n\nThe edit_url is also rendered exactly once at create time. Lost\nedit_urls can be recovered through GET /api/v1/slideshow/<slug>/\nedit-token/ as long as the caller still has the write_token. The\nSHA-256 hash of the supplied write_token is stamped onto the row\nhere as the ownership credential the recovery endpoint compares\nagainst.",
-                "tags": [
-                    "slideshows"
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/SlideshowCreateRequest"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {}
-                ],
-                "responses": {
-                    "201": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SlideshowCreate"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/api/slideshow/{slideshow_id}/": {
-            "patch": {
-                "operationId": "slideshow_partial_update",
-                "description": "PATCH title/description/summary or DELETE the whole slideshow.\n\nAuth: Bearer <write_token>. DELETE cascades to all slides via the\nSlide.slideshow FK; the underlying R2 objects are NOT cleaned up\nhere (django-storages doesn't delete files on model.delete by\ndefault), so empty bucket cruft accumulates. Acceptable for v0.1\nwith low traffic; revisit when storage costs matter.",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "slideshow_id",
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "slideshows"
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PatchedSlideshowPatchRequest"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "WriteTokenAuth": []
-                    },
-                    {}
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SlideshowPatch"
-                                }
-                            }
-                        },
-                        "description": ""
-                    },
-                    "204": {
-                        "description": "No response body"
-                    }
-                }
-            },
-            "delete": {
-                "operationId": "slideshow_destroy",
-                "description": "PATCH title/description/summary or DELETE the whole slideshow.\n\nAuth: Bearer <write_token>. DELETE cascades to all slides via the\nSlide.slideshow FK; the underlying R2 objects are NOT cleaned up\nhere (django-storages doesn't delete files on model.delete by\ndefault), so empty bucket cruft accumulates. Acceptable for v0.1\nwith low traffic; revisit when storage costs matter.",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "slideshow_id",
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "slideshows"
-                ],
-                "security": [
-                    {
-                        "WriteTokenAuth": []
-                    },
-                    {}
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SlideshowPatch"
-                                }
-                            }
-                        },
-                        "description": ""
-                    },
-                    "204": {
-                        "description": "No response body"
-                    }
-                }
-            }
-        },
-        "/api/slideshow/{slideshow_id}/slides/": {
-            "post": {
-                "operationId": "slideshow_slides_create",
-                "description": "Append a slide. Auth: Bearer <write_token>.\n\nPosition is server-assigned as max(existing) + 1. The unique\nconstraint on (slideshow, position) is the safety net under\nconcurrent appends; we read with ``select_for_update`` to keep\nthe increment atomic in the common case.",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "slideshow_id",
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "slides"
-                ],
-                "requestBody": {
-                    "content": {
-                        "multipart/form-data": {
-                            "schema": {
-                                "$ref": "#/components/schemas/SlideWriteRequest"
-                            }
-                        },
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/SlideWriteRequest"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "WriteTokenAuth": []
-                    },
-                    {}
-                ],
-                "responses": {
-                    "201": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SlideWrite"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/api/slideshow/{slideshow_id}/slides/{position}/": {
-            "patch": {
-                "operationId": "slideshow_slides_partial_update",
-                "description": "Replace image and/or caption. Auth: Bearer <write_token>.",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "position",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "required": true
-                    },
-                    {
-                        "in": "path",
-                        "name": "slideshow_id",
-                        "schema": {
-                            "type": "string",
-                            "format": "uuid"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "slides"
-                ],
-                "requestBody": {
-                    "content": {
-                        "multipart/form-data": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PatchedSlideWriteRequest"
-                            }
-                        },
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PatchedSlideWriteRequest"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "WriteTokenAuth": []
-                    },
-                    {}
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SlideWrite"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/api/v1/gallery/": {
-            "get": {
-                "operationId": "v1_gallery_list",
-                "description": "Curated gallery feed for the home page.\n\nReturns slideshows with `is_gallery=True`, ordered by\n`gallery_position` ascending then `-created_at`. Capped at 12 so a\nmisconfigured admin entry can't blow up the payload.\n\nCuration flips the `is_gallery` flag and sets `gallery_position`.\nTwo ways to flip it:\n- Django admin (privileged user account)\n- The `agentclip slideshow feature <token>` CLI, which hits the\n  admin endpoint at `/api/v1/slideshow/<share_token>/feature/`\n  authenticated by `AGENTCLIP_ADMIN_TOKEN`. The CLI path lets a\n  curator (or an agent given the admin token) reorder the gallery\n  without a Django admin trip — and without a redeploy.\n\nPublic, unauthenticated, rate-limit-free (read-only).",
-                "tags": [
-                    "v1"
-                ],
-                "security": [
-                    {}
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/GallerySlideshow"
-                                    }
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/api/v1/slideshow/{share_token}/": {
-            "get": {
-                "operationId": "v1_slideshow_retrieve",
-                "description": "Public read of one slideshow by share_token.\n\nReplaces the deleted Django template view. Anonymous, unauthenticated,\nrate-limit-free (read-only — abuse vectors are the same as a CDN\nfetch). The Next.js viewer page (`/s/[token]`) calls this endpoint\nvia the typed client; agents and integrations are welcome to too.\n\nReturns 200 with `SlideshowPublicSerializer` on hit, 404 on miss.\nSlides are prefetched in position order so the response renders in\none query.",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "share_token",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "v1"
-                ],
-                "security": [
-                    {}
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SlideshowPublic"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/api/v1/slideshow/{share_token}/edit-token/": {
-            "get": {
-                "operationId": "v1_slideshow_edit_token_retrieve",
-                "description": "Return the edit_token + edit_url for callers who can prove ownership.\n\nAuthentication: Bearer <write_token>. The supplied token's SHA-256\nmust match `created_by_token_hash` on the row. 401 when the header\nis missing/empty; 403 when the token doesn't match; 404 when the\nslug is unknown.",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "share_token",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "edit-token"
-                ],
-                "security": [
-                    {
-                        "WriteTokenAuth": []
-                    },
-                    {}
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/EditToken"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/api/v1/slideshow/{share_token}/feature/": {
-            "post": {
-                "operationId": "v1_slideshow_feature_create",
-                "description": "Flip is_gallery on a slideshow. Auth: Bearer AGENTCLIP_ADMIN_TOKEN.\n\nPOST   {position?: int} → set is_gallery=True, gallery_position=<position>\nDELETE                  → set is_gallery=False (drops from gallery)\n\nThe slideshow row is the source of truth for curation. Calling\nPOST repeatedly with different positions is the supported way to\nreorder. POST is idempotent in the is_gallery sense — calling it\ntwice on a featured slideshow is fine; the second call updates\nthe position.",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "share_token",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "admin"
-                ],
-                "requestBody": {
-                    "content": {
-                        "type": {
-                            "schema": {
-                                "type": "object",
-                                "additionalProperties": {},
-                                "description": "Unspecified request body"
-                            }
-                        },
-                        "properties": {
-                            "schema": {
-                                "position": {
-                                    "type": "integer",
-                                    "description": "gallery_position to assign; lower sorts first."
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {}
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SlideshowPublic"
-                                }
-                            }
-                        },
-                        "description": ""
-                    },
-                    "204": {
-                        "description": "No response body"
-                    }
-                }
-            },
-            "delete": {
-                "operationId": "v1_slideshow_feature_destroy",
-                "description": "Flip is_gallery on a slideshow. Auth: Bearer AGENTCLIP_ADMIN_TOKEN.\n\nPOST   {position?: int} → set is_gallery=True, gallery_position=<position>\nDELETE                  → set is_gallery=False (drops from gallery)\n\nThe slideshow row is the source of truth for curation. Calling\nPOST repeatedly with different positions is the supported way to\nreorder. POST is idempotent in the is_gallery sense — calling it\ntwice on a featured slideshow is fine; the second call updates\nthe position.",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "share_token",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "admin"
-                ],
-                "security": [
-                    {}
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SlideshowPublic"
-                                }
-                            }
-                        },
-                        "description": ""
-                    },
-                    "204": {
-                        "description": "No response body"
-                    }
-                }
-            }
-        },
-        "/api/v1/slideshow/{share_token}/narrate/": {
-            "post": {
-                "operationId": "v1_slideshow_narrate_create",
-                "description": "Generate per-slide narration MP3s. Auth: Bearer <write_token>.\n\nLoops the slideshow's slides and synthesizes audio from each\ncaption via OpenAI TTS-1-HD. Idempotent by default — slides that\nalready have audio are skipped. Pass `force=true` to regenerate\neverything, or `dry_run=true` to estimate cost without spending.\n\nAuth model: same as slide_add — only the write_token holder can\nnarrate. The token is presented in the Authorization header\nexactly like an SDK upload request.\n\nResponse: the public slideshow shape with `audio_url` populated\non each newly-narrated slide. The response also includes a\n`narration` block with per-slide outcomes and total cost so the\ncaller can render a summary or surface the spend.\n\nCost: ~$0.030 per 1K caption characters. A 4-slide walkthrough\nwith ~150-char captions is ~$0.018 per run.",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "share_token",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "narration"
-                ],
-                "requestBody": {
-                    "content": {
-                        "type": {
-                            "schema": {
-                                "type": "object",
-                                "additionalProperties": {},
-                                "description": "Unspecified request body"
-                            }
-                        },
-                        "properties": {
-                            "schema": {
-                                "voice": {
-                                    "type": "string",
-                                    "description": "OpenAI TTS voice (alloy, echo, fable, onyx, nova, shimmer). Defaults to nova."
-                                },
-                                "force": {
-                                    "type": "boolean",
-                                    "description": "If true, regenerate audio for slides that already have a narration. Default false (idempotent skip)."
-                                },
-                                "dry_run": {
-                                    "type": "boolean",
-                                    "description": "If true, report estimated cost without calling OpenAI or writing to the database. Default false."
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "WriteTokenAuth": []
-                    },
-                    {}
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SlideshowPublic"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/api/v1/slideshow/{share_token}/rotate-edit-token/": {
-            "post": {
-                "operationId": "v1_slideshow_rotate_edit_token_create",
-                "description": "Regenerate the edit_token. The old URL stops working immediately.\n\nAuthentication: same ownership check as the recovery endpoint. The\nnew edit_token is generated server-side; the response shape mirrors\nthe recovery endpoint so SDK callers can use the same parser.",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "share_token",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "edit-token"
-                ],
-                "security": [
-                    {
-                        "WriteTokenAuth": []
-                    },
-                    {}
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/EditToken"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/api/v1/slideshow/{share_token}/slides/{position}/": {
-            "delete": {
-                "operationId": "v1_slideshow_slides_destroy",
-                "description": "Delete a slide via the edit_token. Auth: Bearer <edit_token>.\n\nPositions of remaining slides are NOT renumbered — the gap is\npreserved so existing public links to higher-numbered positions\nstay valid as long as those slides exist. Renumbering on delete\nwould silently rewrite shareable URLs.",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "position",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "required": true
-                    },
-                    {
-                        "in": "path",
-                        "name": "share_token",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "edit-token"
-                ],
-                "security": [
-                    {
-                        "WriteTokenAuth": []
-                    },
-                    {}
-                ],
-                "responses": {
-                    "204": {
-                        "description": "No response body"
-                    }
-                }
-            }
-        },
-        "/api/v1/slideshow/{share_token}/slides/{position}/caption/": {
-            "patch": {
-                "operationId": "v1_slideshow_slides_caption_partial_update",
-                "description": "Edit a slide's caption via the edit_token. Auth: Bearer <edit_token>.",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "position",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "required": true
-                    },
-                    {
-                        "in": "path",
-                        "name": "share_token",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "edit-token"
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PatchedSlideCaptionEditRequest"
-                            }
-                        },
-                        "multipart/form-data": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PatchedSlideCaptionEditRequest"
-                            }
-                        },
-                        "application/x-www-form-urlencoded": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PatchedSlideCaptionEditRequest"
-                            }
-                        }
-                    }
-                },
-                "security": [
-                    {
-                        "WriteTokenAuth": []
-                    },
-                    {}
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/SlideWrite"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            }
-        }
-    },
-    "components": {
-        "schemas": {
-            "EditToken": {
-                "type": "object",
-                "description": "Response shape for the edit-token recovery + rotation endpoints.\n\nBoth endpoints return the same envelope: the bare ``edit_token``\n(so SDK callers can rebuild URLs against any base) plus the\nfully-resolved ``edit_url`` for direct display.",
-                "properties": {
-                    "edit_token": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "edit_url": {
-                        "type": "string",
-                        "readOnly": true
-                    }
-                },
-                "required": [
-                    "edit_token",
-                    "edit_url"
-                ]
-            },
-            "GallerySlideshow": {
-                "type": "object",
-                "description": "Public, read-only shape for the home-page gallery endpoint.\n\nStrips every internal field — write_token, created_ip, gallery_position\n(an internal sort key), is_gallery (a curation flag) — and emits only\nthe fields the gallery card needs to render. The cover image comes\nfrom the FIRST slide if any exist; absent otherwise.",
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "readOnly": true
-                    },
-                    "share_token": {
-                        "type": "string",
-                        "readOnly": true,
-                        "description": "Public, unguessable URL component used at /s/<share_token>."
-                    },
-                    "title": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "description": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "created_by": {
-                        "type": "string",
-                        "readOnly": true,
-                        "description": "Display credit for the run, e.g. \"Eric Elizes\". Optional."
-                    },
-                    "created_by_url": {
-                        "type": "string",
-                        "format": "uri",
-                        "readOnly": true,
-                        "description": "Optional URL the creator credit links to (portfolio, GitHub, etc.)."
-                    },
-                    "created_at": {
-                        "type": "string",
-                        "format": "date-time",
-                        "readOnly": true
-                    },
-                    "cover_image_url": {
-                        "type": "string",
-                        "nullable": true,
-                        "readOnly": true
-                    },
-                    "slide_count": {
-                        "type": "integer",
-                        "readOnly": true
-                    },
-                    "share_url": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "is_hero": {
-                        "type": "boolean",
-                        "readOnly": true,
-                        "description": "Show as the home-page hero polaroid. Curated via the admin. When multiple slideshows have is_hero=True the API picks the most recently featured. Independent of is_gallery."
-                    }
-                },
-                "required": [
-                    "cover_image_url",
-                    "created_at",
-                    "created_by",
-                    "created_by_url",
-                    "description",
-                    "id",
-                    "is_hero",
-                    "share_token",
-                    "share_url",
-                    "slide_count",
-                    "title"
-                ]
-            },
-            "MediaKindEnum": {
-                "enum": [
-                    "image",
-                    "video"
-                ],
-                "type": "string",
-                "description": "* `image` - Image\n* `video` - Video"
-            },
-            "PatchedSlideCaptionEditRequest": {
-                "type": "object",
-                "description": "Edit-page caption update body.\n\nThe edit-token-authenticated endpoint accepts only `caption` —\ncallers wanting to change media must use the write_token-protected\n`/api/slideshow/<id>/slides/<position>/` route. Keeping the surface\nnarrow makes the security boundary easier to reason about.",
-                "properties": {
-                    "caption": {
-                        "type": "string",
-                        "maxLength": 500
-                    }
-                }
-            },
-            "PatchedSlideWriteRequest": {
-                "type": "object",
-                "description": "Create + update shape for slides. Media and caption only.\n\n``position`` is server-assigned on create and read-only on update;\ncallers identify the slide by its URL position, not its database id.\n``media_kind`` and ``media_content_type`` are server-set from the\nupload's content type via the views' validator.",
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "description": "Short eyebrow title for the slide. Renders above the image in the viewer; gives the slideshow visual hierarchy and makes long runs skimmable. The bundled agentclip skill tells agents to write a 3-7 word title plus a longer caption per slide.",
-                        "maxLength": 100
-                    },
-                    "media": {
-                        "type": "string",
-                        "format": "binary",
-                        "writeOnly": true
-                    },
-                    "caption": {
-                        "type": "string",
-                        "minLength": 1
-                    }
-                }
-            },
-            "PatchedSlideshowPatchRequest": {
-                "type": "object",
-                "description": "Patch shape. Title, description, summary, and creator credit all optional.",
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "maxLength": 200
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "summary": {
-                        "type": "string"
-                    },
-                    "created_by": {
-                        "type": "string",
-                        "description": "Display credit for the run, e.g. \"Eric Elizes\". Optional.",
-                        "maxLength": 100
-                    },
-                    "created_by_url": {
-                        "type": "string",
-                        "format": "uri",
-                        "description": "Optional URL the creator credit links to (portfolio, GitHub, etc.).",
-                        "maxLength": 200
-                    }
-                }
-            },
-            "SlidePublic": {
-                "type": "object",
-                "properties": {
-                    "id": {
-                        "type": "integer",
-                        "readOnly": true
-                    },
-                    "position": {
-                        "type": "integer",
-                        "readOnly": true
-                    },
-                    "title": {
-                        "type": "string",
-                        "readOnly": true,
-                        "description": "Short eyebrow title for the slide. Renders above the image in the viewer; gives the slideshow visual hierarchy and makes long runs skimmable. The bundled agentclip skill tells agents to write a 3-7 word title plus a longer caption per slide."
-                    },
-                    "caption": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "media_url": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "media_kind": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/MediaKindEnum"
-                            }
-                        ],
-                        "readOnly": true,
-                        "description": "image | video; sniffed from upload Content-Type at the API boundary.\n\n* `image` - Image\n* `video` - Video"
-                    },
-                    "audio_url": {
-                        "type": "string",
-                        "nullable": true,
-                        "readOnly": true
-                    },
-                    "audio_voice": {
-                        "type": "string",
-                        "readOnly": true,
-                        "description": "OpenAI TTS voice used to generate `audio` (e.g. \"nova\"). Blank when audio is unset."
-                    },
-                    "audio_duration_ms": {
-                        "type": "integer",
-                        "readOnly": true,
-                        "description": "Duration of `audio` in milliseconds. 0 when audio is unset or duration extraction failed; the player falls back to indeterminate progress until the metadata loads."
-                    }
-                },
-                "required": [
-                    "audio_duration_ms",
-                    "audio_url",
-                    "audio_voice",
-                    "caption",
-                    "id",
-                    "media_kind",
-                    "media_url",
-                    "position",
-                    "title"
-                ]
-            },
-            "SlideWrite": {
-                "type": "object",
-                "description": "Create + update shape for slides. Media and caption only.\n\n``position`` is server-assigned on create and read-only on update;\ncallers identify the slide by its URL position, not its database id.\n``media_kind`` and ``media_content_type`` are server-set from the\nupload's content type via the views' validator.",
-                "properties": {
-                    "id": {
-                        "type": "integer",
-                        "readOnly": true
-                    },
-                    "position": {
-                        "type": "integer",
-                        "readOnly": true
-                    },
-                    "title": {
-                        "type": "string",
-                        "description": "Short eyebrow title for the slide. Renders above the image in the viewer; gives the slideshow visual hierarchy and makes long runs skimmable. The bundled agentclip skill tells agents to write a 3-7 word title plus a longer caption per slide.",
-                        "maxLength": 100
-                    },
-                    "caption": {
-                        "type": "string"
-                    },
-                    "media_url": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "media_kind": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/MediaKindEnum"
-                            }
-                        ],
-                        "readOnly": true,
-                        "description": "image | video; sniffed from upload Content-Type at the API boundary.\n\n* `image` - Image\n* `video` - Video"
-                    }
-                },
-                "required": [
-                    "id",
-                    "media_kind",
-                    "media_url",
-                    "position"
-                ]
-            },
-            "SlideWriteRequest": {
-                "type": "object",
-                "description": "Create + update shape for slides. Media and caption only.\n\n``position`` is server-assigned on create and read-only on update;\ncallers identify the slide by its URL position, not its database id.\n``media_kind`` and ``media_content_type`` are server-set from the\nupload's content type via the views' validator.",
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "description": "Short eyebrow title for the slide. Renders above the image in the viewer; gives the slideshow visual hierarchy and makes long runs skimmable. The bundled agentclip skill tells agents to write a 3-7 word title plus a longer caption per slide.",
-                        "maxLength": 100
-                    },
-                    "media": {
-                        "type": "string",
-                        "format": "binary",
-                        "writeOnly": true
-                    },
-                    "caption": {
-                        "type": "string",
-                        "minLength": 1
-                    }
-                }
-            },
-            "SlideshowCreate": {
-                "type": "object",
-                "description": "Create-time shape. Renders ``write_token`` and ``edit_url`` exactly once.\n\nBoth fields are credentials (or near-credentials):\n- ``write_token`` is the bearer credential the SDK keeps locally\n- ``edit_url`` embeds the per-slideshow ``edit_token`` in its query\n  string, granting public-side edit access to anyone who holds it\n\nNeither field appears in any other serializer. Recovery for\n``edit_url`` happens via GET /api/v1/slideshow/<slug>/edit-token/\n(authenticated by the write_token); ``write_token`` itself is\nnever recoverable.",
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "readOnly": true
-                    },
-                    "title": {
-                        "type": "string",
-                        "maxLength": 200
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "created_by": {
-                        "type": "string",
-                        "description": "Display credit for the run, e.g. \"Eric Elizes\". Optional.",
-                        "maxLength": 100
-                    },
-                    "created_by_url": {
-                        "type": "string",
-                        "format": "uri",
-                        "description": "Optional URL the creator credit links to (portfolio, GitHub, etc.).",
-                        "maxLength": 200
-                    },
-                    "share_url": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "edit_url": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "write_token": {
-                        "type": "string",
-                        "readOnly": true
-                    }
-                },
-                "required": [
-                    "edit_url",
-                    "id",
-                    "share_url",
-                    "write_token"
-                ]
-            },
-            "SlideshowCreateRequest": {
-                "type": "object",
-                "description": "Create-time shape. Renders ``write_token`` and ``edit_url`` exactly once.\n\nBoth fields are credentials (or near-credentials):\n- ``write_token`` is the bearer credential the SDK keeps locally\n- ``edit_url`` embeds the per-slideshow ``edit_token`` in its query\n  string, granting public-side edit access to anyone who holds it\n\nNeither field appears in any other serializer. Recovery for\n``edit_url`` happens via GET /api/v1/slideshow/<slug>/edit-token/\n(authenticated by the write_token); ``write_token`` itself is\nnever recoverable.",
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "maxLength": 200
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "created_by": {
-                        "type": "string",
-                        "description": "Display credit for the run, e.g. \"Eric Elizes\". Optional.",
-                        "maxLength": 100
-                    },
-                    "created_by_url": {
-                        "type": "string",
-                        "format": "uri",
-                        "description": "Optional URL the creator credit links to (portfolio, GitHub, etc.).",
-                        "maxLength": 200
-                    }
-                }
-            },
-            "SlideshowPatch": {
-                "type": "object",
-                "description": "Patch shape. Title, description, summary, and creator credit all optional.",
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "readOnly": true
-                    },
-                    "title": {
-                        "type": "string",
-                        "maxLength": 200
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "summary": {
-                        "type": "string"
-                    },
-                    "created_by": {
-                        "type": "string",
-                        "description": "Display credit for the run, e.g. \"Eric Elizes\". Optional.",
-                        "maxLength": 100
-                    },
-                    "created_by_url": {
-                        "type": "string",
-                        "format": "uri",
-                        "description": "Optional URL the creator credit links to (portfolio, GitHub, etc.).",
-                        "maxLength": 200
-                    }
-                },
-                "required": [
-                    "id"
-                ]
-            },
-            "SlideshowPublic": {
-                "type": "object",
-                "description": "Read-only shape for /s/<share_token> and the public API.",
-                "properties": {
-                    "id": {
-                        "type": "string",
-                        "format": "uuid",
-                        "readOnly": true
-                    },
-                    "title": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "description": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "summary": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "created_by": {
-                        "type": "string",
-                        "readOnly": true,
-                        "description": "Display credit for the run, e.g. \"Eric Elizes\". Optional."
-                    },
-                    "created_by_url": {
-                        "type": "string",
-                        "format": "uri",
-                        "readOnly": true,
-                        "description": "Optional URL the creator credit links to (portfolio, GitHub, etc.)."
-                    },
-                    "created_at": {
-                        "type": "string",
-                        "format": "date-time",
-                        "readOnly": true
-                    },
-                    "updated_at": {
-                        "type": "string",
-                        "format": "date-time",
-                        "readOnly": true
-                    },
-                    "share_url": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "slides": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/SlidePublic"
-                        },
-                        "readOnly": true
-                    }
-                },
-                "required": [
-                    "created_at",
-                    "created_by",
-                    "created_by_url",
-                    "description",
-                    "id",
-                    "share_url",
-                    "slides",
-                    "summary",
-                    "title",
-                    "updated_at"
-                ]
-            }
-        },
-        "securitySchemes": {
-            "WriteTokenAuth": {
-                "type": "http",
-                "scheme": "bearer",
-                "description": "Per-slideshow write_token returned by `POST /api/slideshow/`. The server keeps no user accounts; the token IS the credential."
-            }
-        }
-    }
-}
+openapi: 3.0.3
+info:
+  title: AgentClip API
+  version: 0.1.0
+  description: Public HTTP API for AgentClip. Powers the agentclip Python SDK, the
+    agentclip.dev web client, and any third-party tooling that wants to publish or
+    read slideshows.
+paths:
+  /api/slideshow/:
+    post:
+      operationId: slideshow_create
+      description: |-
+        Anonymous create. Returns id, share_url, write_token, edit_url.
+
+        The write_token is rendered exactly once, here. Losing it freezes
+        the slideshow forever, which is why the SDK caches it locally
+        immediately on the response.
+
+        The edit_url is also rendered exactly once at create time. Lost
+        edit_urls can be recovered through GET /api/v1/slideshow/<slug>/
+        edit-token/ as long as the caller still has the write_token. The
+        SHA-256 hash of the supplied write_token is stamped onto the row
+        here as the ownership credential the recovery endpoint compares
+        against.
+      tags:
+      - slideshows
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SlideshowCreateRequest'
+      security:
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlideshowCreate'
+          description: ''
+  /api/slideshow/{slideshow_id}/:
+    patch:
+      operationId: slideshow_partial_update
+      description: |-
+        PATCH title/description/summary or DELETE the whole slideshow.
+
+        Auth: Bearer <write_token>. DELETE cascades to all slides via the
+        Slide.slideshow FK; the underlying R2 objects are NOT cleaned up
+        here (django-storages doesn't delete files on model.delete by
+        default), so empty bucket cruft accumulates. Acceptable for v0.1
+        with low traffic; revisit when storage costs matter.
+      parameters:
+      - in: path
+        name: slideshow_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - slideshows
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSlideshowPatchRequest'
+      security:
+      - WriteTokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlideshowPatch'
+          description: ''
+        '204':
+          description: No response body
+    delete:
+      operationId: slideshow_destroy
+      description: |-
+        PATCH title/description/summary or DELETE the whole slideshow.
+
+        Auth: Bearer <write_token>. DELETE cascades to all slides via the
+        Slide.slideshow FK; the underlying R2 objects are NOT cleaned up
+        here (django-storages doesn't delete files on model.delete by
+        default), so empty bucket cruft accumulates. Acceptable for v0.1
+        with low traffic; revisit when storage costs matter.
+      parameters:
+      - in: path
+        name: slideshow_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - slideshows
+      security:
+      - WriteTokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlideshowPatch'
+          description: ''
+        '204':
+          description: No response body
+  /api/slideshow/{slideshow_id}/slides/:
+    post:
+      operationId: slideshow_slides_create
+      description: |-
+        Append a slide. Auth: Bearer <write_token>.
+
+        Position is server-assigned as max(existing) + 1. The unique
+        constraint on (slideshow, position) is the safety net under
+        concurrent appends; we read with ``select_for_update`` to keep
+        the increment atomic in the common case.
+      parameters:
+      - in: path
+        name: slideshow_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - slides
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SlideWriteRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SlideWriteRequest'
+      security:
+      - WriteTokenAuth: []
+      - {}
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlideWrite'
+          description: ''
+  /api/slideshow/{slideshow_id}/slides/{position}/:
+    patch:
+      operationId: slideshow_slides_partial_update
+      description: 'Replace image and/or caption. Auth: Bearer <write_token>.'
+      parameters:
+      - in: path
+        name: position
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: slideshow_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - slides
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSlideWriteRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSlideWriteRequest'
+      security:
+      - WriteTokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlideWrite'
+          description: ''
+  /api/v1/gallery/:
+    get:
+      operationId: v1_gallery_list
+      description: |-
+        Curated gallery feed for the home page.
+
+        Returns slideshows with `is_gallery=True`, ordered by
+        `gallery_position` ascending then `-created_at`. Capped at 12 so a
+        misconfigured admin entry can't blow up the payload.
+
+        Curation flips the `is_gallery` flag and sets `gallery_position`.
+        Two ways to flip it:
+        - Django admin (privileged user account)
+        - The `agentclip slideshow feature <token>` CLI, which hits the
+          admin endpoint at `/api/v1/slideshow/<share_token>/feature/`
+          authenticated by `AGENTCLIP_ADMIN_TOKEN`. The CLI path lets a
+          curator (or an agent given the admin token) reorder the gallery
+          without a Django admin trip — and without a redeploy.
+
+        Public, unauthenticated, rate-limit-free (read-only).
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GallerySlideshow'
+          description: ''
+  /api/v1/slideshow/{share_token}/:
+    get:
+      operationId: v1_slideshow_retrieve
+      description: |-
+        Public read of one slideshow by share_token.
+
+        Replaces the deleted Django template view. Anonymous, unauthenticated,
+        rate-limit-free (read-only — abuse vectors are the same as a CDN
+        fetch). The Next.js viewer page (`/s/[token]`) calls this endpoint
+        via the typed client; agents and integrations are welcome to too.
+
+        Returns 200 with `SlideshowPublicSerializer` on hit, 404 on miss.
+        Slides are prefetched in position order so the response renders in
+        one query.
+      parameters:
+      - in: path
+        name: share_token
+        schema:
+          type: string
+        required: true
+      tags:
+      - v1
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlideshowPublic'
+          description: ''
+  /api/v1/slideshow/{share_token}/clip.mp4:
+    get:
+      operationId: v1_slideshow_clip.mp4_retrieve
+      description: |-
+        Serve the rendered MP4 for a slideshow, lazy-render on miss.
+
+        Public, unauthenticated — the share_token IS the access credential.
+        Consumers: GitHub PR inline-video fetcher, Slack/Discord unfurl,
+        Twitter Player Card resolver, anyone who pastes the link.
+      parameters:
+      - in: path
+        name: share_token
+        schema:
+          type: string
+        required: true
+      tags:
+      - render
+      security:
+      - {}
+      responses:
+        '302':
+          description: No response body
+        '202':
+          description: No response body
+        '404':
+          description: No response body
+  /api/v1/slideshow/{share_token}/clip.pdf:
+    get:
+      operationId: v1_slideshow_clip.pdf_retrieve
+      description: Serve the rendered PDF walkthrough, lazy-render on miss.
+      parameters:
+      - in: path
+        name: share_token
+        schema:
+          type: string
+        required: true
+      tags:
+      - render
+      security:
+      - {}
+      responses:
+        '302':
+          description: No response body
+        '202':
+          description: No response body
+        '404':
+          description: No response body
+  /api/v1/slideshow/{share_token}/edit-token/:
+    get:
+      operationId: v1_slideshow_edit_token_retrieve
+      description: |-
+        Return the edit_token + edit_url for callers who can prove ownership.
+
+        Authentication: Bearer <write_token>. The supplied token's SHA-256
+        must match `created_by_token_hash` on the row. 401 when the header
+        is missing/empty; 403 when the token doesn't match; 404 when the
+        slug is unknown.
+      parameters:
+      - in: path
+        name: share_token
+        schema:
+          type: string
+        required: true
+      tags:
+      - edit-token
+      security:
+      - WriteTokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditToken'
+          description: ''
+  /api/v1/slideshow/{share_token}/feature/:
+    post:
+      operationId: v1_slideshow_feature_create
+      description: |-
+        Flip is_gallery on a slideshow. Auth: Bearer AGENTCLIP_ADMIN_TOKEN.
+
+        POST   {position?: int} → set is_gallery=True, gallery_position=<position>
+        DELETE                  → set is_gallery=False (drops from gallery)
+
+        The slideshow row is the source of truth for curation. Calling
+        POST repeatedly with different positions is the supported way to
+        reorder. POST is idempotent in the is_gallery sense — calling it
+        twice on a featured slideshow is fine; the second call updates
+        the position.
+      parameters:
+      - in: path
+        name: share_token
+        schema:
+          type: string
+        required: true
+      tags:
+      - admin
+      requestBody:
+        content:
+          type:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
+          properties:
+            schema:
+              position:
+                type: integer
+                description: gallery_position to assign; lower sorts first.
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlideshowPublic'
+          description: ''
+        '204':
+          description: No response body
+    delete:
+      operationId: v1_slideshow_feature_destroy
+      description: |-
+        Flip is_gallery on a slideshow. Auth: Bearer AGENTCLIP_ADMIN_TOKEN.
+
+        POST   {position?: int} → set is_gallery=True, gallery_position=<position>
+        DELETE                  → set is_gallery=False (drops from gallery)
+
+        The slideshow row is the source of truth for curation. Calling
+        POST repeatedly with different positions is the supported way to
+        reorder. POST is idempotent in the is_gallery sense — calling it
+        twice on a featured slideshow is fine; the second call updates
+        the position.
+      parameters:
+      - in: path
+        name: share_token
+        schema:
+          type: string
+        required: true
+      tags:
+      - admin
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlideshowPublic'
+          description: ''
+        '204':
+          description: No response body
+  /api/v1/slideshow/{share_token}/narrate/:
+    post:
+      operationId: v1_slideshow_narrate_create
+      description: |-
+        Generate per-slide narration MP3s. Auth: Bearer <write_token>.
+
+        Loops the slideshow's slides and synthesizes audio from each
+        caption via OpenAI TTS-1-HD. Idempotent by default — slides that
+        already have audio are skipped. Pass `force=true` to regenerate
+        everything, or `dry_run=true` to estimate cost without spending.
+
+        Auth model: same as slide_add — only the write_token holder can
+        narrate. The token is presented in the Authorization header
+        exactly like an SDK upload request.
+
+        Response: the public slideshow shape with `audio_url` populated
+        on each newly-narrated slide. The response also includes a
+        `narration` block with per-slide outcomes and total cost so the
+        caller can render a summary or surface the spend.
+
+        Cost: ~$0.030 per 1K caption characters. A 4-slide walkthrough
+        with ~150-char captions is ~$0.018 per run.
+      parameters:
+      - in: path
+        name: share_token
+        schema:
+          type: string
+        required: true
+      tags:
+      - narration
+      requestBody:
+        content:
+          type:
+            schema:
+              type: object
+              additionalProperties: {}
+              description: Unspecified request body
+          properties:
+            schema:
+              voice:
+                type: string
+                description: OpenAI TTS voice (alloy, echo, fable, onyx, nova, shimmer).
+                  Defaults to nova.
+              force:
+                type: boolean
+                description: If true, regenerate audio for slides that already have
+                  a narration. Default false (idempotent skip).
+              dry_run:
+                type: boolean
+                description: If true, report estimated cost without calling OpenAI
+                  or writing to the database. Default false.
+      security:
+      - WriteTokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlideshowPublic'
+          description: ''
+  /api/v1/slideshow/{share_token}/rotate-edit-token/:
+    post:
+      operationId: v1_slideshow_rotate_edit_token_create
+      description: |-
+        Regenerate the edit_token. The old URL stops working immediately.
+
+        Authentication: same ownership check as the recovery endpoint. The
+        new edit_token is generated server-side; the response shape mirrors
+        the recovery endpoint so SDK callers can use the same parser.
+      parameters:
+      - in: path
+        name: share_token
+        schema:
+          type: string
+        required: true
+      tags:
+      - edit-token
+      security:
+      - WriteTokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EditToken'
+          description: ''
+  /api/v1/slideshow/{share_token}/slides/{position}/:
+    delete:
+      operationId: v1_slideshow_slides_destroy
+      description: |-
+        Delete a slide via the edit_token. Auth: Bearer <edit_token>.
+
+        Positions of remaining slides are NOT renumbered — the gap is
+        preserved so existing public links to higher-numbered positions
+        stay valid as long as those slides exist. Renumbering on delete
+        would silently rewrite shareable URLs.
+      parameters:
+      - in: path
+        name: position
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: share_token
+        schema:
+          type: string
+        required: true
+      tags:
+      - edit-token
+      security:
+      - WriteTokenAuth: []
+      - {}
+      responses:
+        '204':
+          description: No response body
+  /api/v1/slideshow/{share_token}/slides/{position}/caption/:
+    patch:
+      operationId: v1_slideshow_slides_caption_partial_update
+      description: 'Edit a slide''s caption via the edit_token. Auth: Bearer <edit_token>.'
+      parameters:
+      - in: path
+        name: position
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: share_token
+        schema:
+          type: string
+        required: true
+      tags:
+      - edit-token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedSlideCaptionEditRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedSlideCaptionEditRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedSlideCaptionEditRequest'
+      security:
+      - WriteTokenAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlideWrite'
+          description: ''
+components:
+  schemas:
+    EditToken:
+      type: object
+      description: |-
+        Response shape for the edit-token recovery + rotation endpoints.
+
+        Both endpoints return the same envelope: the bare ``edit_token``
+        (so SDK callers can rebuild URLs against any base) plus the
+        fully-resolved ``edit_url`` for direct display.
+      properties:
+        edit_token:
+          type: string
+          readOnly: true
+        edit_url:
+          type: string
+          readOnly: true
+      required:
+      - edit_token
+      - edit_url
+    GallerySlideshow:
+      type: object
+      description: |-
+        Public, read-only shape for the home-page gallery endpoint.
+
+        Strips every internal field — write_token, created_ip, gallery_position
+        (an internal sort key), is_gallery (a curation flag) — and emits only
+        the fields the gallery card needs to render. The cover image comes
+        from the FIRST slide if any exist; absent otherwise.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        share_token:
+          type: string
+          readOnly: true
+          description: Public, unguessable URL component used at /s/<share_token>.
+        title:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+          description: Display credit for the run, e.g. "Eric Elizes". Optional.
+        created_by_url:
+          type: string
+          format: uri
+          readOnly: true
+          description: Optional URL the creator credit links to (portfolio, GitHub,
+            etc.).
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        cover_image_url:
+          type: string
+          nullable: true
+          readOnly: true
+        slide_count:
+          type: integer
+          readOnly: true
+        share_url:
+          type: string
+          readOnly: true
+        is_hero:
+          type: boolean
+          readOnly: true
+          description: Show as the home-page hero polaroid. Curated via the admin.
+            When multiple slideshows have is_hero=True the API picks the most recently
+            featured. Independent of is_gallery.
+      required:
+      - cover_image_url
+      - created_at
+      - created_by
+      - created_by_url
+      - description
+      - id
+      - is_hero
+      - share_token
+      - share_url
+      - slide_count
+      - title
+    MediaKindEnum:
+      enum:
+      - image
+      - video
+      type: string
+      description: |-
+        * `image` - Image
+        * `video` - Video
+    PatchedSlideCaptionEditRequest:
+      type: object
+      description: |-
+        Edit-page caption update body.
+
+        The edit-token-authenticated endpoint accepts only `caption` —
+        callers wanting to change media must use the write_token-protected
+        `/api/slideshow/<id>/slides/<position>/` route. Keeping the surface
+        narrow makes the security boundary easier to reason about.
+      properties:
+        caption:
+          type: string
+          maxLength: 500
+    PatchedSlideWriteRequest:
+      type: object
+      description: |-
+        Create + update shape for slides. Media and caption only.
+
+        ``position`` is server-assigned on create and read-only on update;
+        callers identify the slide by its URL position, not its database id.
+        ``media_kind`` and ``media_content_type`` are server-set from the
+        upload's content type via the views' validator.
+      properties:
+        title:
+          type: string
+          description: Short eyebrow title for the slide. Renders above the image
+            in the viewer; gives the slideshow visual hierarchy and makes long runs
+            skimmable. The bundled agentclip skill tells agents to write a 3-7 word
+            title plus a longer caption per slide.
+          maxLength: 100
+        media:
+          type: string
+          format: binary
+          writeOnly: true
+        caption:
+          type: string
+          minLength: 1
+    PatchedSlideshowPatchRequest:
+      type: object
+      description: Patch shape. Title, description, summary, and creator credit all
+        optional.
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        summary:
+          type: string
+        created_by:
+          type: string
+          description: Display credit for the run, e.g. "Eric Elizes". Optional.
+          maxLength: 100
+        created_by_url:
+          type: string
+          format: uri
+          description: Optional URL the creator credit links to (portfolio, GitHub,
+            etc.).
+          maxLength: 200
+    SlidePublic:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        position:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+          description: Short eyebrow title for the slide. Renders above the image
+            in the viewer; gives the slideshow visual hierarchy and makes long runs
+            skimmable. The bundled agentclip skill tells agents to write a 3-7 word
+            title plus a longer caption per slide.
+        caption:
+          type: string
+          readOnly: true
+        media_url:
+          type: string
+          readOnly: true
+        media_kind:
+          allOf:
+          - $ref: '#/components/schemas/MediaKindEnum'
+          readOnly: true
+          description: |-
+            image | video; sniffed from upload Content-Type at the API boundary.
+
+            * `image` - Image
+            * `video` - Video
+        audio_url:
+          type: string
+          nullable: true
+          readOnly: true
+        audio_voice:
+          type: string
+          readOnly: true
+          description: OpenAI TTS voice used to generate `audio` (e.g. "nova"). Blank
+            when audio is unset.
+        audio_duration_ms:
+          type: integer
+          readOnly: true
+          description: Duration of `audio` in milliseconds. 0 when audio is unset
+            or duration extraction failed; the player falls back to indeterminate
+            progress until the metadata loads.
+      required:
+      - audio_duration_ms
+      - audio_url
+      - audio_voice
+      - caption
+      - id
+      - media_kind
+      - media_url
+      - position
+      - title
+    SlideWrite:
+      type: object
+      description: |-
+        Create + update shape for slides. Media and caption only.
+
+        ``position`` is server-assigned on create and read-only on update;
+        callers identify the slide by its URL position, not its database id.
+        ``media_kind`` and ``media_content_type`` are server-set from the
+        upload's content type via the views' validator.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        position:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          description: Short eyebrow title for the slide. Renders above the image
+            in the viewer; gives the slideshow visual hierarchy and makes long runs
+            skimmable. The bundled agentclip skill tells agents to write a 3-7 word
+            title plus a longer caption per slide.
+          maxLength: 100
+        caption:
+          type: string
+        media_url:
+          type: string
+          readOnly: true
+        media_kind:
+          allOf:
+          - $ref: '#/components/schemas/MediaKindEnum'
+          readOnly: true
+          description: |-
+            image | video; sniffed from upload Content-Type at the API boundary.
+
+            * `image` - Image
+            * `video` - Video
+      required:
+      - id
+      - media_kind
+      - media_url
+      - position
+    SlideWriteRequest:
+      type: object
+      description: |-
+        Create + update shape for slides. Media and caption only.
+
+        ``position`` is server-assigned on create and read-only on update;
+        callers identify the slide by its URL position, not its database id.
+        ``media_kind`` and ``media_content_type`` are server-set from the
+        upload's content type via the views' validator.
+      properties:
+        title:
+          type: string
+          description: Short eyebrow title for the slide. Renders above the image
+            in the viewer; gives the slideshow visual hierarchy and makes long runs
+            skimmable. The bundled agentclip skill tells agents to write a 3-7 word
+            title plus a longer caption per slide.
+          maxLength: 100
+        media:
+          type: string
+          format: binary
+          writeOnly: true
+        caption:
+          type: string
+          minLength: 1
+    SlideshowCreate:
+      type: object
+      description: |-
+        Create-time shape. Renders ``write_token`` and ``edit_url`` exactly once.
+
+        Both fields are credentials (or near-credentials):
+        - ``write_token`` is the bearer credential the SDK keeps locally
+        - ``edit_url`` embeds the per-slideshow ``edit_token`` in its query
+          string, granting public-side edit access to anyone who holds it
+
+        Neither field appears in any other serializer. Recovery for
+        ``edit_url`` happens via GET /api/v1/slideshow/<slug>/edit-token/
+        (authenticated by the write_token); ``write_token`` itself is
+        never recoverable.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        created_by:
+          type: string
+          description: Display credit for the run, e.g. "Eric Elizes". Optional.
+          maxLength: 100
+        created_by_url:
+          type: string
+          format: uri
+          description: Optional URL the creator credit links to (portfolio, GitHub,
+            etc.).
+          maxLength: 200
+        share_url:
+          type: string
+          readOnly: true
+        edit_url:
+          type: string
+          readOnly: true
+        clip_mp4_url:
+          type: string
+          readOnly: true
+        clip_pdf_url:
+          type: string
+          readOnly: true
+        embed_url:
+          type: string
+          readOnly: true
+        write_token:
+          type: string
+          readOnly: true
+      required:
+      - clip_mp4_url
+      - clip_pdf_url
+      - edit_url
+      - embed_url
+      - id
+      - share_url
+      - write_token
+    SlideshowCreateRequest:
+      type: object
+      description: |-
+        Create-time shape. Renders ``write_token`` and ``edit_url`` exactly once.
+
+        Both fields are credentials (or near-credentials):
+        - ``write_token`` is the bearer credential the SDK keeps locally
+        - ``edit_url`` embeds the per-slideshow ``edit_token`` in its query
+          string, granting public-side edit access to anyone who holds it
+
+        Neither field appears in any other serializer. Recovery for
+        ``edit_url`` happens via GET /api/v1/slideshow/<slug>/edit-token/
+        (authenticated by the write_token); ``write_token`` itself is
+        never recoverable.
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        created_by:
+          type: string
+          description: Display credit for the run, e.g. "Eric Elizes". Optional.
+          maxLength: 100
+        created_by_url:
+          type: string
+          format: uri
+          description: Optional URL the creator credit links to (portfolio, GitHub,
+            etc.).
+          maxLength: 200
+    SlideshowPatch:
+      type: object
+      description: Patch shape. Title, description, summary, and creator credit all
+        optional.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        summary:
+          type: string
+        created_by:
+          type: string
+          description: Display credit for the run, e.g. "Eric Elizes". Optional.
+          maxLength: 100
+        created_by_url:
+          type: string
+          format: uri
+          description: Optional URL the creator credit links to (portfolio, GitHub,
+            etc.).
+          maxLength: 200
+      required:
+      - id
+    SlideshowPublic:
+      type: object
+      description: Read-only shape for /s/<share_token> and the public API.
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        summary:
+          type: string
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+          description: Display credit for the run, e.g. "Eric Elizes". Optional.
+        created_by_url:
+          type: string
+          format: uri
+          readOnly: true
+          description: Optional URL the creator credit links to (portfolio, GitHub,
+            etc.).
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        share_url:
+          type: string
+          readOnly: true
+        clip_mp4_url:
+          type: string
+          readOnly: true
+        clip_pdf_url:
+          type: string
+          readOnly: true
+        embed_url:
+          type: string
+          readOnly: true
+        poster_image_url:
+          type: string
+          nullable: true
+          readOnly: true
+        slides:
+          type: array
+          items:
+            $ref: '#/components/schemas/SlidePublic'
+          readOnly: true
+      required:
+      - clip_mp4_url
+      - clip_pdf_url
+      - created_at
+      - created_by
+      - created_by_url
+      - description
+      - embed_url
+      - id
+      - poster_image_url
+      - share_url
+      - slides
+      - summary
+      - title
+      - updated_at
+  securitySchemes:
+    WriteTokenAuth:
+      type: http
+      scheme: bearer
+      description: Per-slideshow write_token returned by `POST /api/slideshow/`. The
+        server keeps no user accounts; the token IS the credential.

@@ -23,7 +23,20 @@ interface ViewerPageProps {
   params: Promise<{ token: string }>
 }
 
-async function fetchSlideshow(token: string): Promise<ClipViewerSlideshow | null> {
+interface ClipArtifacts {
+  clipMp4Url: string
+  clipPdfUrl: string
+  embedUrl: string
+  posterImageUrl: string | null
+  fallbackPosterUrl: string | null
+}
+
+interface FetchResult {
+  slideshow: ClipViewerSlideshow
+  artifacts: ClipArtifacts
+}
+
+async function fetchSlideshow(token: string): Promise<FetchResult | null> {
   const { data, response } = await api.GET('/api/v1/slideshow/{share_token}/', {
     params: { path: { share_token: token } },
   })
@@ -33,7 +46,7 @@ async function fetchSlideshow(token: string): Promise<ClipViewerSlideshow | null
   // Map onto the local ClipViewer types — same field names today,
   // but the indirection lets the pattern stay decoupled from the
   // wire shape if either ever diverges.
-  return {
+  const slideshow: ClipViewerSlideshow = {
     id: data.id,
     share_token: token,
     title: data.title ?? '',
@@ -53,20 +66,37 @@ async function fetchSlideshow(token: string): Promise<ClipViewerSlideshow | null
       audio_duration_ms: s.audio_duration_ms ?? 0,
     })),
   }
+  const artifacts: ClipArtifacts = {
+    clipMp4Url: data.clip_mp4_url,
+    clipPdfUrl: data.clip_pdf_url,
+    embedUrl: data.embed_url,
+    posterImageUrl: data.poster_image_url ?? null,
+    // First image-kind slide media is the unfurl fallback while the
+    // server-rendered poster JPEG is still being generated.
+    fallbackPosterUrl:
+      slideshow.slides.find((s) => s.media_kind === 'image')?.media_url ?? null,
+  }
+  return { slideshow, artifacts }
 }
 
 export async function generateMetadata({
   params,
 }: ViewerPageProps): Promise<Metadata> {
   const { token } = await params
-  const slideshow = await fetchSlideshow(token)
-  if (!slideshow) return { title: 'Clip not found · AgentClip' }
+  const result = await fetchSlideshow(token)
+  if (!result) return { title: 'Clip not found · AgentClip' }
+  const { slideshow, artifacts } = result
 
   const title = slideshow.title || 'Untitled run'
   const description =
     slideshow.summary ||
     slideshow.description ||
     'A QA run captured by AgentClip.'
+
+  // Prefer the dedicated 1200x630 poster JPEG once it's rendered;
+  // fall back to the first slide's media so unfurls always have an
+  // image (Slack/iMessage cards look broken without one).
+  const posterUrl = artifacts.posterImageUrl ?? artifacts.fallbackPosterUrl ?? undefined
 
   return {
     title: `${title} · AgentClip`,
@@ -75,20 +105,45 @@ export async function generateMetadata({
       title,
       description,
       url: `/s/${token}`,
-      type: 'article',
+      // og:type=video.other unlocks the inline-video card in Slack
+      // and Discord when og:video is present. Falls back to the
+      // generic article card when consumers don't speak video tags.
+      type: 'video.other',
+      videos: [
+        {
+          url: artifacts.clipMp4Url,
+          secureUrl: artifacts.clipMp4Url,
+          type: 'video/mp4',
+          width: 1920,
+          height: 1080,
+        },
+      ],
+      images: posterUrl ? [{ url: posterUrl, width: 1200, height: 630 }] : undefined,
     },
     twitter: {
-      card: 'summary_large_image',
+      // 'player' card type renders an inline player when the platform
+      // recognizes our domain. Even without that, the og:image fallback
+      // gives a usable summary card.
+      card: 'player',
       title,
       description,
+      players: [
+        {
+          playerUrl: artifacts.embedUrl,
+          streamUrl: artifacts.clipMp4Url,
+          width: 1920,
+          height: 1080,
+        },
+      ],
+      images: posterUrl ? [posterUrl] : undefined,
     },
   }
 }
 
 export default async function ViewerPage({ params }: ViewerPageProps) {
   const { token } = await params
-  const slideshow = await fetchSlideshow(token)
-  if (!slideshow) notFound()
+  const result = await fetchSlideshow(token)
+  if (!result) notFound()
 
-  return <ClipViewer slideshow={slideshow} />
+  return <ClipViewer slideshow={result.slideshow} />
 }
