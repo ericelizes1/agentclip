@@ -110,6 +110,28 @@ export function PageViewfinder({ slides, children }: PageViewfinderProps) {
 
   const capture = useCallback(
     (id: string) => {
+      // Order-preserving capture: if a section fires out of order
+      // (visitor lands mid-page or scrolls up to it first), silently
+      // backfill every earlier slot so the stack reads top-to-bottom
+      // 01 → 02 → 03 → 04 regardless of visit path. Earlier slots
+      // skip the flash + flight; only the *actually triggered* slide
+      // gets the animated capture.
+      const idx = slides.findIndex((s) => s.id === id)
+      if (idx > 0) {
+        setCapturedIds((prev) => {
+          let changed = false
+          const next = new Set(prev)
+          for (let i = 0; i < idx; i++) {
+            const earlierId = slides[i]?.id
+            if (earlierId && !next.has(earlierId)) {
+              next.add(earlierId)
+              changed = true
+            }
+          }
+          return changed ? next : prev
+        })
+      }
+
       // Always set the flash + the captured id; the flying-card layer is
       // optional polish that requires both refs.
       if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
@@ -169,7 +191,7 @@ export function PageViewfinder({ slides, children }: PageViewfinderProps) {
         setFlying(null)
       }, FLY_DURATION_MS)
     },
-    [markCaptured, reduce],
+    [markCaptured, reduce, slides],
   )
 
   useEffect(
