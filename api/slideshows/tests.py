@@ -1447,3 +1447,138 @@ class SlideAudioFieldsTests(TestCase):
         # FileField on a nullable column stores '' when blank, so
         # truthiness ('not slide.audio') is the right check, not 'is None'.
         self.assertFalse(bool(slide.audio))
+
+
+class _OverrideEnv:
+    '''Tiny context manager for patching env vars in a test.'''
+
+    def __init__(self, key, value):
+        import os
+        self._os = os
+        self.key = key
+        self.value = value
+        self._previous = None
+
+    def __enter__(self):
+        self._previous = self._os.environ.get(self.key)
+        if self.value is None:
+            self._os.environ.pop(self.key, None)
+        else:
+            self._os.environ[self.key] = self.value
+        return self
+
+    def __exit__(self, *_):
+        if self._previous is None:
+            self._os.environ.pop(self.key, None)
+        else:
+            self._os.environ[self.key] = self._previous
+
+
+def _override_env(key, value):
+    return _OverrideEnv(key, value)
+
+
+class NarrationServiceTests(TestCase):
+    '''Unit tests for slideshows.narration.
+
+    Mocks the OpenAI client so tests don't require network access or
+    a real API key. The service module is pure-data — text in, MP3
+    bytes out — so all behavior is deterministic with mocks.
+    '''
+
+    def setUp(self):
+        from slideshows import narration
+        narration.reset_client_for_tests()
+
+    def _stub_client(self, mp3_bytes=b'ID3\x00fakeaudio'):
+        '''Builds a MagicMock that mimics openai.OpenAI's streaming
+        response API.'''
+        from unittest.mock import MagicMock
+        response = MagicMock()
+        response.iter_bytes.return_value = iter([mp3_bytes])
+        response.__enter__.return_value = response
+        response.__exit__.return_value = False
+        client = MagicMock()
+        client.audio.speech.with_streaming_response.create.return_value = response
+        return client
+
+    def test_synthesize_returns_mp3_bytes_and_metadata(self):
+        from unittest.mock import patch
+        from decimal import Decimal
+        from slideshows import narration
+
+        with patch.object(narration, '_get_client', return_value=self._stub_client(b'MP3DATA')):
+            result = narration.synthesize('hello world')
+
+        self.assertEqual(result.mp3_bytes, b'MP3DATA')
+        self.assertEqual(result.voice, 'nova')
+        self.assertEqual(result.model, 'tts-1-hd')
+        self.assertEqual(result.input_chars, 11)
+        # 11 chars * $0.030 / 1000 = $0.00033
+        self.assertEqual(result.cost_usd, Decimal('0.000330'))
+
+    def test_synthesize_uses_explicit_voice_override(self):
+        from unittest.mock import patch
+        from slideshows import narration
+
+        with patch.object(narration, '_get_client', return_value=self._stub_client()):
+            result = narration.synthesize('hi', voice='echo')
+
+        self.assertEqual(result.voice, 'echo')
+
+    def test_synthesize_rejects_empty_caption(self):
+        from slideshows import narration
+        with self.assertRaises(ValueError):
+            narration.synthesize('')
+        with self.assertRaises(ValueError):
+            narration.synthesize('   \n  ')
+
+    def test_synthesize_rejects_caption_over_max_chars(self):
+        from slideshows import narration
+        too_long = 'x' * (narration.MAX_INPUT_CHARS + 1)
+        with self.assertRaises(ValueError):
+            narration.synthesize(too_long)
+
+    def test_synthesize_at_exact_boundary_succeeds(self):
+        '''4096 chars is the OpenAI limit; we accept it. 4097 raises.'''
+        from unittest.mock import patch
+        from slideshows import narration
+
+        at_limit = 'x' * narration.MAX_INPUT_CHARS
+        with patch.object(narration, '_get_client', return_value=self._stub_client()):
+            result = narration.synthesize(at_limit)
+        self.assertEqual(result.input_chars, narration.MAX_INPUT_CHARS)
+
+    def test_missing_api_key_raises_narration_config_error(self):
+        '''The first synthesize() call with no OPENAI_API_KEY surfaces
+        a friendly NarrationConfigError, not a raw openai exception.'''
+        from slideshows import narration
+        with _override_env('OPENAI_API_KEY', None):
+            narration.reset_client_for_tests()
+            with self.assertRaises(narration.NarrationConfigError):
+                narration.synthesize('hello')
+
+    def test_retries_once_on_transient_openai_error(self):
+        '''Transient errors retry once; second call succeeds.'''
+        from unittest.mock import MagicMock, patch
+        from slideshows import narration
+        import openai
+
+        good = self._stub_client(b'RETRIED')
+        original_response = good.audio.speech.with_streaming_response.create.return_value
+        call_count = {'n': 0}
+
+        def flaky_create(*args, **kwargs):
+            call_count['n'] += 1
+            if call_count['n'] == 1:
+                raise openai.APITimeoutError(request=MagicMock())
+            return original_response
+
+        good.audio.speech.with_streaming_response.create = flaky_create
+
+        with patch.object(narration, '_get_client', return_value=good), \
+             patch('slideshows.narration.time.sleep', lambda *_: None):
+            result = narration.synthesize('hello')
+
+        self.assertEqual(result.mp3_bytes, b'RETRIED')
+        self.assertEqual(call_count['n'], 2)
