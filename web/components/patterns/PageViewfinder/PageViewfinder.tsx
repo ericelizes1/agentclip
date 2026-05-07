@@ -66,7 +66,7 @@ export interface PageViewfinderProps {
   children: ReactNode
 }
 
-const FLY_DURATION_MS = 800
+const FLY_DURATION_MS = 950
 
 /**
  * Page-level "viewfinder" provider. The page is filmed as the visitor
@@ -138,44 +138,39 @@ export function PageViewfinder({ slides, children }: PageViewfinderProps) {
       setFlashTarget(id)
       flashTimerRef.current = setTimeout(() => setFlashTarget(null), 380)
 
-      // Compute the rects for the flying overlay. If either is missing
-      // (mobile, slot not yet mounted, etc.) we just mark the slide
-      // captured immediately and skip the flight.
-      const sectionEl = document.querySelector(
-        `[data-slide-id="${id}"]`,
-      ) as HTMLElement | null
+      // Resolve the destination slot in the widget rail. Without it
+      // there's nowhere to fly to — fall through to instant fill.
       const slotEl = slotRefs.current.get(id)
-
-      if (reduce || !sectionEl || !slotEl) {
+      if (reduce || !slotEl) {
         markCaptured(id)
         return
       }
 
-      const sectionRect = sectionEl.getBoundingClientRect()
-      const slotRect = slotEl.getBoundingClientRect()
+      // The card lifts off from the WHOLE content column the visitor is
+      // looking at (the <main> element's visible rect in the viewport)
+      // — not from a section-sized slice — so the snap reads as "this
+      // entire view got captured", which is what's actually happening.
+      // Falls back to the full viewport when <main> isn't mounted.
+      const mainEl = document.querySelector('main')
+      const mainRect = mainEl?.getBoundingClientRect()
 
-      // Compute the starting pose of the flying card. We center it
-      // horizontally within the section and place its top near the
-      // section's top — that's roughly at the visitor's eye-level
-      // when the section first enters the viewport.
-      const cardW = Math.min(280, Math.max(200, sectionRect.width * 0.4))
-      const cardH = (cardW / 16) * 9
-      const fromTop = Math.max(
-        80,
-        Math.min(
-          sectionRect.top + 32,
-          window.innerHeight - cardH - 24,
-        ),
-      )
-      const fromLeft = sectionRect.left + sectionRect.width / 2 - cardW / 2
+      const fromLeft = mainRect ? mainRect.left : 0
+      const fromWidth = mainRect ? mainRect.width : window.innerWidth
+      const fromTop = mainRect ? Math.max(0, mainRect.top) : 0
+      const fromBottom = mainRect
+        ? Math.min(window.innerHeight, mainRect.bottom)
+        : window.innerHeight
+      const fromHeight = Math.max(120, fromBottom - fromTop)
+
+      const slotRect = slotEl.getBoundingClientRect()
 
       setFlying({
         slideId: id,
         fromRect: {
           top: fromTop,
           left: fromLeft,
-          width: cardW,
-          height: cardH,
+          width: fromWidth,
+          height: fromHeight,
         },
         toRect: {
           top: slotRect.top,
@@ -216,11 +211,32 @@ export function PageViewfinder({ slides, children }: PageViewfinderProps) {
     <ViewfinderContext.Provider value={value}>
       {children}
       <AnimatePresence>
+        {flashTarget ? <ShutterFlash key={flashTarget} /> : null}
+      </AnimatePresence>
+      <AnimatePresence>
         {flying && flyingSlide ? (
           <FlyingCard key={flying.slideId} flying={flying} slide={flyingSlide} />
         ) : null}
       </AnimatePresence>
     </ViewfinderContext.Provider>
+  )
+}
+
+/* ── Shutter flash ──────────────────────────────────────────
+   A viewport-wide paper-white pulse — sells the "snap" moment
+   visually so the flying card feels like the photo that was
+   just taken, not a generic widget animation. */
+
+function ShutterFlash() {
+  return (
+    <motion.div
+      aria-hidden="true"
+      className="pointer-events-none fixed inset-0 z-[55] bg-paper"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: [0, 0.55, 0] }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.32, times: [0, 0.18, 1], ease: 'easeOut' }}
+    />
   )
 }
 
@@ -233,40 +249,64 @@ function FlyingCard({
   flying: FlyingCapture
   slide: ViewfinderSlide
 }) {
+  // Three-phase choreography keyed off the shutter:
+  //   0–18%  the photo materializes at full content-column size right
+  //          where the visitor was looking (the shutter flash overlay
+  //          covers the transition so the materialization reads as
+  //          "the screen turned into a photo")
+  //   18–28% brief hold at full size — the visitor registers this is
+  //          a snapshot of what they were just looking at
+  //   28–100% shrinks + flies to the destination slot in the rail
   return (
     <motion.div
       initial={{
         position: 'fixed',
-        top: flying.fromRect.top - 8,
+        top: flying.fromRect.top,
         left: flying.fromRect.left,
         width: flying.fromRect.width,
         height: flying.fromRect.height,
-        scale: 1.04,
-        rotate: -2,
         opacity: 0,
         zIndex: 60,
-        boxShadow:
-          '0 30px 80px -20px rgba(217,72,36,0.25), 0 12px 30px -10px rgba(20,20,19,0.35)',
       }}
       animate={{
-        top: flying.toRect.top,
-        left: flying.toRect.left,
-        width: flying.toRect.width,
-        height: flying.toRect.height,
-        scale: 1,
-        rotate: 0,
-        opacity: 1,
+        top: [
+          flying.fromRect.top,
+          flying.fromRect.top,
+          flying.fromRect.top,
+          flying.toRect.top,
+        ],
+        left: [
+          flying.fromRect.left,
+          flying.fromRect.left,
+          flying.fromRect.left,
+          flying.toRect.left,
+        ],
+        width: [
+          flying.fromRect.width,
+          flying.fromRect.width,
+          flying.fromRect.width,
+          flying.toRect.width,
+        ],
+        height: [
+          flying.fromRect.height,
+          flying.fromRect.height,
+          flying.fromRect.height,
+          flying.toRect.height,
+        ],
+        opacity: [0, 1, 1, 1],
       }}
-      // Soft exit so a re-fire mid-flight doesn't visually pop.
       exit={{ opacity: 0 }}
       transition={{
-        duration: 0.7,
-        ease: [0.32, 0.72, 0, 1], // crisp pluck → glide curve
-        opacity: { duration: 0.18, ease: [0.2, 0.7, 0.2, 1] },
-        scale: { duration: 0.7, ease: [0.32, 0.72, 0, 1] },
-        rotate: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
+        duration: 0.95,
+        times: [0, 0.18, 0.28, 1],
+        ease: [0.32, 0.72, 0, 1],
+        opacity: { duration: 0.22, ease: [0.2, 0.7, 0.2, 1] },
       }}
-      style={{ pointerEvents: 'none' }}
+      style={{
+        pointerEvents: 'none',
+        boxShadow:
+          '0 30px 80px -20px rgba(217,72,36,0.22), 0 14px 36px -12px rgba(20,20,19,0.32)',
+      }}
       className="overflow-hidden rounded-[10px] border border-vermillion-500/50 bg-paper"
     >
       <div className="size-full overflow-hidden bg-paper-oat">

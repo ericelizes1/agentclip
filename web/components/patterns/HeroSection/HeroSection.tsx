@@ -4,7 +4,8 @@ import { motion, useReducedMotion, type Transition } from 'framer-motion'
 import { SiGithub } from '@icons-pack/react-simple-icons'
 import { useEffect, useState } from 'react'
 
-import { Button } from '@/components/primitives/Button/Button'
+import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
+import { Tabs } from '@/components/primitives/Tabs/Tabs'
 import { Typewriter } from '@/components/primitives/Typewriter/Typewriter'
 import { useRecording } from '@/components/context/RecordingProvider/RecordingProvider'
 import {
@@ -150,17 +151,53 @@ export function HeroSection({
         bounce ideas around.
       </motion.p>
 
+      {/*
+        Install card is the PRIMARY action. Two tabs: a copy-pasteable
+        pip command for visitors who'll set it up themselves, and a
+        natural-language prompt visitors can hand to their agent. The
+        product is "your agent uses it" — both paths are first-class.
+        GitHub demoted to a small text link below.
+      */}
       <motion.div
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ ...at(3), delay: reduce ? 0 : 1.6 }}
+        className="max-w-[640px] rounded-[14px] border border-ink-200 bg-paper shadow-[var(--shadow-whisper)]"
       >
-        <Button asChild variant="primary" size="lg">
-          <a href={githubUrl} target="_blank" rel="noopener noreferrer">
-            <SiGithub aria-hidden="true" className="size-4" />
-            View on GitHub
-          </a>
-        </Button>
+        <Tabs.Root defaultValue="pip">
+          <Tabs.List className="m-2">
+            <Tabs.Trigger value="pip">Install yourself</Tabs.Trigger>
+            <Tabs.Trigger value="agent">Have your agent do it</Tabs.Trigger>
+          </Tabs.List>
+          <Tabs.Content value="pip" className="mt-0 px-2 pb-2">
+            <CodeBlock prompt="$" code="pip install agentclip" />
+            <p className="mt-2 px-2 pb-1 text-xs text-ink-500">
+              No install?{' '}
+              <span className="font-mono text-ink-700">
+                uvx agentclip --help
+              </span>
+            </p>
+          </Tabs.Content>
+          <Tabs.Content value="agent" className="mt-0 px-2 pb-2">
+            <CodeBlock code="Read agentclip.dev/install.md and set up AgentClip for me." />
+          </Tabs.Content>
+        </Tabs.Root>
+      </motion.div>
+
+      <motion.div
+        initial={reduce ? false : { opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ ...at(4), delay: reduce ? 0 : 1.7 }}
+      >
+        <a
+          href={githubUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-sm text-ink-600 underline decoration-ink-300 decoration-1 underline-offset-4 transition-colors hover:text-ink-900 hover:decoration-ink-500"
+        >
+          <SiGithub aria-hidden="true" className="size-3.5" />
+          View source on GitHub
+        </a>
       </motion.div>
 
       {featured && featured.slides.length > 0 && (

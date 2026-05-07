@@ -33,11 +33,18 @@ describe('HeroSection', () => {
     expect(
       screen.getByText(/With AgentClip, your agent turns every feature into/),
     ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /view on github/i })).toHaveAttribute(
-      'href',
-      'https://github.com/ericelizes1/agentclip',
-    )
-    // 'How it works' secondary CTA dropped — single primary action only.
+    // GitHub demoted to a small secondary text link.
+    expect(
+      screen.getByRole('link', { name: /view source on github/i }),
+    ).toHaveAttribute('href', 'https://github.com/ericelizes1/agentclip')
+    // Install Tabs are now the primary action.
+    expect(
+      screen.getByRole('tab', { name: /install yourself/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('tab', { name: /have your agent do it/i }),
+    ).toBeInTheDocument()
+    // 'How it works' secondary CTA dropped — single primary path only.
     expect(
       screen.queryByRole('link', { name: /how it works/i }),
     ).not.toBeInTheDocument()
@@ -49,9 +56,11 @@ describe('HeroSection', () => {
     expect(punchline.className).toMatch(/decoration-vermillion-500/)
   })
 
-  it('does not render install tabs in the hero — those moved to the How it works section', () => {
+  it('renders the install Tabs as the primary CTA in the hero', () => {
     render(<HeroSection />)
-    expect(screen.queryByRole('tab', { name: /install yourself/i })).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('tab', { name: /install yourself/i }),
+    ).toBeInTheDocument()
   })
 
   it('renders the embedded HeroPreview when a featured clip is provided', () => {
