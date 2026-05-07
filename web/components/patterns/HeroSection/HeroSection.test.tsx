@@ -26,11 +26,11 @@ describe('HeroSection', () => {
       vi.advanceTimersByTime(2000)
     })
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      /Walkthroughs that record.*themselves\./,
+      /Your agent shows its.*work\./,
     )
-    expect(screen.getByText('themselves.')).toBeInTheDocument()
+    expect(screen.getByText('work.')).toBeInTheDocument()
     expect(
-      screen.getByText(/Your AI agent runs the flow\. AgentClip captures the screens/),
+      screen.getByText(/With AgentClip, your agent turns every feature into/),
     ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /view on github/i })).toHaveAttribute(
       'href',
@@ -44,7 +44,7 @@ describe('HeroSection', () => {
 
   it('renders the punchline word with a vermillion underline class', () => {
     render(<HeroSection />)
-    const punchline = screen.getByText('themselves.')
+    const punchline = screen.getByText('work.')
     expect(punchline.className).toMatch(/decoration-vermillion-500/)
   })
 

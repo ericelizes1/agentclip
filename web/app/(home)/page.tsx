@@ -9,6 +9,7 @@
 
 import { SiGithub } from '@icons-pack/react-simple-icons'
 
+import { AgentCharacter } from '@/components/composites/AgentCharacter/AgentCharacter'
 import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
 import { HomeSidebar } from '@/components/composites/HomeSidebar/HomeSidebar'
 import { RecordingProvider } from '@/components/context/RecordingProvider/RecordingProvider'
@@ -311,6 +312,10 @@ export default async function HomePage() {
           </div>
         </div>
 
+        {/* The agent: a wiry stick figure with a camera in the
+            bottom-left of the viewport. Reads useViewfinder to react
+            to captures with a snap animation. The page's protagonist. */}
+        <AgentCharacter />
       </PageViewfinder>
     </RecordingProvider>
   )

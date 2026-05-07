@@ -34,12 +34,12 @@ export interface HeroSectionProps {
   className?: string
 }
 
-const HEADLINE_TEXT = 'Walkthroughs that record themselves.'
-const PUNCHLINE = 'themselves.'
+const HEADLINE_TEXT = 'Your agent shows its work.'
+const PUNCHLINE = 'work.'
 const HEADLINE_LEAD = HEADLINE_TEXT.slice(
   0,
   HEADLINE_TEXT.length - PUNCHLINE.length,
-) // "Walkthroughs that record "
+) // "Your agent shows its "
 
 const stagger: Transition = { duration: 0.45, ease: [0.2, 0.7, 0.2, 1] }
 
@@ -163,9 +163,9 @@ export function HeroSection({
         transition={{ ...at(2), delay: reduce ? 0 : 1.5 }}
         className="max-w-[58ch] text-lg text-ink-600 sm:text-xl"
       >
-        Your AI agent runs the flow. AgentClip captures the screens, narrates
-        each step, and ships back one shareable URL — drop it in a PR, a Slack
-        thread, a portfolio, a recruiter email.
+        With AgentClip, your agent turns every feature into a captured demo.
+        One shareable URL — drop in a Slack thread, embed in a PR, or just
+        bounce ideas around.
       </motion.p>
 
       <motion.div
