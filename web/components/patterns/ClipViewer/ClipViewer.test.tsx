@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { ClipViewer, type ClipViewerSlideshow } from './ClipViewer'
 
@@ -46,5 +46,42 @@ describe('ClipViewer', () => {
   it('falls back to "Untitled run" when title is empty', () => {
     render(<ClipViewer slideshow={{ ...base, title: '' }} />)
     expect(screen.getByRole('heading', { name: 'Untitled run' })).toBeInTheDocument()
+  })
+
+  it('renders the narrated VideoClipPlayer when every slide has audio_url', () => {
+    HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined)
+    HTMLMediaElement.prototype.pause = vi.fn()
+    const narrated: ClipViewerSlideshow = {
+      ...base,
+      share_token: 'abc-token',
+      slides: base.slides.map((s, i) => ({
+        ...s,
+        audio_url: `https://cdn/audio/${i + 1}.mp3`,
+      })),
+    }
+    render(<ClipViewer slideshow={narrated} />)
+    expect(
+      screen.getByLabelText(/Narrated walkthrough of: Onboarding regression/i),
+    ).toBeInTheDocument()
+    // Silent <ol> shouldn't render in the narrated branch.
+    expect(
+      screen.queryByRole('list', { name: 'Clip sequence' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('falls back to silent <ol> when even one slide lacks audio_url', () => {
+    const partial: ClipViewerSlideshow = {
+      ...base,
+      slides: base.slides.map((s, i) =>
+        i === 0 ? { ...s, audio_url: 'https://cdn/1.mp3' } : s,
+      ),
+    }
+    render(<ClipViewer slideshow={partial} />)
+    expect(
+      screen.getByRole('list', { name: 'Clip sequence' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByLabelText(/Narrated walkthrough of:/i),
+    ).not.toBeInTheDocument()
   })
 })

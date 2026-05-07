@@ -103,6 +103,10 @@ async function fetchFullSlideshow(token: string): Promise<HeroFeaturedClip | nul
         caption: s.caption ?? '',
         mediaUrl: s.media_url,
         mediaKind: s.media_kind === 'video' ? 'video' : 'image',
+        ...(s.audio_url ? { audioUrl: s.audio_url } : {}),
+        ...(s.audio_duration_ms
+          ? { audioDurationMs: s.audio_duration_ms }
+          : {}),
       })),
     }
   } catch {

@@ -35,6 +35,7 @@ async function fetchSlideshow(token: string): Promise<ClipViewerSlideshow | null
   // wire shape if either ever diverges.
   return {
     id: data.id,
+    share_token: token,
     title: data.title ?? '',
     description: data.description ?? '',
     summary: data.summary ?? '',
@@ -48,6 +49,8 @@ async function fetchSlideshow(token: string): Promise<ClipViewerSlideshow | null
       caption: s.caption ?? '',
       media_url: s.media_url,
       media_kind: s.media_kind === 'video' ? 'video' : 'image',
+      audio_url: s.audio_url ?? null,
+      audio_duration_ms: s.audio_duration_ms ?? 0,
     })),
   }
 }

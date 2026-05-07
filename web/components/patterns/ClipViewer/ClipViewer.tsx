@@ -2,6 +2,10 @@ import { MediaFrame, type MediaKind } from '@/components/composites/MediaFrame/M
 import { MetaRow } from '@/components/composites/MetaRow/MetaRow'
 import { NavBar } from '@/components/composites/NavBar/NavBar'
 import { SummaryCallout } from '@/components/composites/SummaryCallout/SummaryCallout'
+import {
+  VideoClipPlayer,
+  type VideoClipSlide,
+} from '@/components/patterns/VideoClipPlayer/VideoClipPlayer'
 import { cn } from '@/lib/utils'
 
 export interface ClipViewerSlide {
@@ -11,10 +15,23 @@ export interface ClipViewerSlide {
   caption?: string
   media_url: string
   media_kind: MediaKind
+  /**
+   * Optional public URL of the per-slide narration MP3. When every
+   * slide in the slideshow has this set, ClipViewer renders the
+   * narrated VideoClipPlayer instead of the silent stacked layout.
+   */
+  audio_url?: string | null
+  audio_duration_ms?: number | null
 }
 
 export interface ClipViewerSlideshow {
   id: string
+  /**
+   * Public share token, used as the URL component at /s/<share_token>.
+   * Required when the viewer renders the narrated VideoClipPlayer
+   * (which embeds an "Open clip" deep link); optional otherwise.
+   */
+  share_token?: string
   title: string
   description?: string
   summary?: string
@@ -57,6 +74,9 @@ function formatDate(isoString: string): string {
  */
 export function ClipViewer({ slideshow, githubUrl, className }: ClipViewerProps) {
   const meta: string[] = [formatDate(slideshow.created_at), `${slideshow.slides.length} clips`]
+  const allNarrated =
+    slideshow.slides.length > 0 &&
+    slideshow.slides.every((s) => Boolean(s.audio_url))
 
   return (
     <div className={cn('min-h-screen bg-paper text-ink-900', className)}>
@@ -88,32 +108,58 @@ export function ClipViewer({ slideshow, githubUrl, className }: ClipViewerProps)
           </div>
         )}
 
-        <ol className="space-y-10 sm:space-y-12" aria-label="Clip sequence">
-          {slideshow.slides.map((slide) => (
-            <li key={slide.id} className="space-y-3">
-              <div className="flex items-baseline gap-3">
-                <span className="font-mono text-xs uppercase tracking-[0.16em] text-vermillion-700 tabular-nums">
-                  {String(slide.position).padStart(2, '0')}
-                </span>
-                {slide.title && (
-                  <h2 className="text-lg font-semibold tracking-[-0.01em] text-ink-900 sm:text-xl">
-                    {slide.title}
-                  </h2>
+        {allNarrated ? (
+          <VideoClipPlayer
+            shareToken={slideshow.share_token ?? slideshow.id}
+            title={slideshow.title || 'Untitled run'}
+            {...(slideshow.created_by !== undefined
+              ? { creatorName: slideshow.created_by }
+              : {})}
+            slides={slideshow.slides.map(toVideoClipSlide)}
+            variant="full"
+          />
+        ) : (
+          <ol className="space-y-10 sm:space-y-12" aria-label="Clip sequence">
+            {slideshow.slides.map((slide) => (
+              <li key={slide.id} className="space-y-3">
+                <div className="flex items-baseline gap-3">
+                  <span className="font-mono text-xs uppercase tracking-[0.16em] text-vermillion-700 tabular-nums">
+                    {String(slide.position).padStart(2, '0')}
+                  </span>
+                  {slide.title && (
+                    <h2 className="text-lg font-semibold tracking-[-0.01em] text-ink-900 sm:text-xl">
+                      {slide.title}
+                    </h2>
+                  )}
+                </div>
+                <MediaFrame
+                  mediaKind={slide.media_kind}
+                  src={slide.media_url}
+                  alt={slide.title || slide.caption || `Slide ${slide.position}`}
+                  position={slide.position}
+                />
+                {slide.caption && (
+                  <p className="text-base leading-relaxed text-ink-700">{slide.caption}</p>
                 )}
-              </div>
-              <MediaFrame
-                mediaKind={slide.media_kind}
-                src={slide.media_url}
-                alt={slide.title || slide.caption || `Slide ${slide.position}`}
-                position={slide.position}
-              />
-              {slide.caption && (
-                <p className="text-base leading-relaxed text-ink-700">{slide.caption}</p>
-              )}
-            </li>
-          ))}
-        </ol>
+              </li>
+            ))}
+          </ol>
+        )}
       </main>
     </div>
   )
+}
+
+function toVideoClipSlide(slide: ClipViewerSlide): VideoClipSlide {
+  return {
+    position: slide.position,
+    ...(slide.title !== undefined ? { title: slide.title } : {}),
+    caption: slide.caption ?? '',
+    mediaUrl: slide.media_url,
+    mediaKind: slide.media_kind,
+    audioUrl: slide.audio_url as string,
+    ...(slide.audio_duration_ms
+      ? { audioDurationMs: slide.audio_duration_ms }
+      : {}),
+  }
 }
