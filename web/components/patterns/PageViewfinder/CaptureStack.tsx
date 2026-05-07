@@ -3,6 +3,7 @@
 import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
+import { useEffect, useRef } from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -107,9 +108,19 @@ function SlotCard({
   reduce: boolean
 }) {
   const positionLabel = String(slide.position).padStart(2, '0')
+  const ref = useRef<HTMLDivElement | null>(null)
+  const { registerSlot } = useViewfinder()
+
+  // Register this slot's frame node with the viewfinder so the flying
+  // capture animation can compute its destination rect.
+  useEffect(() => {
+    registerSlot(slide.id, ref.current)
+    return () => registerSlot(slide.id, null)
+  }, [slide.id, registerSlot])
 
   return (
     <div
+      ref={ref}
       className={cn(
         'relative w-[148px] overflow-hidden rounded-[10px] transition-all duration-300',
         filled
