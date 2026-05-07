@@ -163,6 +163,24 @@ class MediaKind(models.TextChoices):
     VIDEO = 'video', 'Video'
 
 
+class RunType(models.TextChoices):
+    '''Classification of what kind of QA run produced this clip.
+
+    Drives the narration voice + pacing in the rendered MP4 — same
+    one voice across the whole clip (intro + every slide + outro)
+    so the listener hears one consistent presenter. The agent skill
+    picks a value heuristically from the trigger phrase; humans
+    override via the CLI's ``--type`` flag.
+    '''
+
+    BUG_REPRO = 'bug_repro', 'Bug repro'
+    SMOKE_TEST = 'smoke_test', 'Smoke test'
+    DEMO = 'demo', 'Demo'
+    ONBOARDING_EVAL = 'onboarding_eval', 'Onboarding eval'
+    COMPETITIVE_TEARDOWN = 'competitive_teardown', 'Competitive teardown'
+    GENERIC = 'generic', 'Generic'
+
+
 class Slideshow(models.Model):
     '''A single QA run uploaded by an agent.
 
@@ -332,6 +350,35 @@ class Slideshow(models.Model):
             'previews in Slack, iMessage, Twitter, Linear, etc.'
         ),
     )
+    intro_audio = models.FileField(
+        upload_to=_render_path,
+        blank=True,
+        null=True,
+        help_text=(
+            'Spoken intro MP3 generated from `description`. Played '
+            'over the title card frame at the start of the rendered '
+            'MP4. Voice matches the rest of the clip per `run_type`.'
+        ),
+    )
+    outro_audio = models.FileField(
+        upload_to=_render_path,
+        blank=True,
+        null=True,
+        help_text=(
+            'Spoken outro MP3 generated from `summary`. Played over '
+            'the end card frame at the end of the rendered MP4.'
+        ),
+    )
+    run_type = models.CharField(
+        max_length=24,
+        choices=RunType.choices,
+        default=RunType.GENERIC,
+        help_text=(
+            'What kind of QA run this clip represents. Drives the '
+            'narration voice + pacing for the whole clip; the agent '
+            'skill picks one heuristically from the trigger phrase.'
+        ),
+    )
 
     class Meta:
         ordering = ('-created_at',)
@@ -358,7 +405,13 @@ class Slideshow(models.Model):
         Safe to call on a slideshow with no rendered artifacts yet —
         the FileField loop short-circuits on empty fields.
         '''
-        for field_name in ('rendered_mp4', 'rendered_pdf', 'poster_image'):
+        for field_name in (
+            'rendered_mp4',
+            'rendered_pdf',
+            'poster_image',
+            'intro_audio',
+            'outro_audio',
+        ):
             field = getattr(self, field_name)
             if field:
                 field.delete(save=False)
@@ -367,6 +420,8 @@ class Slideshow(models.Model):
             rendered_mp4='',
             rendered_pdf='',
             poster_image='',
+            intro_audio='',
+            outro_audio='',
             updated_at=timezone.now(),
         )
         self.refresh_from_db(fields=[
@@ -374,6 +429,8 @@ class Slideshow(models.Model):
             'rendered_mp4',
             'rendered_pdf',
             'poster_image',
+            'intro_audio',
+            'outro_audio',
             'updated_at',
         ])
 
