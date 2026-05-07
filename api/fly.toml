@@ -22,6 +22,14 @@ primary_region = 'iad'
 [build]
   dockerfile = 'Dockerfile'
 
+# Two process groups, one container image. ``app`` runs the API
+# (gunicorn); ``worker`` runs the Celery worker that consumes the
+# ``renders`` queue (MP4/PDF rendering). Each gets its own machine
+# pool sized via the [[vm]] entries below.
+[processes]
+  app = "sh -c 'python manage.py migrate --noinput && gunicorn agentclip_app.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 60 --access-logfile - --error-logfile -'"
+  worker = "celery -A agentclip_app worker -Q renders -l info --concurrency=1 --max-tasks-per-child=20"
+
 [http_service]
   internal_port = 8000
   force_https = true
@@ -52,8 +60,17 @@ primary_region = 'iad'
   R2_REGION = 'auto'
 
 [[vm]]
+  processes = ['app']
   size = 'shared-cpu-1x'
   memory = '768mb'
+
+# Worker machine: ffmpeg + WeasyPrint are memory-hungrier than the API
+# during a render. 1GB headroom keeps libx264 from OOMing on a longer
+# clip; the machine auto-stops when the queue drains.
+[[vm]]
+  processes = ['worker']
+  size = 'shared-cpu-1x'
+  memory = '1gb'
 
 [[statics]]
   guest_path = '/app/staticfiles'

@@ -9,14 +9,29 @@
 
 FROM python:3.12-slim
 
-# System deps: psycopg needs libpq, Pillow needs libjpeg/zlib, gunicorn
-# is pure Python. curl stays for healthchecks; everything else can go.
+# System deps:
+# - libpq5 for psycopg
+# - libjpeg/zlib for Pillow
+# - curl for healthchecks
+# - ffmpeg for the MP4 render pipeline (slideshows.mp4)
+# - libcairo2 / libpango / libgdk-pixbuf / libffi8 / shared-mime-info /
+#   fonts-liberation for WeasyPrint's PDF render (slideshows.pdf)
+#   The single image services both the API and the worker process group;
+#   the entrypoint differs by [processes] in fly.toml.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libpq5 \
         libjpeg62-turbo \
         zlib1g \
         curl \
+        ffmpeg \
+        libcairo2 \
+        libpango-1.0-0 \
+        libpangoft2-1.0-0 \
+        libgdk-pixbuf-2.0-0 \
+        libffi8 \
+        shared-mime-info \
+        fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

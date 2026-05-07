@@ -228,6 +228,35 @@ else:
     }
 
 
+# ----- Celery (render workers) -----
+#
+# Celery powers the MP4/PDF render pipeline. The same REDIS_URL drives
+# the broker; the result backend is intentionally unset because tasks
+# are fire-and-forget side effects on the Slideshow row — the public
+# .mp4/.pdf endpoints check the FileField, not a result key.
+#
+# When REDIS_URL is unset (local dev, test runs, contributor machines
+# without a broker), task_always_eager=True runs tasks synchronously
+# in-process. Identical code path; no Celery infrastructure required.
+
+CELERY_TASK_DEFAULT_QUEUE = 'renders'
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # heavy tasks; don't pre-grab a queue
+CELERY_TASK_TIME_LIMIT = 300  # hard kill at 5 minutes
+CELERY_TASK_SOFT_TIME_LIMIT = 240  # graceful warning at 4 minutes
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+if os.environ.get('REDIS_URL'):
+    CELERY_BROKER_URL = os.environ['REDIS_URL']
+else:
+    # Eager mode: tasks run synchronously in the calling process.
+    # No broker connection attempted; perfect for `manage.py test` and
+    # local `runserver` flows.
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
+    CELERY_BROKER_URL = 'memory://'
+
+
 # ----- DRF -----
 
 REST_FRAMEWORK = {

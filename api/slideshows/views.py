@@ -338,9 +338,23 @@ def slideshow_detail(request, slideshow_id):
     # for unrelated reasons.
     rendered_fields = {'title', 'description', 'summary'}
     invalidates = bool(rendered_fields & set(serializer.validated_data.keys()))
+    is_publish_signal = 'summary' in serializer.validated_data
     serializer.save()
     if invalidates:
         transaction.on_commit(slideshow.bump_render_version)
+    if is_publish_signal:
+        # The agent's "I'm done" moment. Pre-warm both render artifacts so
+        # the .mp4/.pdf URLs are usually ready by the time someone pastes
+        # the share link in a PR or Slack channel. Fire-and-forget; if the
+        # worker is down or busy, the lazy fetch path renders on demand.
+        from .tasks import render_clip_mp4, render_clip_pdf
+        slideshow_id = str(slideshow.id)
+        transaction.on_commit(
+            lambda: render_clip_mp4.delay(slideshow_id)
+        )
+        transaction.on_commit(
+            lambda: render_clip_pdf.delay(slideshow_id)
+        )
     return Response(serializer.data)
 
 
