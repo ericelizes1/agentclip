@@ -2,16 +2,15 @@
  * AgentClip home page.
  *
  * Server Component — fetches the curated gallery from the API at
- * request time and composes the locked layout from
- * docs/mockups/index.html: NavBar → Hero → How it works →
- * Gallery → closing line → footer.
+ * request time. Layout is full-bleed with a floating AgentWidget on
+ * the left (LinkedIn-style sticky sidebar) that contains the brand,
+ * the agent character, the slot stack, and the walkthrough CTA.
  */
 
 import { SiGithub } from '@icons-pack/react-simple-icons'
 
-import { AgentCharacter } from '@/components/composites/AgentCharacter/AgentCharacter'
+import { AgentWidget } from '@/components/composites/AgentWidget/AgentWidget'
 import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
-import { HomeSidebar } from '@/components/composites/HomeSidebar/HomeSidebar'
 import { RecordingProvider } from '@/components/context/RecordingProvider/RecordingProvider'
 import { TicketMark } from '@/components/primitives/TicketMark/TicketMark'
 import { GalleryGrid, type GalleryClip } from '@/components/patterns/GalleryGrid/GalleryGrid'
@@ -28,9 +27,6 @@ import { api } from '@/lib/api'
 
 const GITHUB_URL = 'https://github.com/ericelizes1/agentclip'
 
-// Curated gallery rows turn over slowly (admin curation, not user
-// edits). One-minute ISR keeps the home page snappy without serving
-// stale-for-hours data after a curation change.
 export const revalidate = 60
 
 interface HowItWorksStep {
@@ -64,8 +60,6 @@ const STEPS: HowItWorksStep[] = [
 ]
 
 async function fetchGallery(): Promise<GalleryClip[]> {
-  // The Server Component runs at request time; an outage on the API
-  // shouldn't take the home page down — render the empty state instead.
   try {
     const { data } = await api.GET('/api/v1/gallery/')
     if (!data) return []
@@ -81,10 +75,6 @@ async function fetchGallery(): Promise<GalleryClip[]> {
   }
 }
 
-// The home hero leads with the gallery's #1 entry. Curation lives on
-// the API (`AGENTCLIP_GALLERY_TOKENS`) — single source of truth, one
-// env var, one redeploy. Position 0 in the env var becomes the hero;
-// positions 1..n become gallery cards below.
 const HERO_PREVIEW_SLIDE_LIMIT = 4
 
 async function fetchFullSlideshow(token: string): Promise<HeroFeaturedClip | null> {
@@ -110,9 +100,6 @@ async function fetchFullSlideshow(token: string): Promise<HeroFeaturedClip | nul
   }
 }
 
-// Captions used on each slot in the CaptureStack as the visitor
-// scrolls past the section. Falls back gracefully when the featured
-// clip's slide captions aren't available.
 const SECTION_CAPTIONS: Record<string, string> = {
   hero: 'Hero — agentclip.dev introduces itself.',
   'how-it-works': 'How it works — install, run, share.',
@@ -126,12 +113,6 @@ export default async function HomePage() {
   const featured = heroRow ? await fetchFullSlideshow(heroRow.shareToken) : null
   const clips = galleryCards
 
-  // Build the viewfinder slide registry. Each section captures one
-  // slide; thumbnails come from the featured clip itself (so the
-  // visitor's "captures" are real screenshots of agentclip.dev,
-  // because that's what the meta clip contains). When there's no
-  // featured clip, the viewfinder is silently skipped — page renders
-  // as a normal site without the chrome.
   const sectionIds = ['hero', 'how-it-works', 'gallery', 'closing'] as const
   const viewfinderSlides: ViewfinderSlide[] = featured
     ? sectionIds.map((id, idx) => {
@@ -145,39 +126,25 @@ export default async function HomePage() {
       })
     : []
 
-  // Wrap the entire home page in RecordingProvider so the NavBar's
-  // TicketMark and the HeroSection's pill share the same state.
-  // When `featured` is null, start in 'idle' so we don't kick off the
-  // recording animation for a hero that has no real clip to show.
   const initialRecordingState = featured ? 'recording' : 'idle'
 
   return (
     <RecordingProvider initial={initialRecordingState}>
       <PageViewfinder slides={viewfinderSlides}>
         {/*
-          Three-column home layout — no top navbar, no sticky overlay.
-          The screen scrolls cleanly under nothing. Brand + viewfinder
-          chrome live in the left sidebar; capture stack lives in the
-          right sidebar; the page itself sits in a bordered "screen"
-          card in the middle. Both sidebars are sticky so they stay
-          alongside the screen as the visitor scrolls.
-
-          On mobile (< lg), the layout collapses to a single column:
-          a small inline brand row at the top, then the screen, then
-          the page footer. No sidebars below lg.
+          Full-bleed layout. Page content sits in a centered column
+          (no screen-card framing). On lg+, the AgentWidget floats on
+          the left as a sticky sidebar — the brand, the agent stage,
+          the slot stack, and the walkthrough CTA all live in there.
+          On mobile we collapse to a single column with a small inline
+          brand row at the top.
         */}
-        <div className="min-h-screen bg-paper-raised">
-          <div className="mx-auto grid max-w-[1480px] grid-cols-1 gap-6 px-4 pt-4 pb-10 sm:px-6 sm:pt-6 lg:grid-cols-[minmax(0,1fr)_220px] lg:px-7 lg:pt-7">
+        <div className="min-h-screen bg-paper">
+          <div className="mx-auto grid max-w-[1400px] grid-cols-1 gap-10 px-4 pt-4 pb-10 sm:px-6 sm:pt-6 lg:grid-cols-[244px_minmax(0,1fr)] lg:gap-12 lg:px-8 lg:pt-8">
             {/* MOBILE — inline brand row at the top of the page. */}
             <div className="flex items-center justify-between lg:hidden">
-              <a
-                href="/"
-                className="flex items-center gap-2 text-ink-900"
-              >
-                <TicketMark
-                  size={18}
-                  className="text-vermillion-500"
-                />
+              <a href="/" className="flex items-center gap-2 text-ink-900">
+                <TicketMark size={18} className="text-vermillion-500" />
                 <span className="font-semibold tracking-tight">AgentClip</span>
               </a>
               <a
@@ -191,8 +158,17 @@ export default async function HomePage() {
               </a>
             </div>
 
-            {/* SCREEN — the page content. */}
-            <div className="relative overflow-hidden rounded-[18px] border border-ink-200 bg-paper shadow-[0_24px_60px_-30px_rgba(20,20,19,0.18),0_2px_8px_-4px_rgba(20,20,19,0.06)]">
+            {/* LEFT — floating live-capture widget. Sticky on lg+. */}
+            <aside className="hidden lg:block">
+              <div className="sticky top-8">
+                {featured && (
+                  <AgentWidget walkthroughHref={`/s/${featured.shareToken}`} />
+                )}
+              </div>
+            </aside>
+
+            {/* RIGHT — page content, full-bleed (no card framing). */}
+            <main>
               <SlideCapture slideId="hero">
                 <HeroSection githubUrl={GITHUB_URL} featured={featured} />
               </SlideCapture>
@@ -201,7 +177,7 @@ export default async function HomePage() {
                 <section
                   id="how-it-works"
                   aria-labelledby="how-it-works-heading"
-                  className="mx-auto max-w-5xl px-6 py-16"
+                  className="mx-auto max-w-5xl py-16"
                 >
                   <h2
                     id="how-it-works-heading"
@@ -244,7 +220,7 @@ export default async function HomePage() {
               <SlideCapture slideId="gallery">
                 <section
                   aria-labelledby="gallery-heading"
-                  className="mx-auto max-w-5xl px-6 py-16"
+                  className="mx-auto max-w-5xl py-16"
                 >
                   <div className="mb-10 flex items-end justify-between gap-4">
                     <div>
@@ -272,15 +248,15 @@ export default async function HomePage() {
               </SlideCapture>
 
               <SlideCapture slideId="closing">
-                <section className="mx-auto max-w-3xl px-6 py-16 text-center">
+                <section className="mx-auto max-w-3xl py-16 text-center">
                   <p className="text-base text-ink-600">
                     Open source. Receipts for the work agents quietly do.
                   </p>
                 </section>
               </SlideCapture>
 
-              <footer className="border-t border-ink-200 bg-paper-raised">
-                <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-xs uppercase tracking-[0.14em] text-ink-500">
+              <footer className="mt-12 border-t border-ink-200 pt-8">
+                <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 text-xs uppercase tracking-[0.14em] text-ink-500">
                   <span className="flex items-center gap-2 text-ink-700">
                     <TicketMark size={14} className="text-vermillion-500" />
                     AgentClip
@@ -296,26 +272,9 @@ export default async function HomePage() {
                   </a>
                 </div>
               </footer>
-            </div>
-
-            {/* RIGHT — capture stack with morphing status pill at top
-                (Clipping… → Your walkthrough →) and four slot cards
-                below. Sticky alongside the screen as the visitor
-                scrolls. Brand mark + GitHub live in the hero, not here. */}
-            <aside className="hidden lg:block">
-              <div className="sticky top-7">
-                {featured && (
-                  <HomeSidebar walkthroughHref={`/s/${featured.shareToken}`} />
-                )}
-              </div>
-            </aside>
+            </main>
           </div>
         </div>
-
-        {/* The agent: a wiry stick figure with a camera in the
-            bottom-left of the viewport. Reads useViewfinder to react
-            to captures with a snap animation. The page's protagonist. */}
-        <AgentCharacter />
       </PageViewfinder>
     </RecordingProvider>
   )

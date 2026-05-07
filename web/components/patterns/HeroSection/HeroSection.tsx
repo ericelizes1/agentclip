@@ -2,11 +2,9 @@
 
 import { motion, useReducedMotion, type Transition } from 'framer-motion'
 import { SiGithub } from '@icons-pack/react-simple-icons'
-import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/primitives/Button/Button'
-import { TicketMark } from '@/components/primitives/TicketMark/TicketMark'
 import { Typewriter } from '@/components/primitives/Typewriter/Typewriter'
 import { useRecording } from '@/components/context/RecordingProvider/RecordingProvider'
 import {
@@ -110,20 +108,6 @@ export function HeroSection({
         className,
       )}
     >
-      <motion.div
-        initial={reduce ? false : { opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={at(0)}
-      >
-        <Link
-          href="/"
-          className="inline-flex items-center gap-2 text-ink-900"
-        >
-          <TicketMark size={22} className="text-vermillion-500" />
-          <span className="font-semibold tracking-tight">AgentClip</span>
-        </Link>
-      </motion.div>
-
       <motion.h1
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}

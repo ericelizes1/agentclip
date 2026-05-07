@@ -16,11 +16,12 @@ describe('HeroSection', () => {
     vi.useRealTimers()
   })
 
-  it('renders the brand mark, headline, lede, and CTAs', () => {
+  it('renders the headline, lede, and CTA', () => {
     render(<HeroSection githubUrl="https://github.com/ericelizes1/agentclip" />)
-    // Brand mark above the headline links back to the home page.
-    const brandLink = screen.getByRole('link', { name: /AgentClip/ })
-    expect(brandLink).toHaveAttribute('href', '/')
+    // Brand mark moved to the AgentWidget; hero leads with the headline.
+    expect(
+      screen.queryByRole('link', { name: /^AgentClip$/ }),
+    ).not.toBeInTheDocument()
     // Advance through the typewriter so the lead phrase renders into the DOM.
     act(() => {
       vi.advanceTimersByTime(2000)
