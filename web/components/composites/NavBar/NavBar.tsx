@@ -124,7 +124,7 @@ function ViewfinderStatus({
             allCaptured ? 'text-ink-500' : 'text-vermillion-700',
           )}
         >
-          {allCaptured ? 'Filed' : 'Rec'}
+          Rec
         </span>
       </span>
       <span aria-hidden="true" className="text-ink-300">

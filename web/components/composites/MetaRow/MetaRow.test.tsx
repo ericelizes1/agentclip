@@ -22,17 +22,17 @@ describe('MetaRow', () => {
     expect(link).toHaveAttribute('href', 'https://github.com/elizes')
     expect(link).toHaveAttribute('target', '_blank')
     // The avatar's accessible name carries the credit copy.
-    expect(screen.getByLabelText('Filed by Eric Elizes')).toBeInTheDocument()
+    expect(screen.getByLabelText('By Eric Elizes')).toBeInTheDocument()
   })
 
   it('renders the avatar without a link when no URL is given', () => {
     render(<MetaRow labels={['Mar 14, 2026']} createdBy="Eric Elizes" />)
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Filed by Eric Elizes')).toBeInTheDocument()
+    expect(screen.getByLabelText('By Eric Elizes')).toBeInTheDocument()
   })
 
   it('omits the credit segment entirely when createdBy is empty', () => {
     render(<MetaRow labels={['Mar 14, 2026']} createdBy="" />)
-    expect(screen.queryByLabelText(/Filed by/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/By /)).not.toBeInTheDocument()
   })
 })

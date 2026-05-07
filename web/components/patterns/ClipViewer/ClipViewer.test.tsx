@@ -38,9 +38,9 @@ describe('ClipViewer', () => {
     expect(screen.queryByText('Summary')).not.toBeInTheDocument()
   })
 
-  it('omits the FILED BY credit when created_by is empty', () => {
+  it('omits the creator credit when created_by is empty', () => {
     render(<ClipViewer slideshow={{ ...base, created_by: '' }} />)
-    expect(screen.queryByText(/Filed by/)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/By /)).not.toBeInTheDocument()
   })
 
   it('falls back to "Untitled run" when title is empty', () => {

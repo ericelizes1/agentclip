@@ -29,7 +29,7 @@ export default async function OpenGraphImage({ params }: OgImageProps) {
   })
 
   const title = data?.title || 'AgentClip clip'
-  const filedBy = data?.created_by ? `Filed by ${data.created_by}` : 'AgentClip'
+  const byline = data?.created_by ? `By ${data.created_by}` : 'AgentClip'
   const clipCount = data?.slides.length ?? 0
   const firstImage = data?.slides.find((s) => s.media_kind === 'image')?.media_url
 
@@ -103,7 +103,7 @@ export default async function OpenGraphImage({ params }: OgImageProps) {
               color: '#5e5d59',
             }}
           >
-            <span>{filedBy}</span>
+            <span>{byline}</span>
             {clipCount > 0 && <span>·</span>}
             {clipCount > 0 && <span>{clipCount} clips</span>}
           </div>

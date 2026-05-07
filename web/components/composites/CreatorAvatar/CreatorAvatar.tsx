@@ -15,7 +15,7 @@ export interface CreatorAvatarProps {
 }
 
 /**
- * Circular gradient avatar with initials. Replaces the "Filed by Eric Elizes"
+ * Circular gradient avatar with initials. Replaces the "By Eric Elizes"
  * text in the viewer's MetaRow with a richer visual signature — the same
  * name produces the same gradient every time, so a creator's clips read
  * as a consistent identity even across different slideshows.
@@ -28,7 +28,7 @@ export function CreatorAvatar({ name, url, size = 36, className }: CreatorAvatar
 
   const circle = (
     <span
-      aria-label={`Filed by ${name}`}
+      aria-label={`By ${name}`}
       style={{
         width: size,
         height: size,

@@ -15,7 +15,7 @@ export interface MetaRowProps {
  * Reads as: `Mar 14, 2026 · 7 clips · sales-demo   [EE]`.
  *
  * The creator credit is a circular gradient avatar with initials
- * (CreatorAvatar) instead of a "Filed by Eric" text run. The full
+ * (CreatorAvatar) instead of a "By Eric" text run. The full
  * name appears on hover via the avatar's tooltip; clicking opens
  * the portfolio URL when one is set. Visual signature stays compact
  * so the row reads as facts + identity, not facts + sentence.

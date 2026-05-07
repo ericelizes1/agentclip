@@ -50,7 +50,7 @@ const Fallback = forwardRef<
 Fallback.displayName = 'AvatarFallback'
 
 /**
- * Used in the viewer's "Filed by" creator chip. Image + initials
+ * Used in the viewer's creator chip. Image + initials
  * fallback per Radix's contract — the fallback only renders if the
  * image errors or hasn't loaded yet.
  */

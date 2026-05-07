@@ -6,12 +6,12 @@ import { gradientFor } from '@/lib/gradient-avatar'
 describe('CreatorAvatar', () => {
   it('renders the initials of a single-word name', () => {
     render(<CreatorAvatar name="Eric" />)
-    expect(screen.getByLabelText('Filed by Eric')).toHaveTextContent('ER')
+    expect(screen.getByLabelText('By Eric')).toHaveTextContent('ER')
   })
 
   it('renders first + last initials of a multi-word name', () => {
     render(<CreatorAvatar name="Eric Elizes" />)
-    expect(screen.getByLabelText('Filed by Eric Elizes')).toHaveTextContent('EE')
+    expect(screen.getByLabelText('By Eric Elizes')).toHaveTextContent('EE')
   })
 
   it('falls back to "?" for an empty name', () => {
