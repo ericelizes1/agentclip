@@ -113,11 +113,9 @@ export function HeroSection({
         animate={{ opacity: 1, y: 0 }}
         transition={at(1)}
         className={cn(
-          // Single typeface (Geist) at heavy weight for the headline —
-          // keeps the page typographically consistent. Punchline word
-          // is set in italic + vermillion underline as the only visual
-          // emphasis.
-          'font-extrabold tracking-[-0.035em] leading-[1.05] text-ink-900',
+          // Display serif (Fraunces) for the hero headline only — the
+          // signature voice of the page. Body and chrome stay Geist.
+          'font-display font-semibold tracking-[-0.02em] leading-[1.05] text-ink-900',
           'text-[clamp(2.5rem,1.6rem+4vw,4.25rem)]',
         )}
       >

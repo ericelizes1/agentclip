@@ -3,9 +3,9 @@
 import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 
-import { TicketMark } from '@/components/primitives/TicketMark/TicketMark'
+import { AgentMark } from '@/components/primitives/AgentMark/AgentMark'
 import { useViewfinder } from '@/components/patterns/PageViewfinder/PageViewfinder'
 import { cn } from '@/lib/utils'
 
@@ -16,23 +16,18 @@ export interface AgentWidgetProps {
 }
 
 /**
- * The AgentClip "live capture" widget. A floating rounded rectangle
- * on the left side of the home page that contains:
+ * AgentClip "live capture" widget — the brand surface on the home page.
  *
- *   1. Brand bar at top (AgentClip wordmark)
- *   2. Stage — the wiry agent character lives here. He bobs idly and
- *      raises his camera + flashes the lens whenever a slide captures.
- *   3. Slot stack — four thumbnail slots that fill as the visitor
- *      scrolls past each section of the page.
- *   4. Walkthrough CTA — dormant placeholder until all slots are
- *      captured, then morphs into a vermillion "Your walkthrough →"
- *      link.
- *
- * The agent's snap reaction is keyed to capturedIds.size so each new
- * capture re-mounts him and replays the animation from scratch.
- *
- * Lives outside the screen-card mental model — the page is now
- * full-bleed and this widget IS the brand surface on the home page.
+ * Layout, top to bottom:
+ *   1. Brand bar — the AgentMark glyph (which IS the agent character;
+ *      no separate stick figure) plus the AgentClip wordmark and a
+ *      small LIVE indicator. The mark itself flashes its lens and
+ *      bounces on every new capture, so the brand is the animation.
+ *   2. Slot stack — four thumbnail slots that fill as the visitor
+ *      scrolls past each registered section.
+ *   3. Walkthrough CTA — placeholder showing "Clipped 0X / 04" while
+ *      slots are still filling, morphs into a vermillion "Your
+ *      walkthrough →" link once everything is captured.
  */
 export function AgentWidget({ walkthroughHref, className }: AgentWidgetProps) {
   const reduce = useReducedMotion()
@@ -47,20 +42,27 @@ export function AgentWidget({ walkthroughHref, className }: AgentWidgetProps) {
     <aside
       aria-label="Live agent capture"
       className={cn(
-        'flex w-[228px] flex-col overflow-hidden rounded-[18px]',
+        'flex w-[244px] flex-col overflow-hidden rounded-[18px]',
         'border border-ink-200 bg-paper',
         'shadow-[0_24px_56px_-24px_rgba(20,20,19,0.18),0_4px_14px_-6px_rgba(20,20,19,0.08)]',
         className,
       )}
     >
-      {/* ── Brand bar ─────────────────────────────────────── */}
-      <div className="flex items-center justify-between gap-2 border-b border-ink-200 bg-paper-raised px-3.5 py-2.5">
+      {/* ── Brand bar — the agent IS the logo. ────────────── */}
+      <div className="flex items-center justify-between gap-2 border-b border-ink-200 bg-paper-raised px-4 py-3">
         <Link
           href="/"
           className="flex items-center gap-2 text-ink-900"
         >
-          <TicketMark size={16} className="text-vermillion-500" />
-          <span className="text-[13px] font-semibold tracking-tight">
+          {/* `captured` keys the snap animation; `live` keeps the lens
+              gently pulsing while the recording is in progress. */}
+          <AgentMark
+            size={22}
+            captureKey={captured}
+            live={!completed}
+            className="text-vermillion-500"
+          />
+          <span className="text-[14px] font-semibold tracking-tight">
             AgentClip
           </span>
         </Link>
@@ -76,20 +78,6 @@ export function AgentWidget({ walkthroughHref, className }: AgentWidgetProps) {
           />
           Live
         </span>
-      </div>
-
-      {/* ── Agent stage ───────────────────────────────────── */}
-      <div className="relative h-[140px] overflow-hidden bg-paper-raised">
-        {/* Floor line — gives the figure a place to stand. */}
-        <div
-          aria-hidden="true"
-          className="absolute right-4 bottom-3 left-4 h-px bg-ink-200"
-        />
-        <AgentFigure
-          captureKey={captured}
-          completed={completed}
-          reduce={reduce ?? false}
-        />
       </div>
 
       {/* ── Slot stack ────────────────────────────────────── */}
@@ -143,205 +131,6 @@ export function AgentWidget({ walkthroughHref, className }: AgentWidgetProps) {
         )}
       </div>
     </aside>
-  )
-}
-
-/* ── The wiry agent ───────────────────────────────────────── */
-
-function AgentFigure({
-  captureKey,
-  completed,
-  reduce,
-}: {
-  captureKey: number
-  completed: boolean
-  reduce: boolean
-}) {
-  // The captureKey is used so each new capture re-mounts the figure
-  // and replays the snap animation from t=0. When `completed`, the
-  // agent strikes a "thumbs up" pose by holding the camera up a bit
-  // higher and not coming back down.
-  return (
-    <motion.svg
-      key={captureKey}
-      width="76"
-      height="100"
-      viewBox="0 0 76 100"
-      fill="none"
-      className="absolute right-1/2 bottom-2 translate-x-1/2"
-      initial={reduce ? false : { y: 0 }}
-      animate={
-        reduce
-          ? {}
-          : {
-              y: [0, -3, 0, -1, 0],
-            }
-      }
-      transition={
-        reduce
-          ? {}
-          : {
-              duration: 3.4,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }
-      }
-    >
-      {/* Head */}
-      <motion.circle
-        cx="38"
-        cy="18"
-        r="9"
-        stroke="var(--color-ink-700, #3d3d3a)"
-        strokeWidth="2"
-        fill="var(--color-paper, #faf9f5)"
-        initial={reduce ? false : { rotate: 0 }}
-        animate={reduce ? {} : { rotate: [0, -5, 0, 4, 0] }}
-        transition={
-          reduce ? {} : { duration: 0.6, ease: [0.4, 0, 0.2, 1] }
-        }
-        style={{ transformOrigin: '38px 18px' }}
-      />
-
-      {/* Body */}
-      <line
-        x1="38"
-        y1="27"
-        x2="38"
-        y2="58"
-        stroke="var(--color-ink-700, #3d3d3a)"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-
-      {/* Arms — raise to hold camera up, then return (or stay up if completed) */}
-      <motion.line
-        x1="38"
-        y1="36"
-        x2="24"
-        y2="50"
-        stroke="var(--color-ink-700, #3d3d3a)"
-        strokeWidth="2"
-        strokeLinecap="round"
-        initial={reduce ? false : { rotate: 0 }}
-        animate={
-          reduce
-            ? {}
-            : completed
-              ? { rotate: -65 }
-              : { rotate: [0, -60, -60, 0] }
-        }
-        transition={
-          reduce
-            ? {}
-            : completed
-              ? { duration: 0.5, ease: [0.4, 0, 0.2, 1] }
-              : { duration: 0.65, times: [0, 0.32, 0.62, 1], ease: 'easeOut' }
-        }
-        style={{ transformOrigin: '38px 36px' }}
-      />
-      <motion.line
-        x1="38"
-        y1="36"
-        x2="52"
-        y2="50"
-        stroke="var(--color-ink-700, #3d3d3a)"
-        strokeWidth="2"
-        strokeLinecap="round"
-        initial={reduce ? false : { rotate: 0 }}
-        animate={
-          reduce
-            ? {}
-            : completed
-              ? { rotate: 65 }
-              : { rotate: [0, 60, 60, 0] }
-        }
-        transition={
-          reduce
-            ? {}
-            : completed
-              ? { duration: 0.5, ease: [0.4, 0, 0.2, 1] }
-              : { duration: 0.65, times: [0, 0.32, 0.62, 1], ease: 'easeOut' }
-        }
-        style={{ transformOrigin: '38px 36px' }}
-      />
-
-      {/* Camera — translates upward on snap */}
-      <motion.g
-        initial={reduce ? false : { y: 0 }}
-        animate={
-          reduce
-            ? {}
-            : completed
-              ? { y: -18 }
-              : { y: [0, -18, -18, 0] }
-        }
-        transition={
-          reduce
-            ? {}
-            : completed
-              ? { duration: 0.5, ease: [0.4, 0, 0.2, 1] }
-              : { duration: 0.65, times: [0, 0.32, 0.62, 1], ease: 'easeOut' }
-        }
-      >
-        <rect
-          x="29"
-          y="40"
-          width="18"
-          height="12"
-          rx="2"
-          stroke="var(--color-ink-700, #3d3d3a)"
-          strokeWidth="1.6"
-          fill="var(--color-paper, #faf9f5)"
-        />
-        {/* Lens dot — flashes vermillion on snap */}
-        <motion.circle
-          cx="38"
-          cy="46"
-          r="2.6"
-          initial={reduce ? false : { fill: 'var(--color-ink-700, #3d3d3a)', scale: 1 }}
-          animate={
-            reduce
-              ? {}
-              : {
-                  fill: [
-                    'var(--color-ink-700, #3d3d3a)',
-                    'var(--color-vermillion-500, #d94824)',
-                    'var(--color-vermillion-500, #d94824)',
-                    'var(--color-ink-700, #3d3d3a)',
-                  ],
-                  scale: [1, 1.35, 1.35, 1],
-                }
-          }
-          transition={
-            reduce
-              ? {}
-              : { duration: 0.65, times: [0, 0.36, 0.55, 1], ease: 'easeOut' }
-          }
-          style={{ transformOrigin: '38px 46px' }}
-        />
-      </motion.g>
-
-      {/* Legs */}
-      <line
-        x1="38"
-        y1="58"
-        x2="28"
-        y2="86"
-        stroke="var(--color-ink-700, #3d3d3a)"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <line
-        x1="38"
-        y1="58"
-        x2="48"
-        y2="86"
-        stroke="var(--color-ink-700, #3d3d3a)"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </motion.svg>
   )
 }
 
