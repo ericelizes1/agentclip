@@ -4,31 +4,40 @@ import { SiGithub } from '@icons-pack/react-simple-icons'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
-import { Button } from '@/components/primitives/Button/Button'
 import { TicketMark } from '@/components/primitives/TicketMark/TicketMark'
 import { useRecording } from '@/components/context/RecordingProvider/RecordingProvider'
 import { useViewfinder } from '@/components/patterns/PageViewfinder/PageViewfinder'
+import { CaptureStack } from '@/components/patterns/PageViewfinder/CaptureStack'
 import { cn } from '@/lib/utils'
 
 export interface HomeSidebarProps {
-  /** Public GitHub URL the bottom anchor points at. */
+  /** Public GitHub URL the brand-row link points at. */
   githubUrl?: string
+  /**
+   * URL the "Your walkthrough →" CTA links to once every slot is
+   * captured. When omitted, the capture stack and walkthrough CTA
+   * are not rendered (e.g., the home page has no featured clip
+   * configured yet).
+   */
+  walkthroughHref?: string
   className?: string
 }
 
 /**
- * Left sidebar used only on the home page. Hosts the brand mark,
- * the viewfinder status (Rec / timecode / slide counter), and the
- * GitHub link in a single vertical column. No border, no collapse —
- * sits on the camera-body background and stays sticky-positioned by
- * the parent wrapper as the visitor scrolls.
+ * The single right-side rail used on the home page. Combines the
+ * brand mark, GitHub link, viewfinder chrome (Rec / timecode /
+ * slide counter), and the CaptureStack (walkthrough CTA + slot
+ * strip). One column, no border, no collapse — sits on the
+ * camera-body background and stays sticky-positioned by the parent
+ * wrapper as the visitor scrolls.
  *
- * Replaces the old fixed-top NavBar on the home page so the screen
- * content can scroll freely without anything overlaying the top of
- * the page.
+ * Replaces the old top NavBar + separate CaptureStack split. Reads
+ * top-to-bottom as: who → where to look it up → what's recording →
+ * what to watch → what was captured.
  */
 export function HomeSidebar({
   githubUrl = 'https://github.com/ericelizes1/agentclip',
+  walkthroughHref,
   className,
 }: HomeSidebarProps) {
   const { state } = useRecording()
@@ -44,6 +53,7 @@ export function HomeSidebar({
       aria-label="Primary"
       className={cn('flex flex-col gap-7', className)}
     >
+      {/* Brand */}
       <Link
         href="/"
         className="flex w-fit items-center gap-2 text-ink-900"
@@ -56,8 +66,20 @@ export function HomeSidebar({
         <span className="font-semibold tracking-tight">AgentClip</span>
       </Link>
 
+      {/* GitHub link — kept lightweight, no chip styling. */}
+      <a
+        href={githubUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex w-fit items-center gap-2 text-sm text-ink-700 transition-colors hover:text-ink-900"
+      >
+        <SiGithub aria-hidden="true" className="size-4" />
+        <span>GitHub</span>
+      </a>
+
+      {/* Viewfinder chrome — vertical stack of three lines. */}
       {insideViewfinder && (
-        <div className="flex flex-col gap-2 text-[13px] text-ink-500">
+        <div className="flex flex-col gap-1.5 text-[13px] text-ink-500">
           <div className="flex items-center gap-1.5">
             <span
               aria-hidden="true"
@@ -89,19 +111,10 @@ export function HomeSidebar({
         </div>
       )}
 
-      <div className="pt-2">
-        <Button asChild variant="ghost" size="sm">
-          <a
-            href={githubUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-fit"
-          >
-            <SiGithub aria-hidden="true" className="size-4" />
-            <span>GitHub</span>
-          </a>
-        </Button>
-      </div>
+      {/* CaptureStack — walkthrough CTA + four slot cards. */}
+      {walkthroughHref && insideViewfinder && (
+        <CaptureStack walkthroughHref={walkthroughHref} />
+      )}
     </nav>
   )
 }

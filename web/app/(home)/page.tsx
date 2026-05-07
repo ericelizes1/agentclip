@@ -18,7 +18,6 @@ import {
   HeroSection,
   type HeroFeaturedClip,
 } from '@/components/patterns/HeroSection/HeroSection'
-import { CaptureStack } from '@/components/patterns/PageViewfinder/CaptureStack'
 import {
   PageViewfinder,
   type ViewfinderSlide,
@@ -167,14 +166,7 @@ export default async function HomePage() {
           the page footer. No sidebars below lg.
         */}
         <div className="min-h-screen bg-paper-raised">
-          <div className="mx-auto grid max-w-[1520px] grid-cols-1 gap-6 px-4 pt-4 pb-10 sm:px-6 sm:pt-6 lg:grid-cols-[200px_minmax(0,1fr)_184px] lg:px-7 lg:pt-7">
-            {/* LEFT — sidebar with brand + viewfinder chrome (lg+ only). */}
-            <aside className="hidden lg:block">
-              <div className="sticky top-7">
-                <HomeSidebar githubUrl={GITHUB_URL} />
-              </div>
-            </aside>
-
+          <div className="mx-auto grid max-w-[1480px] grid-cols-1 gap-6 px-4 pt-4 pb-10 sm:px-6 sm:pt-6 lg:grid-cols-[minmax(0,1fr)_220px] lg:px-7 lg:pt-7">
             {/* MOBILE — inline brand row at the top of the page. */}
             <div className="flex items-center justify-between lg:hidden">
               <a
@@ -198,7 +190,7 @@ export default async function HomePage() {
               </a>
             </div>
 
-            {/* CENTER — the screen. */}
+            {/* SCREEN — the page content. */}
             <div className="relative overflow-hidden rounded-[18px] border border-ink-200 bg-paper shadow-[0_24px_60px_-30px_rgba(20,20,19,0.18),0_2px_8px_-4px_rgba(20,20,19,0.06)]">
               {/* Inner corner brackets — the "lens" of the camera. */}
               <ScreenCorner position="top-left" />
@@ -311,14 +303,17 @@ export default async function HomePage() {
               </footer>
             </div>
 
-            {/* RIGHT — capture stack column, sticky alongside the screen. */}
+            {/* RIGHT — unified rail: brand, GitHub, viewfinder chrome,
+                walkthrough CTA, capture slot stack. Sticky alongside
+                the screen as the visitor scrolls. */}
             <aside className="hidden lg:block">
               <div className="sticky top-7">
-                {featured && (
-                  <CaptureStack
-                    walkthroughHref={`/s/${featured.shareToken}`}
-                  />
-                )}
+                <HomeSidebar
+                  githubUrl={GITHUB_URL}
+                  {...(featured
+                    ? { walkthroughHref: `/s/${featured.shareToken}` }
+                    : {})}
+                />
               </div>
             </aside>
           </div>
