@@ -31,7 +31,7 @@ describe('HeroSection', () => {
     )
     expect(screen.getByText('demo.')).toBeInTheDocument()
     expect(
-      screen.getByText(/Your coding agent now sends you narrated, shareable/),
+      screen.getByText(/Your coding agent now makes narrated, shareable/),
     ).toBeInTheDocument()
     // GitHub demoted to a small secondary text link.
     expect(

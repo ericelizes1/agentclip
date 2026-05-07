@@ -150,7 +150,7 @@ export function HeroSection({
         transition={{ ...at(2), delay: reduce ? 0 : 1.5 }}
         className="max-w-[58ch] text-lg text-ink-600 sm:text-xl"
       >
-        Your coding agent now sends you narrated, shareable walkthroughs of
+        Your coding agent now makes narrated, shareable walkthroughs of
         your work. Drop in PRs, Slack threads, release notes.
       </motion.p>
 
