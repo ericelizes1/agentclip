@@ -1,9 +1,8 @@
 'use client'
 
 import { Check, Copy } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type KeyboardEvent } from 'react'
 
-import { Button } from '@/components/primitives/Button/Button'
 import { cn } from '@/lib/utils'
 
 export interface CodeBlockProps {
@@ -17,27 +16,50 @@ export interface CodeBlockProps {
 }
 
 /**
- * Multi-line code panel with a copy-to-clipboard affordance.
- * The button uses the Button primitive's ghost variant so it
- * inherits the locked focus ring + 42px radius.
+ * Click-to-copy code panel. The entire block is the click target —
+ * no separate button — and the copy/check glyph in the corner is a
+ * pure visual indicator (it shows what will happen, then confirms
+ * it). Activating with Enter or Space also copies, so keyboard users
+ * get the same affordance.
  *
- * Resets the "Copied" feedback after 1.6s — long enough for the
- * eye to land on it, short enough that a second copy attempt
- * isn't blocked by stale UI state.
+ * Resets the "Copied" feedback after 1.6s — long enough for the eye
+ * to land on it, short enough that a second copy attempt isn't
+ * blocked by stale UI state.
  */
 export function CodeBlock({ code, prompt, label, className }: CodeBlockProps) {
   const [copied, setCopied] = useState(false)
 
-  const onCopy = async () => {
-    await navigator.clipboard.writeText(code)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1600)
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1600)
+    } catch {
+      // Clipboard API can fail in insecure contexts or when the user
+      // denies permission. Swallow silently — the user can still
+      // select + copy manually.
+    }
+  }
+
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      void copy()
+    }
   }
 
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-label={copied ? 'Copied to clipboard' : 'Click to copy snippet'}
+      onClick={() => void copy()}
+      onKeyDown={onKeyDown}
       className={cn(
-        'group relative rounded-md border border-ink-200 bg-paper-oat',
+        'group relative cursor-pointer rounded-md border border-ink-200 bg-paper-oat',
+        'transition-colors duration-150',
+        'hover:border-ink-300 hover:bg-paper-sunken',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-vermillion-500',
         className,
       )}
     >
@@ -46,7 +68,7 @@ export function CodeBlock({ code, prompt, label, className }: CodeBlockProps) {
           {label}
         </div>
       )}
-      <pre className="overflow-x-auto px-4 py-3 font-mono text-sm leading-6 text-ink-800">
+      <pre className="overflow-x-auto px-4 py-3 pr-10 font-mono text-sm leading-6 text-ink-800">
         {code.split('\n').map((line, i) => (
           <div key={i}>
             {prompt && <span className="select-none text-ink-400">{prompt} </span>}
@@ -54,20 +76,23 @@ export function CodeBlock({ code, prompt, label, className }: CodeBlockProps) {
           </div>
         ))}
       </pre>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={onCopy}
-        aria-label={copied ? 'Copied to clipboard' : 'Copy snippet to clipboard'}
-        className="absolute right-2 top-2 h-7 w-7 px-0"
+      {/* Pure visual indicator — the actual click target is the whole
+          panel above. Lives in the upper-right corner; swaps to a
+          vermillion check on copy and resets after 1.6s. */}
+      <span
+        aria-hidden="true"
+        className={cn(
+          'pointer-events-none absolute right-3 top-3 inline-flex size-4 items-center justify-center',
+          'transition-colors duration-150',
+          copied ? 'text-vermillion-600' : 'text-ink-400 group-hover:text-ink-700',
+        )}
       >
         {copied ? (
-          <Check aria-hidden="true" className="size-3.5 text-vermillion-600" />
+          <Check className="size-4" />
         ) : (
-          <Copy aria-hidden="true" className="size-3.5" />
+          <Copy className="size-3.5" />
         )}
-      </Button>
+      </span>
     </div>
   )
 }
