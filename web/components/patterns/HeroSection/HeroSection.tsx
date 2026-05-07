@@ -150,8 +150,8 @@ export function HeroSection({
         transition={{ ...at(2), delay: reduce ? 0 : 1.5 }}
         className="max-w-[58ch] text-lg text-ink-600 sm:text-xl"
       >
-        With AgentClip, your coding agent records its own work and ships you
-        a captioned slideshow — one URL anyone can watch in 30 seconds. No
+        With AgentClip, your coding agent records its own work and sends you
+        a captioned walkthrough — one URL anyone can watch in 30 seconds. No
         Loom, no narration takes, no &ldquo;let me record one more
         time.&rdquo;
       </motion.p>
