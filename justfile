@@ -49,6 +49,25 @@ logs-web:
 ssh-api:
     fly ssh console --app agentclip-api
 
+# --- Gallery curation ---
+
+# Cache the admin token (one-time). Prompts interactively with hidden input.
+gallery-login:
+    @command -v agentclip >/dev/null || (echo "agentclip not on PATH. Run: uv tool install agentclip" && exit 1)
+    AGENTCLIP_BASE_URL=https://api.agentclip.dev agentclip auth login
+
+# Feature a slideshow on the home page. Position 0 = hero.
+gallery-add token position="0":
+    AGENTCLIP_BASE_URL=https://api.agentclip.dev agentclip gallery add {{token}} --position {{position}}
+
+# Drop a slideshow from the home page. The clip itself stays public.
+gallery-remove token:
+    AGENTCLIP_BASE_URL=https://api.agentclip.dev agentclip gallery remove {{token}}
+
+# Show whether an admin token is cached locally (value masked).
+gallery-status:
+    agentclip auth status
+
 # --- Release ---
 
 # Tag the platform repo. SDK release lives in /home/eric/code/agentclip.
