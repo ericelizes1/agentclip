@@ -43,6 +43,7 @@ import secrets
 import uuid
 
 from django.db import models
+from django.utils import timezone
 
 
 def hash_write_token(write_token: str) -> str:
@@ -108,6 +109,19 @@ def _slide_audio_path(instance: 'Slide', filename: str) -> str:
     produces predictable overwrites.
     '''
     return f'slideshows/{instance.slideshow_id}/audio/{filename}'
+
+
+def _render_path(instance: 'Slideshow', filename: str) -> str:
+    '''Storage path for rendered MP4/PDF/poster artifacts.
+
+    Versioned at write time via the slideshow's ``render_version`` so
+    cache invalidation happens at the URL level — bumping the counter
+    yields a fresh path and external CDNs/consumers see new content
+    without any cache-control gymnastics. Old versions persist in R2
+    until a future GC pass; storage growth is observable but bounded
+    since edits are infrequent.
+    '''
+    return f'slideshows/{instance.id}/renders/v{instance.render_version}/{filename}'
 
 
 # Allowed upload content types. Browsers render these natively without
@@ -266,6 +280,59 @@ class Slideshow(models.Model):
     # later edited from another origin.
     created_ip = models.GenericIPAddressField(null=True, blank=True)
 
+    # Render artifacts. The MP4 is what GitHub PRs / Slack / Discord /
+    # iMessage consume when someone pastes a clip URL externally. The
+    # PDF is a downloadable branded walkthrough. The poster image is
+    # the OG/Twitter card image (1200x630 JPEG) that drives unfurl
+    # previews. All three render lazily on first external fetch and
+    # are pre-warmed on `set_summary` (the agent finalize signal).
+    #
+    # `render_version` is the cache-invalidation primitive: any
+    # mutation that changes user-visible content calls
+    # `bump_render_version` (typically via transaction.on_commit on
+    # the mutating endpoint) to increment the counter and clear the
+    # three FileFields. The new version yields a fresh R2 path so
+    # external caches don't matter.
+    render_version = models.PositiveIntegerField(
+        default=0,
+        help_text=(
+            'Monotonic counter bumped whenever a slideshow mutation '
+            'invalidates rendered MP4/PDF/poster artifacts. The render '
+            'storage path includes this value so a bump yields a fresh '
+            'path with no cache headaches.'
+        ),
+    )
+    rendered_mp4 = models.FileField(
+        upload_to=_render_path,
+        blank=True,
+        null=True,
+        help_text=(
+            'Server-rendered MP4 of the slideshow (per-slide image + '
+            'narration MP3 stitched via ffmpeg). Populated lazily on '
+            'first external fetch and pre-warmed on set_summary; '
+            'cleared by bump_render_version.'
+        ),
+    )
+    rendered_pdf = models.FileField(
+        upload_to=_render_path,
+        blank=True,
+        null=True,
+        help_text=(
+            'Server-rendered branded PDF walkthrough. Same lifecycle '
+            'as rendered_mp4.'
+        ),
+    )
+    poster_image = models.FileField(
+        upload_to=_render_path,
+        blank=True,
+        null=True,
+        help_text=(
+            'OG/Twitter poster image (1200x630 JPEG) extracted from '
+            'the first slide at MP4-render time. Drives link-unfurl '
+            'previews in Slack, iMessage, Twitter, Linear, etc.'
+        ),
+    )
+
     class Meta:
         ordering = ('-created_at',)
         indexes = [
@@ -274,6 +341,41 @@ class Slideshow(models.Model):
 
     def __str__(self) -> str:
         return self.title or f'slideshow {self.id}'
+
+    def bump_render_version(self) -> None:
+        '''Invalidate cached render artifacts and increment the version.
+
+        Called from mutating endpoints (typically via
+        ``transaction.on_commit``) whenever a change to slides or
+        slideshow metadata invalidates the rendered MP4 and PDF.
+
+        Uses an atomic F-expression UPDATE on the row so concurrent
+        bumps (multiple queued on_commit callbacks holding stale
+        in-memory copies of the same row) compose correctly: each
+        increment sees the current DB value, not the value that was
+        loaded by the request that queued the bump.
+
+        Safe to call on a slideshow with no rendered artifacts yet —
+        the FileField loop short-circuits on empty fields.
+        '''
+        for field_name in ('rendered_mp4', 'rendered_pdf', 'poster_image'):
+            field = getattr(self, field_name)
+            if field:
+                field.delete(save=False)
+        Slideshow.objects.filter(pk=self.pk).update(
+            render_version=models.F('render_version') + 1,
+            rendered_mp4='',
+            rendered_pdf='',
+            poster_image='',
+            updated_at=timezone.now(),
+        )
+        self.refresh_from_db(fields=[
+            'render_version',
+            'rendered_mp4',
+            'rendered_pdf',
+            'poster_image',
+            'updated_at',
+        ])
 
 
 class Slide(models.Model):

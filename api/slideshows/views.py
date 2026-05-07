@@ -231,6 +231,11 @@ def slide_add(request, slideshow_id):
             media_content_type=content_type,
             media_bytes=new_bytes,
         )
+        # Adding a slide invalidates any previously rendered artifacts.
+        # on_commit defers the FileField file deletes until the row write
+        # has actually committed, so a rolled-back transaction can't leak
+        # storage deletes.
+        transaction.on_commit(slideshow.bump_render_version)
 
     return Response(
         SlideWriteSerializer(slide, context={'request': request}).data,
@@ -291,6 +296,7 @@ def slide_update(request, slideshow_id, position):
     )
     serializer.is_valid(raise_exception=True)
     serializer.save(**extra_save)
+    transaction.on_commit(slideshow.bump_render_version)
     return Response(serializer.data)
 
 
@@ -324,7 +330,17 @@ def slideshow_detail(request, slideshow_id):
 
     serializer = SlideshowPatchSerializer(slideshow, data=request.data, partial=True)
     serializer.is_valid(raise_exception=True)
+    # Bump the render version only when a render-affecting field is in
+    # the patch body. Title/description show up on the PDF cover and in
+    # OG meta; summary appears on the cover card. A no-op PATCH (or one
+    # touching only fields that don't surface in renders) does not
+    # invalidate, to avoid pre-warm spam from clients that issue PATCHes
+    # for unrelated reasons.
+    rendered_fields = {'title', 'description', 'summary'}
+    invalidates = bool(rendered_fields & set(serializer.validated_data.keys()))
     serializer.save()
+    if invalidates:
+        transaction.on_commit(slideshow.bump_render_version)
     return Response(serializer.data)
 
 
@@ -462,6 +478,7 @@ def slide_edit_caption(request, share_token, position):
     body.is_valid(raise_exception=True)
     slide.caption = body.validated_data['caption']
     slide.save(update_fields=['caption'])
+    transaction.on_commit(slideshow.bump_render_version)
 
     return Response(
         SlideWriteSerializer(slide, context={'request': request}).data,
@@ -486,6 +503,7 @@ def slide_edit_delete(request, share_token, position):
     slideshow = authorize_edit(request, share_token)
     slide = get_object_or_404(Slide, slideshow=slideshow, position=position)
     slide.delete()
+    transaction.on_commit(slideshow.bump_render_version)
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -691,6 +709,13 @@ def slideshow_narrate(request, share_token):
         # OPENAI_API_KEY secret) is not configured. The client should
         # not retry blindly; the operator needs to set the secret.
         return Response({'detail': str(exc)}, status=503)
+
+    # Newly synthesized audio changes the MP4 input → bump the render
+    # version. Skip on dry runs (no audio actually changed) and on
+    # all-skipped runs (force=False idempotent path with audio already
+    # in place).
+    if not result.dry_run and result.narrated > 0:
+        transaction.on_commit(slideshow.bump_render_version)
 
     payload = SlideshowPublicSerializer(slideshow, context={'request': request}).data
     payload['narration'] = {
