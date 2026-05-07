@@ -150,11 +150,8 @@ export function HeroSection({
         transition={{ ...at(2), delay: reduce ? 0 : 1.5 }}
         className="max-w-[58ch] text-lg text-ink-600 sm:text-xl"
       >
-        With AgentClip, your Claude or Codex agent will send you narrated,
-        shareable walkthroughs of your work. Have confidence users are
-        getting what you promised. Attach in PRs, Slack messages, and
-        release notes. Never say &ldquo;let me record that one more
-        time&rdquo; ever again.
+        Your coding agent now sends you narrated, shareable walkthroughs of
+        your work. Drop them in PRs, Slack threads, release notes.
       </motion.p>
 
       {/*

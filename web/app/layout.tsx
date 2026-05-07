@@ -29,18 +29,14 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: 'AgentClip · Skip the demo',
   description:
-    'With AgentClip, your Claude or Codex agent will send you narrated, ' +
-    'shareable walkthroughs of your work. Have confidence users are getting ' +
-    'what you promised. Attach in PRs, Slack messages, and release notes. ' +
-    'Never say "let me record that one more time" ever again.',
+    'Your coding agent now sends you narrated, shareable walkthroughs of ' +
+    'your work. Drop them in PRs, Slack threads, release notes.',
   metadataBase: new URL('https://agentclip.dev'),
   openGraph: {
     title: 'AgentClip · Skip the demo',
     description:
-      'With AgentClip, your Claude or Codex agent will send you narrated, ' +
-      'shareable walkthroughs of your work. Have confidence users are getting ' +
-      'what you promised. Attach in PRs, Slack messages, and release notes. ' +
-      'Never say "let me record that one more time" ever again.',
+      'Your coding agent now sends you narrated, shareable walkthroughs ' +
+      'of your work. Drop them in PRs, Slack threads, release notes.',
     url: 'https://agentclip.dev',
     siteName: 'AgentClip',
     type: 'website',
