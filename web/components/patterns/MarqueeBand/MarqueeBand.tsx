@@ -81,9 +81,13 @@ function MarqueeCard({ clip }: { clip: MarqueeClip }) {
     <Link
       href={`/s/${clip.shareToken}`}
       className={cn(
-        'group/card block w-[280px] overflow-hidden rounded-[12px]',
-        'border border-ink-200 bg-paper transition-transform duration-200 ease-out',
-        'hover:-translate-y-0.5 hover:border-ink-300 hover:shadow-[0_18px_40px_-20px_rgba(20,20,19,0.18)]',
+        // Larger poster-like cards (380px) with deeper shadow give
+        // the band a cinematic feel rather than a thumbnail strip.
+        'group/card block w-[380px] overflow-hidden rounded-[14px]',
+        'border border-ink-200 bg-paper transition-all duration-300 ease-out',
+        'shadow-[0_14px_32px_-22px_rgba(20,20,19,0.25),0_4px_10px_-6px_rgba(20,20,19,0.08)]',
+        'hover:-translate-y-1 hover:border-ink-300',
+        'hover:shadow-[0_28px_56px_-24px_rgba(20,20,19,0.28),0_8px_18px_-8px_rgba(20,20,19,0.10)]',
       )}
     >
       <div className="relative aspect-[16/9] overflow-hidden bg-paper-oat">
@@ -93,7 +97,7 @@ function MarqueeCard({ clip }: { clip: MarqueeClip }) {
             src={clip.coverImageUrl}
             alt=""
             loading="lazy"
-            className="size-full object-cover transition-transform duration-500 ease-out group-hover/card:scale-[1.03]"
+            className="size-full object-cover transition-transform duration-700 ease-out group-hover/card:scale-[1.05]"
           />
         ) : (
           <div className="flex size-full items-center justify-center text-xs italic text-ink-400">
@@ -101,12 +105,12 @@ function MarqueeCard({ clip }: { clip: MarqueeClip }) {
           </div>
         )}
       </div>
-      <div className="space-y-1 px-3 py-2.5">
-        <p className="line-clamp-1 text-sm font-medium tracking-tight text-ink-900">
+      <div className="space-y-1.5 px-4 py-3">
+        <p className="line-clamp-1 text-[15px] font-medium tracking-tight text-ink-900 transition-colors group-hover/card:text-vermillion-700">
           {clip.title}
         </p>
         {clip.meta && (
-          <p className="text-[11px] uppercase tracking-[0.14em] text-ink-500">
+          <p className="text-[10.5px] uppercase tracking-[0.16em] text-ink-500">
             {clip.meta}
           </p>
         )}

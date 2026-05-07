@@ -100,15 +100,32 @@ export function HeroSection({
   return (
     <section
       className={cn(
-        // Wider container so the hero doesn't float in dead space inside
-        // the screen card on lg+ viewports. Inner elements (sub copy,
-        // install snippet) have their own max-widths for readability.
-        // Generous gap-12 between hero blocks so each lands as a separate
-        // moment instead of running into the next.
-        'mx-auto flex max-w-4xl flex-col gap-12 px-6 py-24 sm:px-10 sm:py-28',
+        // Editorial hero: wider container, oversized headline, generous
+        // negative space. Each block lands as a separate beat rather
+        // than running into the next.
+        'relative mx-auto flex max-w-5xl flex-col gap-10 px-6 py-24 sm:px-10 sm:py-32',
         className,
       )}
     >
+      {/*
+        Editorial issue chip — small magazine-style marker at the top
+        of the hero. Replaces the now-removed brand-mark beat with
+        something that signals "this is a published piece" rather
+        than "this is a generic landing page".
+      */}
+      <motion.div
+        initial={reduce ? false : { opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={at(0)}
+        className="-mb-4 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.22em] text-ink-500"
+      >
+        <span className="font-mono tabular-nums text-vermillion-700">
+          Issue 01
+        </span>
+        <span aria-hidden="true" className="h-px w-8 bg-ink-300" />
+        <span>2026 · Open source</span>
+      </motion.div>
+
       <motion.h1
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -116,8 +133,10 @@ export function HeroSection({
         className={cn(
           // Display serif (Fraunces) for the hero headline only — the
           // signature voice of the page. Body and chrome stay Geist.
-          'font-display font-semibold tracking-[-0.02em] leading-[1.05] text-ink-900',
-          'text-[clamp(2.5rem,1.6rem+4vw,4.25rem)]',
+          // Magazine-cover scale: pushes to 7rem on desktop so the
+          // hero feels like a STATEMENT, not a feature header.
+          'font-display font-semibold tracking-[-0.025em] leading-[0.98] text-ink-900',
+          'text-[clamp(2.75rem,1.4rem+6vw,6.25rem)]',
         )}
       >
         <Typewriter
@@ -201,11 +220,17 @@ export function HeroSection({
       </motion.div>
 
       {featured && featured.slides.length > 0 && (
-        <motion.div
-          initial={reduce ? false : { opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
+        <motion.figure
+          initial={reduce ? false : { opacity: 0, y: 16, rotate: -1.3 }}
+          animate={{ opacity: 1, y: 0, rotate: reduce ? 0 : -0.6 }}
           transition={{ ...at(5), delay: reduce ? 0 : 1.85 }}
-          className="pt-6"
+          className={cn(
+            // Polaroid-style framing: rotated slightly so the embed
+            // reads as a curated artifact pinned to the page rather
+            // than another centered widget. Hovering lifts + levels.
+            'group/embed relative mt-6 transition-transform duration-300 ease-out',
+            'hover:rotate-0 hover:scale-[1.005]',
+          )}
         >
           <HeroPreview
             shareToken={featured.shareToken}
@@ -215,7 +240,17 @@ export function HeroSection({
               : {})}
             slides={featured.slides}
           />
-        </motion.div>
+          {/*
+            Italic caption beneath the embed — magazine-style. Reads
+            as the editor's note, not as functional UI text. The em
+            dash is decorative, not a typo.
+          */}
+          <figcaption className="mt-4 max-w-[60ch] font-display text-sm italic leading-snug text-ink-500">
+            <span className="text-vermillion-700">↑</span>{' '}
+            agentclip.dev itself, captured by the agent that built it.
+            One real run, four shareable frames.
+          </figcaption>
+        </motion.figure>
       )}
     </section>
   )
