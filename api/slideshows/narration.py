@@ -38,6 +38,31 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = 'tts-1-hd'
 DEFAULT_VOICE = 'nova'
+DEFAULT_SPEED = 1.0
+
+
+# RunType -> (voice, speed) mapping. Same voice used across the whole
+# clip (intro + every slide + outro) so the listener hears one
+# consistent presenter. Speed is the OpenAI TTS `speed` parameter
+# (0.25..4.0); we stay near 1.0 for natural pacing.
+RUN_TYPE_VOICE: dict[str, tuple[str, float]] = {
+    'bug_repro': ('onyx', 1.0),               # deeper, factual
+    'smoke_test': ('nova', 1.0),              # neutral, brisk
+    'demo': ('shimmer', 0.95),                # warmer, polished, slower
+    'onboarding_eval': ('nova', 1.0),         # observational
+    'competitive_teardown': ('echo', 1.0),    # analytical
+    'generic': ('nova', 1.0),                 # default
+}
+
+
+def voice_for(slideshow) -> tuple[str, float]:
+    '''Return (voice, speed) for a slideshow based on its run_type.
+
+    Falls back to the GENERIC mapping for any unrecognized value, so
+    legacy rows or callers passing an unexpected string never crash.
+    '''
+    run_type = getattr(slideshow, 'run_type', '') or 'generic'
+    return RUN_TYPE_VOICE.get(run_type, RUN_TYPE_VOICE['generic'])
 
 # OpenAI TTS hard limit per request (as of 2026-05).
 MAX_INPUT_CHARS = 4096
@@ -115,6 +140,7 @@ def synthesize(
     *,
     voice: str = DEFAULT_VOICE,
     model: str = DEFAULT_MODEL,
+    speed: float = DEFAULT_SPEED,
 ) -> NarrationResult:
     '''Synthesize speech from `text` via OpenAI TTS.
 
@@ -144,7 +170,9 @@ def synthesize(
         )
 
     client = _get_client()
-    mp3_bytes = _stream_to_bytes(client, text=text, voice=voice, model=model)
+    mp3_bytes = _stream_to_bytes(
+        client, text=text, voice=voice, model=model, speed=speed
+    )
     cost = (Decimal(chars) / Decimal(1000)) * HD_COST_PER_1K_CHARS
 
     return NarrationResult(
@@ -162,6 +190,7 @@ def _stream_to_bytes(
     text: str,
     voice: str,
     model: str,
+    speed: float = DEFAULT_SPEED,
     max_retries: int = 1,
 ) -> bytes:
     '''Call the OpenAI TTS streaming endpoint and accumulate the body.
@@ -180,6 +209,7 @@ def _stream_to_bytes(
                 model=model,
                 voice=voice,
                 input=text,
+                speed=speed,
             ) as response:
                 for chunk in response.iter_bytes():
                     buffer.write(chunk)
@@ -246,7 +276,7 @@ class NarrateSlideshowResult:
 def narrate_slideshow(
     slideshow,  # Slideshow instance; not annotated to avoid circular import
     *,
-    voice: str = DEFAULT_VOICE,
+    voice: str | None = None,
     force: bool = False,
     dry_run: bool = False,
 ) -> NarrateSlideshowResult:
@@ -266,6 +296,13 @@ def narrate_slideshow(
     '''
     # Imported lazily to keep this module Django-agnostic at import time.
     from django.core.files.base import ContentFile
+
+    # Resolve voice + pacing from run_type when the caller didn't pin a
+    # specific voice. Letting the slideshow drive voice keeps intro,
+    # all slides, and outro consistent — one presenter per clip.
+    resolved_voice, speed = voice_for(slideshow)
+    if voice is not None:
+        resolved_voice = voice
 
     outcomes: list[SlideNarrationOutcome] = []
     total_chars = 0
@@ -305,14 +342,14 @@ def narrate_slideshow(
                 status='planned',
                 chars=chars,
                 cost_usd=est_cost,
-                voice=voice,
+                voice=resolved_voice,
             ))
             total_chars += chars
             total_cost += est_cost
             continue
 
         try:
-            result = synthesize(slide.caption, voice=voice)
+            result = synthesize(slide.caption, voice=resolved_voice, speed=speed)
         except ValueError as exc:
             outcomes.append(SlideNarrationOutcome(
                 position=position,
@@ -349,4 +386,79 @@ def narrate_slideshow(
         narrated=narrated,
         skipped=skipped,
         dry_run=dry_run,
+    )
+
+
+# ----- Slideshow-level intro / outro narration -----
+#
+# The render task synthesizes a spoken intro from `slideshow.description`
+# and a spoken outro from `slideshow.summary`, then plays each over a
+# brand title/end card frame at the bookends of the rendered MP4. This
+# is what turns "captions read aloud" into "narrated walkthrough" —
+# without an opener that frames the run and a closer that wraps it,
+# the video has no narrative shape.
+#
+# Both functions return None when the source field is empty so the
+# caller can skip the bookend segment cleanly. They never raise on
+# empty input — empty intro/outro is a valid output state.
+
+
+@dataclass(frozen=True)
+class BookendNarrationResult:
+    '''Output of synthesize_intro / synthesize_outro.
+
+    `mp3_bytes` is None when the source text was blank — the caller
+    skips the bookend segment in that case rather than failing the
+    render. `voice` and `cost_usd` are still populated for accounting
+    when synthesis ran.
+    '''
+
+    mp3_bytes: bytes | None
+    voice: str
+    cost_usd: Decimal
+    chars: int
+
+
+def synthesize_intro(slideshow) -> BookendNarrationResult:
+    '''Synthesize the spoken intro from `slideshow.description`.
+
+    Returns a BookendNarrationResult whose ``mp3_bytes`` is None when
+    the description is empty. Voice + speed are pulled from the
+    slideshow's run_type via voice_for(); the intro therefore matches
+    the rest of the clip.
+    '''
+    text = (slideshow.description or '').strip()
+    voice, speed = voice_for(slideshow)
+    if not text:
+        return BookendNarrationResult(
+            mp3_bytes=None, voice=voice, cost_usd=Decimal('0'), chars=0,
+        )
+    result = synthesize(text, voice=voice, speed=speed)
+    return BookendNarrationResult(
+        mp3_bytes=result.mp3_bytes,
+        voice=result.voice,
+        cost_usd=result.cost_usd,
+        chars=result.input_chars,
+    )
+
+
+def synthesize_outro(slideshow) -> BookendNarrationResult:
+    '''Synthesize the spoken outro from `slideshow.summary`.
+
+    Same shape as synthesize_intro. Empty summary → no audio; the
+    caller appends only the visible end card (held for a default
+    duration) when this happens.
+    '''
+    text = (slideshow.summary or '').strip()
+    voice, speed = voice_for(slideshow)
+    if not text:
+        return BookendNarrationResult(
+            mp3_bytes=None, voice=voice, cost_usd=Decimal('0'), chars=0,
+        )
+    result = synthesize(text, voice=voice, speed=speed)
+    return BookendNarrationResult(
+        mp3_bytes=result.mp3_bytes,
+        voice=result.voice,
+        cost_usd=result.cost_usd,
+        chars=result.input_chars,
     )
