@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { CreatorChip } from '@/components/composites/CreatorChip/CreatorChip'
 import { MediaFrame, type MediaKind } from '@/components/composites/MediaFrame/MediaFrame'
+import { VideoClipPlayer, type VideoClipSlide } from '@/components/patterns/VideoClipPlayer/VideoClipPlayer'
 import { cn } from '@/lib/utils'
 
 export interface HeroPreviewSlide {
@@ -14,6 +15,13 @@ export interface HeroPreviewSlide {
   caption: string
   mediaUrl: string
   mediaKind: MediaKind
+  /**
+   * Optional public URL of the per-slide narration MP3. When every
+   * slide in the array has this set, HeroPreview renders the
+   * narrated VideoClipPlayer instead of the silent autoplay loop.
+   */
+  audioUrl?: string | null
+  audioDurationMs?: number | null
 }
 
 export interface HeroPreviewProps {
@@ -40,7 +48,44 @@ const AUTOPLAY_INTERVAL_MS = 2800
  * The pagination dots also work as scrubber tabs — clicking one jumps
  * directly to that slide and pauses autoplay.
  */
-export function HeroPreview({
+export function HeroPreview(props: HeroPreviewProps) {
+  // When every slide has narration audio, hand off to the real
+  // VideoClipPlayer. Otherwise fall through to the silent autoplay
+  // loop — preserves backwards-compatible behavior for clips that
+  // haven't been processed by `manage.py narrate` yet.
+  //
+  // Dispatcher pattern (rather than an early-return inside the silent
+  // variant's body) so each branch's hooks are scoped to one
+  // component and React's rules-of-hooks stay satisfied.
+  const allNarrated =
+    props.slides.length > 0 && props.slides.every((s) => Boolean(s.audioUrl))
+  if (allNarrated) {
+    const narratedSlides: VideoClipSlide[] = props.slides.map((s) => ({
+      position: s.position,
+      ...(s.title !== undefined ? { title: s.title } : {}),
+      caption: s.caption,
+      mediaUrl: s.mediaUrl,
+      mediaKind: s.mediaKind,
+      audioUrl: s.audioUrl as string,
+      ...(s.audioDurationMs ? { audioDurationMs: s.audioDurationMs } : {}),
+    }))
+    return (
+      <VideoClipPlayer
+        shareToken={props.shareToken}
+        title={props.title}
+        {...(props.creatorName !== undefined
+          ? { creatorName: props.creatorName }
+          : {})}
+        slides={narratedSlides}
+        variant="compact"
+        {...(props.className ? { className: props.className } : {})}
+      />
+    )
+  }
+  return <SilentHeroPreview {...props} />
+}
+
+function SilentHeroPreview({
   shareToken,
   title,
   creatorName,

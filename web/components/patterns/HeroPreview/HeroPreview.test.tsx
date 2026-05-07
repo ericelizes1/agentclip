@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { HeroPreview, type HeroPreviewSlide } from './HeroPreview'
 
@@ -74,5 +74,39 @@ describe('HeroPreview', () => {
   it('renders nothing when given an empty slide list', () => {
     const { container } = render(<HeroPreview shareToken="abc123" title="x" slides={[]} />)
     expect(container.firstChild).toBeNull()
+  })
+
+  it('renders the narrated VideoClipPlayer when every slide has audioUrl', () => {
+    // Patch jsdom audio so the player's mount-time setup doesn't throw.
+    HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined)
+    HTMLMediaElement.prototype.pause = vi.fn()
+
+    const narrated: HeroPreviewSlide[] = SLIDES.map((s, i) => ({
+      ...s,
+      audioUrl: `https://cdn.agentclip.dev/audio/${i + 1}.mp3`,
+    }))
+    render(
+      <HeroPreview shareToken="abc123" title="Login flow QA" slides={narrated} />,
+    )
+    // VideoClipPlayer's distinctive aria-label appears only in the
+    // narrated branch.
+    expect(
+      screen.getByLabelText(/Narrated walkthrough of: Login flow QA/i),
+    ).toBeInTheDocument()
+  })
+
+  it('falls back to silent autoplay when even one slide lacks audioUrl', () => {
+    const partiallyNarrated: HeroPreviewSlide[] = SLIDES.map((s, i) =>
+      i === 0 ? { ...s, audioUrl: 'https://cdn/1.mp3' } : s,
+    )
+    render(
+      <HeroPreview shareToken="abc123" title="Login flow QA" slides={partiallyNarrated} />,
+    )
+    // Silent variant exposes the play-walkthrough label, narrated
+    // variant exposes "Narrated walkthrough of:" — the silent label
+    // confirms the fallback path was chosen.
+    expect(
+      screen.getByLabelText(/Play walkthrough \(\d+ slides\)/),
+    ).toBeInTheDocument()
   })
 })
