@@ -1582,3 +1582,148 @@ class NarrationServiceTests(TestCase):
 
         self.assertEqual(result.mp3_bytes, b'RETRIED')
         self.assertEqual(call_count['n'], 2)
+
+
+class NarrateCommandTests(TestCase):
+    '''Integration tests for the `narrate` management command.
+
+    Mocks slideshows.narration.synthesize so we don't hit OpenAI but
+    still exercise the full command surface: arg parsing, idempotent
+    skip logic, --force regeneration, --dry-run cost estimation, and
+    error paths (unknown share token, missing API key).
+    '''
+
+    def setUp(self):
+        from slideshows import narration
+        narration.reset_client_for_tests()
+        self.show = Slideshow.objects.create(title='narrate-test')
+        for i in (1, 2, 3):
+            Slide.objects.create(
+                slideshow=self.show,
+                position=i,
+                media=_png_upload(name=f'shot-{i}.png'),
+                media_kind=MediaKind.IMAGE,
+                caption=f'Caption for slide {i}.',
+            )
+
+    def _stub_synthesize(self, mp3_bytes=b'MP3FAKE', voice='nova'):
+        '''Return a callable suitable for monkeypatching narration.synthesize.
+
+        Records each call so tests can assert call counts and arg
+        propagation (the --voice flag, in particular).
+        '''
+        from decimal import Decimal
+        from slideshows.narration import NarrationResult
+        calls = []
+        def stub(text, *, voice=voice, model='tts-1-hd'):
+            calls.append({'text': text, 'voice': voice, 'model': model})
+            return NarrationResult(
+                mp3_bytes=mp3_bytes,
+                voice=voice,
+                model=model,
+                input_chars=len(text),
+                cost_usd=(Decimal(len(text)) / Decimal(1000)) * Decimal('0.030'),
+            )
+        return stub, calls
+
+    def _run_command(self, *args, **opts):
+        '''Invoke the management command, capturing stdout for asserts.'''
+        from io import StringIO
+        from django.core.management import call_command
+        out = StringIO()
+        err = StringIO()
+        call_command('narrate', *args, stdout=out, stderr=err, **opts)
+        return out.getvalue(), err.getvalue()
+
+    def test_narrates_all_slides_when_none_have_audio(self):
+        from unittest.mock import patch
+        stub, calls = self._stub_synthesize()
+        with patch('slideshows.management.commands.narrate.narration.synthesize', stub):
+            stdout, _ = self._run_command(self.show.share_token)
+        self.assertEqual(len(calls), 3)
+        for slide in self.show.slides.all():
+            self.assertTrue(bool(slide.audio))
+            self.assertEqual(slide.audio_voice, 'nova')
+        self.assertIn('3 of 3 slides', stdout)
+
+    def test_skips_already_narrated_slides_without_force(self):
+        '''Re-running narrate without --force is a near-no-op when all
+        slides already have audio.'''
+        from unittest.mock import patch
+        from django.core.files.base import ContentFile
+        # Pre-populate audio on slide 1.
+        slide_one = self.show.slides.get(position=1)
+        slide_one.audio.save('1.mp3', ContentFile(b'existing'), save=False)
+        slide_one.audio_voice = 'nova'
+        slide_one.save()
+
+        stub, calls = self._stub_synthesize()
+        with patch('slideshows.management.commands.narrate.narration.synthesize', stub):
+            stdout, _ = self._run_command(self.show.share_token)
+        # Slides 2 and 3 narrated; slide 1 skipped.
+        self.assertEqual(len(calls), 2)
+        self.assertIn('skip (already narrated)', stdout)
+
+    def test_force_regenerates_all_slides(self):
+        '''--force re-narrates every slide even if audio exists.'''
+        from unittest.mock import patch
+        from django.core.files.base import ContentFile
+        slide_one = self.show.slides.get(position=1)
+        slide_one.audio.save('1.mp3', ContentFile(b'existing'), save=False)
+        slide_one.save()
+
+        stub, calls = self._stub_synthesize(mp3_bytes=b'NEWAUDIO')
+        with patch('slideshows.management.commands.narrate.narration.synthesize', stub):
+            stdout, _ = self._run_command(self.show.share_token, '--force')
+        self.assertEqual(len(calls), 3)
+        slide_one.refresh_from_db()
+        self.assertEqual(slide_one.audio.read(), b'NEWAUDIO')
+
+    def test_voice_flag_propagates_to_synthesize(self):
+        from unittest.mock import patch
+        stub, calls = self._stub_synthesize(voice='echo')
+        with patch('slideshows.management.commands.narrate.narration.synthesize', stub):
+            self._run_command(self.show.share_token, '--voice', 'echo')
+        self.assertTrue(all(call['voice'] == 'echo' for call in calls))
+        for slide in self.show.slides.all():
+            self.assertEqual(slide.audio_voice, 'echo')
+
+    def test_dry_run_reports_cost_without_synthesizing(self):
+        from unittest.mock import patch
+        stub, calls = self._stub_synthesize()
+        with patch('slideshows.management.commands.narrate.narration.synthesize', stub):
+            stdout, _ = self._run_command(self.show.share_token, '--dry-run')
+        self.assertEqual(len(calls), 0)  # no API hit
+        self.assertIn('would narrate', stdout)
+        for slide in self.show.slides.all():
+            self.assertFalse(bool(slide.audio))  # no DB writes
+
+    def test_unknown_share_token_raises_command_error(self):
+        from django.core.management.base import CommandError
+        with self.assertRaises(CommandError):
+            self._run_command('not-a-real-token')
+
+    def test_skips_slide_with_empty_caption(self):
+        from unittest.mock import patch
+        slide_two = self.show.slides.get(position=2)
+        slide_two.caption = ''
+        slide_two.save()
+
+        stub, calls = self._stub_synthesize()
+        with patch('slideshows.management.commands.narrate.narration.synthesize', stub):
+            stdout, _ = self._run_command(self.show.share_token)
+        # Slides 1 and 3 narrated; slide 2 skipped on empty caption.
+        self.assertEqual(len(calls), 2)
+        self.assertIn('skip (caption is empty)', stdout)
+
+    def test_missing_api_key_raises_command_error_via_config_error(self):
+        from django.core.management.base import CommandError
+        from slideshows import narration
+
+        # Force the lazy client to actually try to construct itself,
+        # then assert the CLI translates NarrationConfigError to a
+        # CommandError instead of leaking the openai exception.
+        with _override_env('OPENAI_API_KEY', None):
+            narration.reset_client_for_tests()
+            with self.assertRaises(CommandError):
+                self._run_command(self.show.share_token)
