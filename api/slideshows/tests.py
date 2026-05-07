@@ -1383,3 +1383,67 @@ class AdminFeatureEndpointTests(TestCase):
         show.refresh_from_db()
         self.assertFalse(show.is_gallery)
         self.assertEqual(show.featured_at, marker)
+
+
+class SlideAudioFieldsTests(TestCase):
+    '''Migration 0008 adds three optional fields to Slide for narration:
+    `audio` (FileField, nullable), `audio_voice` (CharField, blank),
+    and `audio_duration_ms` (PositiveIntegerField, default 0).
+
+    All three are additive — existing slides backfill cleanly, and
+    no behavior shifts until a downstream caller (the `narrate`
+    management command, the public serializer, the frontend player)
+    actually reads or writes them.
+    '''
+
+    def setUp(self):
+        self.show = Slideshow.objects.create(title='narration test')
+
+    def _make_slide(self, position=1, **extra):
+        return Slide.objects.create(
+            slideshow=self.show,
+            position=position,
+            media=_png_upload(name=f'shot-{position}.png'),
+            media_kind=MediaKind.IMAGE,
+            caption=f'Slide {position}',
+            **extra,
+        )
+
+    def test_slide_defaults_have_no_audio(self):
+        slide = self._make_slide()
+        self.assertFalse(bool(slide.audio))
+        self.assertEqual(slide.audio_voice, '')
+        self.assertEqual(slide.audio_duration_ms, 0)
+
+    def test_slide_accepts_audio_file_and_round_trips(self):
+        from django.core.files.base import ContentFile
+        slide = self._make_slide()
+        slide.audio.save('1.mp3', ContentFile(b'ID3\x00fakeaudio'), save=False)
+        slide.audio_voice = 'nova'
+        slide.audio_duration_ms = 4200
+        slide.save()
+        slide.refresh_from_db()
+        self.assertTrue(bool(slide.audio))
+        self.assertTrue(slide.audio.url)
+        self.assertEqual(slide.audio_voice, 'nova')
+        self.assertEqual(slide.audio_duration_ms, 4200)
+
+    def test_audio_path_uses_per_slideshow_audio_subdir(self):
+        '''_slide_audio_path scopes audio under the slideshow id and an
+        `audio/` subdir so the bucket layout mirrors `media`.'''
+        from django.core.files.base import ContentFile
+        slide = self._make_slide()
+        slide.audio.save('1.mp3', ContentFile(b'fake'), save=True)
+        self.assertIn(f'slideshows/{self.show.id}/audio/', slide.audio.name)
+        self.assertTrue(slide.audio.name.endswith('.mp3'))
+
+    def test_legacy_slide_without_audio_still_round_trips(self):
+        '''Slides created before migration 0008 keep working — the
+        nullable audio field reads back as None and the public
+        serializer code that follows in Unit 4 must handle that.'''
+        slide = self._make_slide(position=2)
+        slide.refresh_from_db()
+        self.assertIsNone(slide.audio.name or None)
+        # FileField on a nullable column stores '' when blank, so
+        # truthiness ('not slide.audio') is the right check, not 'is None'.
+        self.assertFalse(bool(slide.audio))

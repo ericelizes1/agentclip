@@ -99,6 +99,17 @@ def _slide_media_path(instance: 'Slide', filename: str) -> str:
     return f'slideshows/{instance.slideshow_id}/clips/{filename}'
 
 
+def _slide_audio_path(instance: 'Slide', filename: str) -> str:
+    '''Storage path for the per-slide narration MP3.
+
+    Mirrors `_slide_media_path` but routes audio under an `audio/`
+    subdirectory and uses the slide position as the deterministic
+    filename so the `narrate` management command's `--force` flow
+    produces predictable overwrites.
+    '''
+    return f'slideshows/{instance.slideshow_id}/audio/{filename}'
+
+
 # Allowed upload content types. Browsers render these natively without
 # any client-side decoding, which is the bar for "shareable URL".
 ALLOWED_IMAGE_TYPES = frozenset({
@@ -315,6 +326,39 @@ class Slide(models.Model):
         ),
     )
     caption = models.TextField()
+
+    # Per-slide narration. Generated via the `narrate` management
+    # command (api/slideshows/management/commands/narrate.py), which
+    # synthesizes an MP3 from the caption text using OpenAI TTS-1-HD
+    # and stores it in the same R2 bucket as `media`. Optional —
+    # slideshows without audio fall back to silent rendering on the
+    # web client.
+    audio = models.FileField(
+        upload_to=_slide_audio_path,
+        blank=True,
+        null=True,
+        help_text=(
+            'Optional narration MP3 generated from `caption`. Populated '
+            'by the `narrate` management command; absent until then.'
+        ),
+    )
+    audio_voice = models.CharField(
+        max_length=32,
+        blank=True,
+        default='',
+        help_text=(
+            'OpenAI TTS voice used to generate `audio` (e.g. "nova"). '
+            'Blank when audio is unset.'
+        ),
+    )
+    audio_duration_ms = models.PositiveIntegerField(
+        default=0,
+        help_text=(
+            'Duration of `audio` in milliseconds. 0 when audio is unset '
+            'or duration extraction failed; the player falls back to '
+            'indeterminate progress until the metadata loads.'
+        ),
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
