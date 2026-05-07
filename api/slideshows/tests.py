@@ -784,6 +784,7 @@ class OpenAPISchemaTests(TestCase):
             '/api/v1/slideshow/{share_token}/',
             '/api/v1/slideshow/{share_token}/edit-token/',
             '/api/v1/slideshow/{share_token}/feature/',
+            '/api/v1/slideshow/{share_token}/narrate/',
             '/api/v1/slideshow/{share_token}/rotate-edit-token/',
             '/api/v1/slideshow/{share_token}/slides/{position}/',
             '/api/v1/slideshow/{share_token}/slides/{position}/caption/',
@@ -1786,3 +1787,171 @@ class SlideAudioSerializerTests(TestCase):
         self.assertEqual(len(slides), 2)
         self.assertIsNotNone(slides[0]['audio_url'])
         self.assertIsNone(slides[1]['audio_url'])
+
+
+class SlideshowNarrateEndpointTests(TestCase):
+    '''Tests for POST /api/v1/slideshow/<share_token>/narrate/.
+
+    Mirrors the management command's coverage but runs through the
+    HTTP surface so we exercise auth, rate-limit decorators, and the
+    JSON response shape an SDK consumer would parse.
+    '''
+
+    def setUp(self):
+        from slideshows import narration
+        narration.reset_client_for_tests()
+        cache.clear()
+        self.client = APIClient()
+        self.show = Slideshow.objects.create(title='endpoint-narrate-test')
+        for i in (1, 2):
+            Slide.objects.create(
+                slideshow=self.show,
+                position=i,
+                media=_png_upload(name=f'shot-{i}.png'),
+                media_kind=MediaKind.IMAGE,
+                caption=f'Caption for slide {i}.',
+            )
+        self.url = f'/api/v1/slideshow/{self.show.share_token}/narrate/'
+
+    def _stub_synthesize(self, mp3_bytes=b'MP3FAKE'):
+        from decimal import Decimal
+        from slideshows.narration import NarrationResult
+        calls = []
+        def stub(text, *, voice='nova', model='tts-1-hd'):
+            calls.append({'text': text, 'voice': voice, 'model': model})
+            return NarrationResult(
+                mp3_bytes=mp3_bytes,
+                voice=voice,
+                model=model,
+                input_chars=len(text),
+                cost_usd=(Decimal(len(text)) / Decimal(1000)) * Decimal('0.030'),
+            )
+        return stub, calls
+
+    def _auth(self):
+        return f'Bearer {self.show.write_token}'
+
+    def test_narrates_all_slides_with_valid_write_token(self):
+        from unittest.mock import patch
+        stub, calls = self._stub_synthesize()
+        with patch('slideshows.narration.synthesize', stub):
+            response = self.client.post(
+                self.url, {}, format='json', HTTP_AUTHORIZATION=self._auth(),
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(calls), 2)
+        body = response.json()
+        self.assertEqual(body['narration']['narrated'], 2)
+        self.assertEqual(body['narration']['skipped'], 0)
+        # audio_url is now populated on every slide in the public payload.
+        for slide in body['slides']:
+            self.assertIsNotNone(slide['audio_url'])
+            self.assertEqual(slide['audio_voice'], 'nova')
+
+    def test_idempotent_skip_without_force(self):
+        '''Re-calling without `force` skips already-narrated slides.'''
+        from unittest.mock import patch
+        from django.core.files.base import ContentFile
+        # Pre-populate slide 1 with audio.
+        slide_one = self.show.slides.get(position=1)
+        slide_one.audio.save('1.mp3', ContentFile(b'existing'), save=False)
+        slide_one.save()
+
+        stub, calls = self._stub_synthesize()
+        with patch('slideshows.narration.synthesize', stub):
+            response = self.client.post(
+                self.url, {}, format='json', HTTP_AUTHORIZATION=self._auth(),
+            )
+        self.assertEqual(response.status_code, 200)
+        # Only slide 2 narrated.
+        self.assertEqual(len(calls), 1)
+
+    def test_force_flag_regenerates_all_slides(self):
+        from unittest.mock import patch
+        from django.core.files.base import ContentFile
+        slide_one = self.show.slides.get(position=1)
+        slide_one.audio.save('1.mp3', ContentFile(b'existing'), save=False)
+        slide_one.save()
+
+        stub, calls = self._stub_synthesize(mp3_bytes=b'NEWAUDIO')
+        with patch('slideshows.narration.synthesize', stub):
+            response = self.client.post(
+                self.url,
+                {'force': True},
+                format='json',
+                HTTP_AUTHORIZATION=self._auth(),
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(calls), 2)
+
+    def test_dry_run_skips_openai_and_writes(self):
+        from unittest.mock import patch
+        stub, calls = self._stub_synthesize()
+        with patch('slideshows.narration.synthesize', stub):
+            response = self.client.post(
+                self.url,
+                {'dry_run': True},
+                format='json',
+                HTTP_AUTHORIZATION=self._auth(),
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(calls), 0)
+        body = response.json()
+        self.assertTrue(body['narration']['dry_run'])
+        # No DB writes — slides still lack audio.
+        for slide in self.show.slides.all():
+            self.assertFalse(bool(slide.audio))
+
+    def test_voice_override_propagates(self):
+        from unittest.mock import patch
+        stub, calls = self._stub_synthesize()
+        with patch('slideshows.narration.synthesize', stub):
+            response = self.client.post(
+                self.url,
+                {'voice': 'echo'},
+                format='json',
+                HTTP_AUTHORIZATION=self._auth(),
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(all(call['voice'] == 'echo' for call in calls))
+
+    def test_missing_auth_header_returns_401(self):
+        response = self.client.post(self.url, {}, format='json')
+        self.assertEqual(response.status_code, 401)
+
+    def test_wrong_write_token_returns_401(self):
+        response = self.client.post(
+            self.url, {}, format='json',
+            HTTP_AUTHORIZATION='Bearer not-the-real-token',
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_unknown_share_token_returns_404(self):
+        url = '/api/v1/slideshow/not-a-real-token/narrate/'
+        response = self.client.post(
+            url, {}, format='json',
+            HTTP_AUTHORIZATION=f'Bearer {self.show.write_token}',
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_slideshow_with_no_slides_returns_400(self):
+        empty = Slideshow.objects.create(title='no slides')
+        response = self.client.post(
+            f'/api/v1/slideshow/{empty.share_token}/narrate/',
+            {}, format='json',
+            HTTP_AUTHORIZATION=f'Bearer {empty.write_token}',
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_missing_openai_api_key_returns_503(self):
+        '''When OPENAI_API_KEY is unset the API surfaces 503 (service
+        not configured) instead of leaking the exception type.'''
+        from slideshows import narration
+        with _override_env('OPENAI_API_KEY', None):
+            narration.reset_client_for_tests()
+            response = self.client.post(
+                self.url, {}, format='json',
+                HTTP_AUTHORIZATION=self._auth(),
+            )
+        self.assertEqual(response.status_code, 503)
+        self.assertIn('OPENAI_API_KEY', response.json()['detail'])

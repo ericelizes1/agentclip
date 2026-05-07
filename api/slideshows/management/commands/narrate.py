@@ -5,30 +5,25 @@
     python manage.py narrate <share_token> --voice echo
     python manage.py narrate <share_token> --dry-run
 
-Loops the slideshow's slides, generates an MP3 from each caption via
-slideshows.narration.synthesize, and uploads it to the configured
-storage backend (R2 in production, local FS in dev) under
-slideshows/<slug>/audio/<position>.mp3.
+Operator-side counterpart to the public POST
+/api/v1/slideshow/<share_token>/narrate/ endpoint. Both use the same
+slideshows.narration.narrate_slideshow function under the hood; the
+difference is the surface — Django admin / SSH-only for this command
+vs. write_token-authenticated for the API endpoint.
 
-Idempotent: by default, slides that already have audio are skipped
-silently so re-running after adding a new slide only narrates the
-new ones. --force regenerates everything (and overwrites existing
-audio in the bucket).
-
-Cost summary printed at the end of each run; uses the local pricing
-constant in slideshows.narration so we don't have to hit the OpenAI
-billing API to know what we just spent.
+Use the API endpoint for routine narration via the agentclip CLI.
+Use this command for one-off operator runs (e.g., backfilling
+narration on a clip whose owner no longer has the write_token, or
+re-narrating after a model upgrade where the API call would be
+inconvenient to scriptl).
 '''
 
 from __future__ import annotations
 
-from decimal import Decimal
-
-from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand, CommandError
 
 from slideshows import narration
-from slideshows.models import Slide, Slideshow
+from slideshows.models import Slideshow
 
 
 class Command(BaseCommand):
@@ -87,96 +82,35 @@ class Command(BaseCommand):
             f'force={force}, dry_run={dry_run})'
         )
 
-        total_chars = 0
-        total_cost = Decimal('0')
-        narrated = 0
-        skipped = 0
-
-        for slide in slides:
-            label = f'  slide {slide.position:02d}'
-
-            if not slide.caption or not slide.caption.strip():
-                self.stdout.write(f'{label}: skip (caption is empty)')
-                skipped += 1
-                continue
-
-            if slide.audio and not force:
-                self.stdout.write(f'{label}: skip (already narrated)')
-                skipped += 1
-                continue
-
-            chars = len(slide.caption)
-            est_cost = (
-                (Decimal(chars) / Decimal(1000)) * narration.HD_COST_PER_1K_CHARS
+        try:
+            result = narration.narrate_slideshow(
+                slideshow,
+                voice=voice,
+                force=force,
+                dry_run=dry_run,
             )
+        except narration.NarrationConfigError as exc:
+            raise CommandError(str(exc))
 
-            if dry_run:
-                self.stdout.write(
-                    f'{label}: would narrate ({chars} chars, est ${est_cost:.4f})'
-                )
-                total_chars += chars
-                total_cost += est_cost
-                continue
-
-            try:
-                result = narration.synthesize(slide.caption, voice=voice)
-            except narration.NarrationConfigError as exc:
-                raise CommandError(str(exc))
-            except ValueError as exc:
-                self.stdout.write(self.style.WARNING(
-                    f'{label}: skip (synthesis rejected: {exc})'
+        for outcome in result.outcomes:
+            label = f'  slide {outcome.position:02d}'
+            if outcome.status == 'narrated':
+                self.stdout.write(self.style.SUCCESS(
+                    f'{label}: narrated ({outcome.chars} chars, '
+                    f'${outcome.cost_usd:.4f}, voice={outcome.voice})'
                 ))
-                skipped += 1
-                continue
+            elif outcome.status == 'planned':
+                self.stdout.write(
+                    f'{label}: would narrate ({outcome.chars} chars, '
+                    f'est ${outcome.cost_usd:.4f})'
+                )
+            else:  # skipped
+                self.stdout.write(f'{label}: skip ({outcome.reason})')
 
-            self._save_audio(slide, result)
-            self.stdout.write(self.style.SUCCESS(
-                f'{label}: narrated ({chars} chars, ${result.cost_usd:.4f}, '
-                f'voice={result.voice})'
-            ))
-            total_chars += result.input_chars
-            total_cost += result.cost_usd
-            narrated += 1
-
-        self._print_summary(
-            total=len(slides),
-            narrated=narrated,
-            skipped=skipped,
-            total_chars=total_chars,
-            total_cost=total_cost,
-            dry_run=dry_run,
-        )
-
-    def _save_audio(self, slide: Slide, result: narration.NarrationResult) -> None:
-        '''Persist the generated MP3 to storage and the slide row.
-
-        FileField.save() uploads via the configured STORAGES backend
-        (R2 in production via S3Boto3Storage). When the bucket already
-        has a file at the deterministic name, django-storages will
-        suffix the new upload — accept that for now since manual
-        cleanup of the previous file isn't worth the complexity in
-        v1; the most-recent URL is what serves.
-        '''
-        filename = f'{slide.position}.mp3'
-        slide.audio.save(filename, ContentFile(result.mp3_bytes), save=False)
-        slide.audio_voice = result.voice
-        slide.audio_duration_ms = 0  # extraction deferred; player handles 0
-        slide.save(update_fields=['audio', 'audio_voice', 'audio_duration_ms'])
-
-    def _print_summary(
-        self,
-        *,
-        total: int,
-        narrated: int,
-        skipped: int,
-        total_chars: int,
-        total_cost: Decimal,
-        dry_run: bool,
-    ) -> None:
-        prefix = '[dry-run] would narrate' if dry_run else 'narrated'
+        prefix = '[dry-run] would narrate' if result.dry_run else 'narrated'
         self.stdout.write('')
         self.stdout.write(self.style.SUCCESS(
-            f'{prefix}: {narrated} of {total} slides '
-            f'({skipped} skipped, {total_chars} chars, '
-            f'${total_cost:.4f} total)'
+            f'{prefix}: {result.narrated} of {len(slides)} slides '
+            f'({result.skipped} skipped, {result.total_chars} chars, '
+            f'${result.total_cost_usd:.4f} total)'
         ))

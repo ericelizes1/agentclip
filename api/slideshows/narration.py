@@ -209,3 +209,144 @@ def reset_client_for_tests() -> None:
     '''
     global _client
     _client = None
+
+
+# ----- Slideshow-level narration loop -----
+#
+# The Django management command and the public API endpoint both want
+# to run the same loop: walk a slideshow's slides, narrate the ones
+# that need it, persist results, return per-slide status. Centralizing
+# the logic here means the command and the endpoint can't drift.
+
+
+@dataclass(frozen=True)
+class SlideNarrationOutcome:
+    '''One slide's outcome from narrate_slideshow.'''
+
+    position: int
+    status: str  # one of: 'narrated', 'skipped', 'planned' (dry-run)
+    reason: str | None = None
+    chars: int = 0
+    cost_usd: Decimal = Decimal('0')
+    voice: str = ''
+
+
+@dataclass(frozen=True)
+class NarrateSlideshowResult:
+    '''Aggregate outcome of a narrate_slideshow run.'''
+
+    outcomes: list[SlideNarrationOutcome]
+    total_chars: int
+    total_cost_usd: Decimal
+    narrated: int
+    skipped: int
+    dry_run: bool
+
+
+def narrate_slideshow(
+    slideshow,  # Slideshow instance; not annotated to avoid circular import
+    *,
+    voice: str = DEFAULT_VOICE,
+    force: bool = False,
+    dry_run: bool = False,
+) -> NarrateSlideshowResult:
+    '''Narrate every applicable slide on the given slideshow.
+
+    Idempotent by default: slides with audio set are skipped unless
+    force=True. Slides with empty captions are always skipped (status
+    'skipped', reason 'caption is empty').
+
+    `dry_run=True` reports the plan and estimated cost without calling
+    OpenAI or writing to the database. Outcomes for dry-run slides are
+    marked status='planned' so callers can render the right verb.
+
+    Raises:
+        NarrationConfigError: OPENAI_API_KEY not set (only when dry_run
+            is False; dry-run skips the API entirely).
+    '''
+    # Imported lazily to keep this module Django-agnostic at import time.
+    from django.core.files.base import ContentFile
+
+    outcomes: list[SlideNarrationOutcome] = []
+    total_chars = 0
+    total_cost = Decimal('0')
+    narrated = 0
+    skipped = 0
+
+    slides = list(slideshow.slides.order_by('position'))
+
+    for slide in slides:
+        position = slide.position
+
+        if not slide.caption or not slide.caption.strip():
+            outcomes.append(SlideNarrationOutcome(
+                position=position,
+                status='skipped',
+                reason='caption is empty',
+            ))
+            skipped += 1
+            continue
+
+        if slide.audio and not force:
+            outcomes.append(SlideNarrationOutcome(
+                position=position,
+                status='skipped',
+                reason='already narrated',
+            ))
+            skipped += 1
+            continue
+
+        chars = len(slide.caption)
+        est_cost = (Decimal(chars) / Decimal(1000)) * HD_COST_PER_1K_CHARS
+
+        if dry_run:
+            outcomes.append(SlideNarrationOutcome(
+                position=position,
+                status='planned',
+                chars=chars,
+                cost_usd=est_cost,
+                voice=voice,
+            ))
+            total_chars += chars
+            total_cost += est_cost
+            continue
+
+        try:
+            result = synthesize(slide.caption, voice=voice)
+        except ValueError as exc:
+            outcomes.append(SlideNarrationOutcome(
+                position=position,
+                status='skipped',
+                reason=f'synthesis rejected: {exc}',
+            ))
+            skipped += 1
+            continue
+
+        slide.audio.save(
+            f'{slide.position}.mp3',
+            ContentFile(result.mp3_bytes),
+            save=False,
+        )
+        slide.audio_voice = result.voice
+        slide.audio_duration_ms = 0  # duration extraction deferred
+        slide.save(update_fields=['audio', 'audio_voice', 'audio_duration_ms'])
+
+        outcomes.append(SlideNarrationOutcome(
+            position=position,
+            status='narrated',
+            chars=result.input_chars,
+            cost_usd=result.cost_usd,
+            voice=result.voice,
+        ))
+        total_chars += result.input_chars
+        total_cost += result.cost_usd
+        narrated += 1
+
+    return NarrateSlideshowResult(
+        outcomes=outcomes,
+        total_chars=total_chars,
+        total_cost_usd=total_cost,
+        narrated=narrated,
+        skipped=skipped,
+        dry_run=dry_run,
+    )

@@ -54,6 +54,15 @@ urlpatterns = [
         name='slideshow_feature',
     ),
 
+    # Narration — generate per-slide audio. Bearer write_token, same
+    # auth surface as slide_add, so the agentclip CLI / SDK can call
+    # it directly after uploading slides.
+    path(
+        'api/v1/slideshow/<str:share_token>/narrate/',
+        views.slideshow_narrate,
+        name='slideshow_narrate',
+    ),
+
     # Read API — gallery feed for the home page
     path('api/v1/gallery/', views.GalleryListView.as_view(), name='gallery_list'),
     path(

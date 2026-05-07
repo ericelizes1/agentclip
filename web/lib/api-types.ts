@@ -235,6 +235,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/slideshow/{share_token}/narrate/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * @description Generate per-slide narration MP3s. Auth: Bearer <write_token>.
+         *
+         *     Loops the slideshow's slides and synthesizes audio from each
+         *     caption via OpenAI TTS-1-HD. Idempotent by default — slides that
+         *     already have audio are skipped. Pass `force=true` to regenerate
+         *     everything, or `dry_run=true` to estimate cost without spending.
+         *
+         *     Auth model: same as slide_add — only the write_token holder can
+         *     narrate. The token is presented in the Authorization header
+         *     exactly like an SDK upload request.
+         *
+         *     Response: the public slideshow shape with `audio_url` populated
+         *     on each newly-narrated slide. The response also includes a
+         *     `narration` block with per-slide outcomes and total cost so the
+         *     caller can render a summary or surface the spend.
+         *
+         *     Cost: ~$0.030 per 1K caption characters. A 4-slide walkthrough
+         *     with ~150-char captions is ~$0.018 per run.
+         */
+        post: operations["v1_slideshow_narrate_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/slideshow/{share_token}/rotate-edit-token/": {
         parameters: {
             query?: never;
@@ -802,6 +838,34 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    v1_slideshow_narrate_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                share_token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                type: {
+                    [key: string]: unknown;
+                };
+                properties: unknown;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlideshowPublic"];
+                };
             };
         };
     };

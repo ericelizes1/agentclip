@@ -429,6 +429,70 @@
                 }
             }
         },
+        "/api/v1/slideshow/{share_token}/narrate/": {
+            "post": {
+                "operationId": "v1_slideshow_narrate_create",
+                "description": "Generate per-slide narration MP3s. Auth: Bearer <write_token>.\n\nLoops the slideshow's slides and synthesizes audio from each\ncaption via OpenAI TTS-1-HD. Idempotent by default — slides that\nalready have audio are skipped. Pass `force=true` to regenerate\neverything, or `dry_run=true` to estimate cost without spending.\n\nAuth model: same as slide_add — only the write_token holder can\nnarrate. The token is presented in the Authorization header\nexactly like an SDK upload request.\n\nResponse: the public slideshow shape with `audio_url` populated\non each newly-narrated slide. The response also includes a\n`narration` block with per-slide outcomes and total cost so the\ncaller can render a summary or surface the spend.\n\nCost: ~$0.030 per 1K caption characters. A 4-slide walkthrough\nwith ~150-char captions is ~$0.018 per run.",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "share_token",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "narration"
+                ],
+                "requestBody": {
+                    "content": {
+                        "type": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {},
+                                "description": "Unspecified request body"
+                            }
+                        },
+                        "properties": {
+                            "schema": {
+                                "voice": {
+                                    "type": "string",
+                                    "description": "OpenAI TTS voice (alloy, echo, fable, onyx, nova, shimmer). Defaults to nova."
+                                },
+                                "force": {
+                                    "type": "boolean",
+                                    "description": "If true, regenerate audio for slides that already have a narration. Default false (idempotent skip)."
+                                },
+                                "dry_run": {
+                                    "type": "boolean",
+                                    "description": "If true, report estimated cost without calling OpenAI or writing to the database. Default false."
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "WriteTokenAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SlideshowPublic"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/slideshow/{share_token}/rotate-edit-token/": {
             "post": {
                 "operationId": "v1_slideshow_rotate_edit_token_create",

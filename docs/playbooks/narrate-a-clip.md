@@ -1,49 +1,89 @@
 # Playbook: Narrate a clip end-to-end
 
 Add narration audio to a slideshow and surface the narrated walkthrough on
-agentclip.dev. Roughly 5 minutes per clip; ~$0.01 of OpenAI API spend per
-4-slide clip at HD voice quality.
+agentclip.dev. Two interfaces, one engine:
 
-This is the operator runbook for the `narrate` Django management command
-shipped in [`docs/plans/2026-05-07-001-feat-openai-tts-narration-plan.md`](../plans/2026-05-07-001-feat-openai-tts-narration-plan.md).
+- **API endpoint** (recommended) — `POST /api/v1/slideshow/<share_token>/narrate/`
+  with `Authorization: Bearer <write_token>`. The agentclip CLI wraps this.
+- **Django management command** (operator fallback) — `python manage.py
+  narrate <share_token>` from inside the API container, for cases where the
+  write_token isn't available.
+
+Roughly 5 minutes per clip; ~$0.01 of OpenAI spend per 4-slide walkthrough.
 
 ## Prerequisites
 
 - The agentclip-api Fly app is deployed and healthy.
-- You have a slideshow's `share_token` in hand (the token after `/s/` in
-  the URL — e.g. `KS2o_HOutMbcpBWg`).
-- An OpenAI API key with TTS access.
+- `OPENAI_API_KEY` is set in `fly secrets list -a agentclip-api`.
+- You have either the slideshow's `write_token` (API path) or operator
+  shell access (management command path).
 
-## One-time: confirm OPENAI_API_KEY is set on the API
+## Path A: agentclip CLI / curl (recommended)
 
-```bash
-fly secrets list -a agentclip-api | grep OPENAI
-```
-
-If the secret is missing, add it:
+If you've just uploaded a slideshow with the `agentclip` CLI, you have the
+write_token in hand. Make one more API call:
 
 ```bash
-fly secrets set OPENAI_API_KEY=sk-... -a agentclip-api
+curl -X POST https://api.agentclip.dev/api/v1/slideshow/<share_token>/narrate/ \
+  -H "Authorization: Bearer <write_token>" \
+  -H "Content-Type: application/json" \
+  -d '{}'
 ```
 
-`fly secrets set` triggers a rolling deploy. Wait ~30s for the new machine
-to come up before running `narrate`.
+Optional flags in the body:
 
-## Generate narration
+```json
+{
+  "voice": "nova",     // alloy | echo | fable | onyx | nova | shimmer
+  "force": false,      // re-narrate slides that already have audio
+  "dry_run": false     // estimate cost without calling OpenAI
+}
+```
 
-SSH into the running API machine:
+Response (200) is the full public slideshow shape with `audio_url`
+populated on each narrated slide, plus a `narration` block summarizing
+the run:
+
+```json
+{
+  "id": "...",
+  "title": "Skip the screencast.",
+  "slides": [
+    { "position": 1, "audio_url": "https://cdn.agentclip.dev/...mp3", ... }
+  ],
+  "narration": {
+    "narrated": 4,
+    "skipped": 0,
+    "total_chars": 550,
+    "total_cost_usd": "0.0165",
+    "dry_run": false,
+    "outcomes": [
+      { "position": 1, "status": "narrated", "chars": 148, "cost_usd": "0.0044", "voice": "nova" },
+      ...
+    ]
+  }
+}
+```
+
+Failure modes:
+- `401` — missing or wrong write_token.
+- `404` — share_token doesn't exist.
+- `400` — slideshow has no slides yet.
+- `503` — `OPENAI_API_KEY` is not configured on the API. Operator fix.
+
+## Path B: Django management command (operator fallback)
+
+When the write_token isn't available (e.g., backfilling narration on a
+clip whose owner lost their token), run the command directly inside the
+container:
 
 ```bash
 fly ssh console -a agentclip-api
-```
-
-You're now root inside the container. Run the narrate command:
-
-```bash
 python manage.py narrate <share_token>
 ```
 
-Expected output (4-slide clip, ~$0.006 total):
+Same flags as the API: `--force`, `--voice <voice>`, `--dry-run`. Output
+matches the API response's `narration` block, formatted for terminals:
 
 ```
 narrating slideshow 'Skip the screencast.' (4 slides, voice=nova, force=False, dry_run=False)
@@ -55,9 +95,6 @@ narrating slideshow 'Skip the screencast.' (4 slides, voice=nova, force=False, d
 narrated: 4 of 4 slides (0 skipped, 550 chars, $0.0165 total)
 ```
 
-Each slide's MP3 is uploaded to the same R2 bucket as the slide images,
-under `slideshows/<slideshow_uuid>/audio/<position>.mp3`.
-
 ## Verify
 
 Visit `https://agentclip.dev/s/<share_token>`. The page should now render
@@ -65,9 +102,6 @@ the `VideoClipPlayer` instead of the silent stacked layout — vermillion
 play button centered on the slide, scrubber at the bottom, mute toggle in
 the meta row. Click play; the agent narrates each slide; the player
 auto-advances on audio end.
-
-If you instead see the silent stacked `<ol>`, one of the slides is missing
-audio. Check that the `narrate` command finished cleanly and re-run it.
 
 ## Surface the narrated clip on the home page
 
@@ -77,60 +111,33 @@ navigate to the slideshow, and toggle `is_hero=True`. The home page picks
 it up on the next ISR rebuild (≤60 seconds; revalidate is configured in
 `web/app/(home)/page.tsx`).
 
-## Re-narrate an existing clip
-
-By default, `narrate` skips slides that already have audio:
-
-```bash
-python manage.py narrate <share_token>
-  slide 01: skip (already narrated)
-  slide 02: skip (already narrated)
-  ...
-```
-
-To regenerate everything (after a caption edit, or a voice change), pass
-`--force`:
-
-```bash
-python manage.py narrate <share_token> --force
-```
-
-This re-uploads MP3s under the same deterministic filenames; the old files
-are replaced or suffixed by django-storages depending on the backend's
-overwrite setting.
-
-## Other flags
-
-- `--voice <voice>` — pick from OpenAI's stock voices: `alloy`, `echo`,
-  `fable`, `onyx`, `nova` (default), `shimmer`. The chosen voice is
-  recorded on each slide row's `audio_voice` column.
-- `--dry-run` — print the planned per-slide character count and estimated
-  cost without calling OpenAI or writing to the database. Useful for
-  pre-flighting a long slideshow before paying for it.
-
 ## Common issues
 
-**`OPENAI_API_KEY is not set`**: the API container doesn't have the
-secret. Run `fly secrets set OPENAI_API_KEY=...` from your local shell.
+**`OPENAI_API_KEY is not set` (503)** — the API container doesn't have the
+secret. Run `fly secrets set OPENAI_API_KEY=sk-... -a agentclip-api`. Note
+that the secret update triggers a rolling deploy; wait ~30s before
+retrying.
 
-**`slideshow not found for share_token 'xxx'`**: the token is wrong, or the
-slideshow doesn't exist on this database. Confirm by visiting the public
-viewer URL.
+**A slide stays silent on the frontend after narration** — the
+`audio_url` field is null on the API response. Re-call narrate with
+`force=true`. If the issue persists, inspect the slide's `audio` field in
+Django admin — if it's empty, the upload to R2 failed; check the API's
+Fly logs for the failed request.
 
-**A slide stays silent on the frontend after narration**: the `audio_url`
-field is null on the API response. Re-run `narrate <token> --force`. If
-the issue persists, check the slide's `audio` field directly in Django
-admin — if it's empty, the upload to R2 failed (check the `narrate` run's
-output for stderr).
-
-**Cost looks higher than expected**: `--dry-run` first to preview. The
+**Cost looks higher than expected** — call with `dry_run=true` first. The
 TTS-1-HD price is $0.030 per 1K characters (May 2026). A typical 4-slide
 walkthrough at ~50 chars/slide is $0.006. If a single run reports more
-than $0.10, the slideshow's captions are unusually long — operators may
-want to ask the agent to write tighter captions.
+than $0.10, the captions are unusually long.
+
+**Rate limit (429)** — the endpoint is rate-limited at 30 calls per IP
+per hour. Plenty for normal use; the agentclip CLI calls it once per
+upload. If you're hitting the limit by accident, wait an hour or use the
+management-command fallback.
 
 ## Reference
 
+- API endpoint: [`api/slideshows/views.py`](../../api/slideshows/views.py)
+  (`slideshow_narrate`)
 - Service module: [`api/slideshows/narration.py`](../../api/slideshows/narration.py)
 - Management command: [`api/slideshows/management/commands/narrate.py`](../../api/slideshows/management/commands/narrate.py)
 - Player: [`web/components/patterns/VideoClipPlayer/VideoClipPlayer.tsx`](../../web/components/patterns/VideoClipPlayer/VideoClipPlayer.tsx)

@@ -592,3 +592,123 @@ class GalleryListView(generics.ListAPIView):
         .order_by('gallery_position', '-created_at')
         .prefetch_related('slides')[:12]
     )
+
+
+# ----- Public: POST /api/v1/slideshow/<share_token>/narrate/ -----
+
+
+@extend_schema(
+    request={
+        'type': 'object',
+        'properties': {
+            'voice': {
+                'type': 'string',
+                'description': (
+                    'OpenAI TTS voice (alloy, echo, fable, onyx, nova, '
+                    'shimmer). Defaults to nova.'
+                ),
+            },
+            'force': {
+                'type': 'boolean',
+                'description': (
+                    'If true, regenerate audio for slides that already '
+                    'have a narration. Default false (idempotent skip).'
+                ),
+            },
+            'dry_run': {
+                'type': 'boolean',
+                'description': (
+                    'If true, report estimated cost without calling OpenAI '
+                    'or writing to the database. Default false.'
+                ),
+            },
+        },
+    },
+    responses={200: SlideshowPublicSerializer},
+    tags=['narration'],
+)
+@api_view(['POST'])
+@authentication_classes([WriteTokenAuthentication])
+@ratelimit(key='ip', rate='30/h', method='POST', block=True)
+def slideshow_narrate(request, share_token):
+    '''Generate per-slide narration MP3s. Auth: Bearer <write_token>.
+
+    Loops the slideshow's slides and synthesizes audio from each
+    caption via OpenAI TTS-1-HD. Idempotent by default — slides that
+    already have audio are skipped. Pass `force=true` to regenerate
+    everything, or `dry_run=true` to estimate cost without spending.
+
+    Auth model: same as slide_add — only the write_token holder can
+    narrate. The token is presented in the Authorization header
+    exactly like an SDK upload request.
+
+    Response: the public slideshow shape with `audio_url` populated
+    on each newly-narrated slide. The response also includes a
+    `narration` block with per-slide outcomes and total cost so the
+    caller can render a summary or surface the spend.
+
+    Cost: ~$0.030 per 1K caption characters. A 4-slide walkthrough
+    with ~150-char captions is ~$0.018 per run.
+    '''
+    from . import narration as narration_module
+
+    slideshow = get_object_or_404(Slideshow, share_token=share_token)
+    # Reuse authorize_slideshow's write_token check, but resolved by
+    # share_token instead of UUID (the API surface for narrate is
+    # share_token-keyed for parity with the rest of the v1 namespace).
+    import secrets as _secrets
+    from .auth import AUTH_HEADER_PREFIX
+    from rest_framework.exceptions import AuthenticationFailed, NotAuthenticated
+    header = request.META.get('HTTP_AUTHORIZATION', '')
+    if not header.startswith(AUTH_HEADER_PREFIX):
+        raise NotAuthenticated('missing Bearer token')
+    supplied = header[len(AUTH_HEADER_PREFIX):].strip()
+    if not supplied:
+        raise NotAuthenticated('empty Bearer token')
+    if not _secrets.compare_digest(supplied, slideshow.write_token):
+        raise AuthenticationFailed('invalid write_token for this slideshow')
+
+    body = request.data if isinstance(request.data, dict) else {}
+    voice = body.get('voice') or narration_module.DEFAULT_VOICE
+    force = bool(body.get('force', False))
+    dry_run = bool(body.get('dry_run', False))
+
+    if not slideshow.slides.exists():
+        return Response(
+            {'detail': 'this slideshow has no slides; nothing to narrate'},
+            status=400,
+        )
+
+    try:
+        result = narration_module.narrate_slideshow(
+            slideshow,
+            voice=voice,
+            force=force,
+            dry_run=dry_run,
+        )
+    except narration_module.NarrationConfigError as exc:
+        # 503: the API is up but a downstream dependency (the
+        # OPENAI_API_KEY secret) is not configured. The client should
+        # not retry blindly; the operator needs to set the secret.
+        return Response({'detail': str(exc)}, status=503)
+
+    payload = SlideshowPublicSerializer(slideshow, context={'request': request}).data
+    payload['narration'] = {
+        'narrated': result.narrated,
+        'skipped': result.skipped,
+        'total_chars': result.total_chars,
+        'total_cost_usd': str(result.total_cost_usd),
+        'dry_run': result.dry_run,
+        'outcomes': [
+            {
+                'position': o.position,
+                'status': o.status,
+                'reason': o.reason,
+                'chars': o.chars,
+                'cost_usd': str(o.cost_usd),
+                'voice': o.voice,
+            }
+            for o in result.outcomes
+        ],
+    }
+    return Response(payload, status=200)
