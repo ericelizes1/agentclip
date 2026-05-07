@@ -40,7 +40,13 @@ const nextConfig: NextConfig = {
     ]
   },
   async rewrites() {
-    const apiOrigin = process.env.AGENTCLIP_API_URL ?? 'http://localhost:8000'
+    // ``rewrites`` is evaluated at build time in standalone mode, so
+    // process.env reads here are baked into the bundle. Set
+    // AGENTCLIP_API_URL during the docker build (or pass as ARG) to
+    // override; otherwise we default to the public production API,
+    // which works for any deploy that fronts the Django service at
+    // api.agentclip.dev. Local dev sets AGENTCLIP_API_URL via .env.local.
+    const apiOrigin = process.env.AGENTCLIP_API_URL ?? 'https://api.agentclip.dev'
     return [
       { source: '/media/:path*', destination: `${apiOrigin}/media/:path*` },
       // Render artifacts: GitHub PRs only render inline `.mp4` URLs, so

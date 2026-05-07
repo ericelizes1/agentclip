@@ -79,7 +79,17 @@ def _public_share_url(slideshow: Slideshow) -> str:
     max_retries=3,
 )
 def render_clip_mp4(slideshow_id: str) -> dict:
-    '''Render the MP4 artifact for a slideshow + persist to FileField.'''
+    '''Render the MP4 artifact for a slideshow + persist to FileField.
+
+    Auto-narrates any slides that lack audio before stitching. The
+    product positioning is "agent makes narrated walkthroughs" — silent
+    MP4 output would undermine that, so narration is part of the render
+    contract, not a separate operator step. ``narrate_slideshow`` is
+    idempotent (force=False skips slides with audio already), so this
+    is cheap on already-narrated clips and free on re-renders.
+    '''
+    from . import narration
+
     slideshow = Slideshow.objects.filter(pk=slideshow_id).first()
     if not slideshow:
         logger.warning('render_clip_mp4: slideshow %s vanished', slideshow_id)
@@ -90,6 +100,32 @@ def render_clip_mp4(slideshow_id: str) -> dict:
     if not slides:
         logger.info('render_clip_mp4: %s has no slides; skipping', slideshow_id)
         return {'status': 'no_slides'}
+
+    # Auto-narrate-if-missing. Any slide without audio gets TTS'd via
+    # OpenAI; the bump that follows from narration's own success path is
+    # absorbed into the version recheck below (we treat narration as
+    # part of the same render cycle for invalidation purposes).
+    needs_narration = any(not s.audio for s in slides)
+    if needs_narration:
+        try:
+            narration.narrate_slideshow(slideshow, force=False)
+            # Reload slides so the freshly-narrated audio fields are
+            # populated for the build_mp4 inputs below.
+            slides = list(slideshow.slides.order_by('position').all())
+            # Capture the post-narration render_version as our new
+            # baseline — narration_module bumped it via the API endpoint
+            # equivalent path? Actually narrate_slideshow doesn't bump;
+            # only the API view does. So pre_render_version is still
+            # valid for the stale check.
+        except narration.NarrationConfigError:
+            # OPENAI_API_KEY missing or invalid. Fall through to render
+            # whatever audio exists; the held-image fallback in mp4.py
+            # covers slides that didn't get narration. Logged so the
+            # operator sees the misconfiguration in worker logs.
+            logger.warning(
+                'render_clip_mp4: narration config error on %s; rendering with available audio',
+                slideshow_id,
+            )
 
     inputs: list[SlideInput] = []
     poster_source: bytes = b''

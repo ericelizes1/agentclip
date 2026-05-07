@@ -122,6 +122,76 @@ class RenderClipMP4Tests(TestCase):
         result = tasks.render_clip_mp4(str(self.slideshow.id))
         self.assertEqual(result['status'], 'no_slides')
 
+    def test_auto_narrates_unnarrated_slides_before_stitching(self) -> None:
+        '''Product invariant: a render produces a narrated MP4. If a
+        slide lacks audio, the render task fills it in via OpenAI TTS
+        before stitching. Mocked here so the test stays self-contained.
+        '''
+        from slideshows import tasks
+        self._add_slide(1)  # no audio
+        self._add_slide(2)  # no audio
+
+        called_with = {}
+
+        def fake_narrate(slideshow, *, voice='nova', force=False, dry_run=False):
+            called_with['slideshow_id'] = slideshow.id
+            called_with['force'] = force
+            # Persist real audio to each slide so build_mp4 has bytes.
+            audio_bytes = _mp3_bytes(0.4)
+            for slide in slideshow.slides.order_by('position'):
+                if not slide.audio:
+                    slide.audio.save('audio.mp3', ContentFile(audio_bytes), save=False)
+                    slide.audio_voice = 'nova'
+                    slide.audio_duration_ms = 400
+                    slide.save()
+            from decimal import Decimal
+            from slideshows.narration import NarrateSlideshowResult
+            return NarrateSlideshowResult(
+                outcomes=[], total_chars=20, total_cost_usd=Decimal('0'),
+                narrated=2, skipped=0, dry_run=False,
+            )
+
+        with mock.patch('slideshows.narration.narrate_slideshow', side_effect=fake_narrate):
+            result = tasks.render_clip_mp4(str(self.slideshow.id))
+
+        self.assertEqual(result['status'], 'ok')
+        self.assertEqual(called_with['slideshow_id'], self.slideshow.id)
+        self.assertFalse(called_with['force'])  # idempotent skip path
+        self.slideshow.refresh_from_db()
+        self.assertTrue(self.slideshow.rendered_mp4)
+
+    def test_skips_narration_when_all_slides_already_have_audio(self) -> None:
+        '''Idempotent: a re-render of a fully narrated clip never
+        touches OpenAI.'''
+        from slideshows import tasks
+        audio = _mp3_bytes()
+        self._add_slide(1, audio_bytes=audio)
+        self._add_slide(2, audio_bytes=audio)
+
+        with mock.patch('slideshows.narration.narrate_slideshow') as narrate:
+            result = tasks.render_clip_mp4(str(self.slideshow.id))
+
+        self.assertEqual(result['status'], 'ok')
+        narrate.assert_not_called()
+
+    def test_continues_rendering_when_narration_config_errors(self) -> None:
+        '''Missing OPENAI_API_KEY shouldn't take down the render — we
+        fall through and produce a silent MP4 (held-image fallback).'''
+        from slideshows import tasks
+        from slideshows.narration import NarrationConfigError
+        self._add_slide(1)  # no audio
+
+        with mock.patch(
+            'slideshows.narration.narrate_slideshow',
+            side_effect=NarrationConfigError('OPENAI_API_KEY not set'),
+        ):
+            result = tasks.render_clip_mp4(str(self.slideshow.id))
+
+        # Render still succeeds; held-image fallback renders 3s of red.
+        self.assertEqual(result['status'], 'ok')
+        self.slideshow.refresh_from_db()
+        self.assertTrue(self.slideshow.rendered_mp4)
+
     def test_stale_render_discards_output(self) -> None:
         from slideshows import tasks
         audio = _mp3_bytes()
