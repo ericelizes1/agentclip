@@ -1,3 +1,8 @@
+import { ClipShareExport } from '@/components/composites/ClipShareExport/ClipShareExport'
+import {
+  ClipViewTabs,
+  type ClipView,
+} from '@/components/composites/ClipViewTabs/ClipViewTabs'
 import { MediaFrame, type MediaKind } from '@/components/composites/MediaFrame/MediaFrame'
 import { MetaRow } from '@/components/composites/MetaRow/MetaRow'
 import { NavBar } from '@/components/composites/NavBar/NavBar'
@@ -41,8 +46,24 @@ export interface ClipViewerSlideshow {
   slides: ClipViewerSlide[]
 }
 
+export interface ClipViewerArtifacts {
+  /** Public share URL (the canonical agentclip.dev/s/<token> link). */
+  shareUrl: string
+  /** Direct .mp4 URL — for GitHub PR/README inline video. */
+  clipMp4Url: string
+  /** Direct .pdf URL — for download anchor. */
+  clipPdfUrl: string
+  /** /embed/<token> — for iframe embed code. */
+  embedUrl: string
+}
+
 export interface ClipViewerProps {
   slideshow: ClipViewerSlideshow
+  /** Active view mode; reads from `?view=scroll` on the server side. */
+  view?: ClipView
+  /** Artifact URLs surfaced by the API. When set, the share/export
+   *  panel renders below the player. */
+  artifacts?: ClipViewerArtifacts
   /** GitHub URL for the navbar's right-hand button. */
   githubUrl?: string
   className?: string
@@ -72,11 +93,26 @@ function formatDate(isoString: string): string {
  * the headline doesn't bury content on narrow viewports, and the
  * MetaRow's avatar wraps to the right edge instead of the next line.
  */
-export function ClipViewer({ slideshow, githubUrl, className }: ClipViewerProps) {
+export function ClipViewer({
+  slideshow,
+  view,
+  artifacts,
+  githubUrl,
+  className,
+}: ClipViewerProps) {
   const meta: string[] = [formatDate(slideshow.created_at), `${slideshow.slides.length} clips`]
   const allNarrated =
     slideshow.slides.length > 0 &&
     slideshow.slides.every((s) => Boolean(s.audio_url))
+  // Resolve the active view. Default is 'watch' when narration is
+  // available; non-narrated clips fall back to 'scroll' regardless of
+  // the URL param since the Watch tab isn't an option.
+  const activeView: ClipView = !allNarrated
+    ? 'scroll'
+    : view === 'scroll'
+      ? 'scroll'
+      : 'watch'
+  const shareToken = slideshow.share_token ?? slideshow.id
 
   return (
     <div className={cn('min-h-screen bg-paper text-ink-900', className)}>
@@ -102,15 +138,15 @@ export function ClipViewer({ slideshow, githubUrl, className }: ClipViewerProps)
           />
         </header>
 
-        {slideshow.summary && (
-          <div className="mb-8 sm:mb-10">
-            <SummaryCallout summary={slideshow.summary} />
-          </div>
-        )}
+        <ClipViewTabs
+          shareToken={shareToken}
+          current={activeView}
+          watchAvailable={allNarrated}
+        />
 
-        {allNarrated ? (
+        {activeView === 'watch' && allNarrated ? (
           <VideoClipPlayer
-            shareToken={slideshow.share_token ?? slideshow.id}
+            shareToken={shareToken}
             title={slideshow.title || 'Untitled run'}
             {...(slideshow.created_by !== undefined
               ? { creatorName: slideshow.created_by }
@@ -144,6 +180,23 @@ export function ClipViewer({ slideshow, githubUrl, className }: ClipViewerProps)
               </li>
             ))}
           </ol>
+        )}
+
+        {slideshow.summary && (
+          <div className="mt-8 sm:mt-10">
+            <SummaryCallout summary={slideshow.summary} />
+          </div>
+        )}
+
+        {artifacts && (
+          <div className="mt-8 sm:mt-10">
+            <ClipShareExport
+              shareUrl={artifacts.shareUrl}
+              clipMp4Url={artifacts.clipMp4Url}
+              clipPdfUrl={artifacts.clipPdfUrl}
+              embedUrl={artifacts.embedUrl}
+            />
+          </div>
         )}
       </main>
     </div>

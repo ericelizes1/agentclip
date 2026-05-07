@@ -46,7 +46,10 @@ const sample = {
 }
 
 async function renderViewer(token: string) {
-  const ui = await ViewerPage({ params: Promise.resolve({ token }) })
+  const ui = await ViewerPage({
+    params: Promise.resolve({ token }),
+    searchParams: Promise.resolve({}),
+  })
   render(ui)
 }
 

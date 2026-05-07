@@ -69,6 +69,57 @@ describe('ClipViewer', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('renders the View Mode tabs when narration is complete', () => {
+    HTMLMediaElement.prototype.play = vi.fn().mockResolvedValue(undefined)
+    HTMLMediaElement.prototype.pause = vi.fn()
+    const narrated: ClipViewerSlideshow = {
+      ...base,
+      share_token: 'abc-token',
+      slides: base.slides.map((s, i) => ({
+        ...s,
+        audio_url: `https://cdn/audio/${i + 1}.mp3`,
+      })),
+    }
+    render(<ClipViewer slideshow={narrated} />)
+    const tabs = screen.getByLabelText('View mode')
+    expect(tabs).toBeInTheDocument()
+    expect(tabs).toContainHTML('Watch')
+    expect(tabs).toContainHTML('Slides')
+  })
+
+  it('respects view=scroll on a narrated clip — shows slide list, not player', () => {
+    const narrated: ClipViewerSlideshow = {
+      ...base,
+      share_token: 'abc-token',
+      slides: base.slides.map((s, i) => ({
+        ...s,
+        audio_url: `https://cdn/audio/${i + 1}.mp3`,
+      })),
+    }
+    render(<ClipViewer slideshow={narrated} view="scroll" />)
+    expect(screen.getByRole('list', { name: 'Clip sequence' })).toBeInTheDocument()
+    expect(
+      screen.queryByLabelText(/Narrated walkthrough of:/i),
+    ).not.toBeInTheDocument()
+  })
+
+  it('renders the share/export panel when artifacts are provided', () => {
+    render(
+      <ClipViewer
+        slideshow={base}
+        artifacts={{
+          shareUrl: 'https://agentclip.dev/s/abc',
+          clipMp4Url: 'https://agentclip.dev/s/abc.mp4',
+          clipPdfUrl: 'https://agentclip.dev/s/abc.pdf',
+          embedUrl: 'https://agentclip.dev/embed/abc',
+        }}
+      />,
+    )
+    expect(screen.getByLabelText('Share or export this clip')).toBeInTheDocument()
+    expect(screen.getByText('Copy MP4 URL')).toBeInTheDocument()
+    expect(screen.getByText('Download PDF')).toBeInTheDocument()
+  })
+
   it('falls back to silent <ol> when even one slide lacks audio_url', () => {
     const partial: ClipViewerSlideshow = {
       ...base,

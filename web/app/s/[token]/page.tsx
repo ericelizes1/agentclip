@@ -21,6 +21,7 @@ export const dynamic = 'force-dynamic'
 
 interface ViewerPageProps {
   params: Promise<{ token: string }>
+  searchParams: Promise<{ view?: string }>
 }
 
 interface ClipArtifacts {
@@ -140,10 +141,37 @@ export async function generateMetadata({
   }
 }
 
-export default async function ViewerPage({ params }: ViewerPageProps) {
+export default async function ViewerPage({
+  params,
+  searchParams,
+}: ViewerPageProps) {
   const { token } = await params
+  const { view: rawView } = await searchParams
   const result = await fetchSlideshow(token)
   if (!result) notFound()
 
-  return <ClipViewer slideshow={result.slideshow} />
+  const view = rawView === 'scroll' ? 'scroll' : 'watch'
+  return (
+    <ClipViewer
+      slideshow={result.slideshow}
+      view={view}
+      artifacts={{
+        shareUrl: `${publicBaseUrl()}/s/${token}`,
+        clipMp4Url: result.artifacts.clipMp4Url,
+        clipPdfUrl: result.artifacts.clipPdfUrl,
+        embedUrl: result.artifacts.embedUrl,
+      }}
+    />
+  )
+}
+
+function publicBaseUrl(): string {
+  // Server-side: prefer the explicit env, fall back to a sensible
+  // localhost default. The share URL surfaced in the export panel
+  // is the user-facing origin, NOT the API origin.
+  const base =
+    process.env.AGENTCLIP_PUBLIC_BASE_URL ||
+    process.env.NEXT_PUBLIC_AGENTCLIP_BASE_URL ||
+    'http://localhost:3030'
+  return base.replace(/\/$/, '')
 }
