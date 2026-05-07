@@ -35,17 +35,12 @@ export function CaptureStack({ walkthroughHref, className }: CaptureStackProps) 
   const completed = capturedIds.size === total
 
   return (
-    <aside
+    <div
       aria-label="Page capture stack"
-      className={cn(
-        // Hidden on mobile, surfaces from xl up. Fixed to the viewport
-        // so it stays put while the visitor scrolls — they always see
-        // the captured slides accumulating.
-        'pointer-events-none fixed top-1/2 right-6 z-30 hidden -translate-y-1/2 xl:block',
-        className,
-      )}
+      role="region"
+      className={cn('w-[164px]', className)}
     >
-      <div className="pointer-events-auto flex flex-col gap-3">
+      <div className="flex flex-col gap-3">
         {/* CTA — dormant until completed, then activates with vermillion fill. */}
         <motion.div
           animate={completed ? { scale: 1 } : { scale: 0.96 }}
@@ -94,7 +89,7 @@ export function CaptureStack({ walkthroughHref, className }: CaptureStackProps) 
           })}
         </ol>
       </div>
-    </aside>
+    </div>
   )
 }
 

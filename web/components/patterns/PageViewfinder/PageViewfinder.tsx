@@ -193,7 +193,6 @@ export function PageViewfinder({ slides, children }: PageViewfinderProps) {
   return (
     <ViewfinderContext.Provider value={value}>
       {children}
-      <ViewportBrackets visible={slides.length > 0} />
       <AnimatePresence>
         {flying && flyingSlide ? (
           <FlyingCard key={flying.slideId} flying={flying} slide={flyingSlide} />
@@ -260,53 +259,3 @@ function FlyingCard({
   )
 }
 
-/* ── Viewport corner brackets ─────────────────────────────── */
-
-function ViewportBrackets({ visible }: { visible: boolean }) {
-  if (!visible) return null
-  return (
-    <>
-      <Bracket position="top-left" />
-      <Bracket position="top-right" />
-      <Bracket position="bottom-left" />
-      <Bracket position="bottom-right" />
-    </>
-  )
-}
-
-function Bracket({
-  position,
-}: {
-  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
-}) {
-  const placement = {
-    'top-left': 'top-3 left-3',
-    'top-right': 'top-3 right-3',
-    'bottom-left': 'bottom-3 left-3',
-    'bottom-right': 'bottom-3 right-3',
-  }[position]
-
-  const rotation = {
-    'top-left': 0,
-    'top-right': 90,
-    'bottom-right': 180,
-    'bottom-left': 270,
-  }[position]
-
-  return (
-    <span
-      aria-hidden="true"
-      className={`pointer-events-none fixed z-30 hidden lg:block ${placement}`}
-      style={{ transform: `rotate(${rotation}deg)` }}
-    >
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-        <path
-          d="M2 14 V2 H14"
-          stroke="var(--color-vermillion-500, #d94824)"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-        />
-      </svg>
-    </span>
-  )
-}

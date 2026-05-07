@@ -156,117 +156,182 @@ export default async function HomePage() {
       <PageViewfinder slides={viewfinderSlides}>
         <NavBar githubUrl={GITHUB_URL} />
 
-        <SlideCapture slideId="hero">
-          <HeroSection githubUrl={GITHUB_URL} featured={featured} />
-        </SlideCapture>
+        {/*
+          Camera-body layout. The whole page sits inside a centered,
+          bordered "screen" with rounded corners and an inset shadow,
+          on top of a slightly darker paper backdrop. The CaptureStack
+          lives in the right margin of the outer container, sticky-
+          positioned so it stays alongside the screen as the visitor
+          scrolls. On mobile the frame collapses to a normal page.
+        */}
+        <div className="bg-paper-raised">
+          <div className="mx-auto grid max-w-[1480px] grid-cols-1 gap-6 px-3 pt-3 pb-8 sm:px-5 sm:pt-5 xl:grid-cols-[minmax(0,1fr)_184px]">
+            <div className="relative overflow-hidden rounded-[18px] border border-ink-200 bg-paper shadow-[0_24px_60px_-30px_rgba(20,20,19,0.18),0_2px_8px_-4px_rgba(20,20,19,0.06)]">
+              {/* Inner corner brackets — the "lens" of the camera. */}
+              <ScreenCorner position="top-left" />
+              <ScreenCorner position="top-right" />
+              <ScreenCorner position="bottom-left" />
+              <ScreenCorner position="bottom-right" />
 
-        <SlideCapture slideId="how-it-works">
-          <section
-            id="how-it-works"
-            aria-labelledby="how-it-works-heading"
-            className="mx-auto max-w-5xl px-6 py-16"
-          >
-            <h2
-              id="how-it-works-heading"
-              className="mb-10 text-2xl font-semibold tracking-tight text-ink-900"
-            >
-              How it works
-            </h2>
-            <ol className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {STEPS.map((step) => (
-                <li
-                  key={step.step}
-                  className="space-y-3 rounded-[14px] border border-ink-200 bg-paper-raised p-6"
+              <SlideCapture slideId="hero">
+                <HeroSection githubUrl={GITHUB_URL} featured={featured} />
+              </SlideCapture>
+
+              <SlideCapture slideId="how-it-works">
+                <section
+                  id="how-it-works"
+                  aria-labelledby="how-it-works-heading"
+                  className="mx-auto max-w-5xl px-6 py-16"
                 >
-                  <div className="flex items-baseline gap-3">
-                    <span className="font-mono text-sm tabular-nums text-vermillion-700">
-                      {step.step}
-                    </span>
-                    <span className="text-xs uppercase tracking-[0.16em] text-ink-500">
-                      {step.label}
-                    </span>
+                  <h2
+                    id="how-it-works-heading"
+                    className="mb-10 text-2xl font-semibold tracking-tight text-ink-900"
+                  >
+                    How it works
+                  </h2>
+                  <ol className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                    {STEPS.map((step) => (
+                      <li
+                        key={step.step}
+                        className="space-y-3 rounded-[14px] border border-ink-200 bg-paper-raised p-6"
+                      >
+                        <div className="flex items-baseline gap-3">
+                          <span className="font-mono text-sm tabular-nums text-vermillion-700">
+                            {step.step}
+                          </span>
+                          <span className="text-xs uppercase tracking-[0.16em] text-ink-500">
+                            {step.label}
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-medium tracking-tight text-ink-900">
+                          {step.title}
+                        </h3>
+                        <p className="text-sm text-ink-600">{step.body}</p>
+                        {step.code && (
+                          <CodeBlock
+                            code={step.code.body}
+                            {...(step.code.prompt !== undefined
+                              ? { prompt: step.code.prompt }
+                              : {})}
+                          />
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              </SlideCapture>
+
+              <SlideCapture slideId="gallery">
+                <section
+                  aria-labelledby="gallery-heading"
+                  className="mx-auto max-w-5xl px-6 py-16"
+                >
+                  <div className="mb-10 flex items-end justify-between gap-4">
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-vermillion-700">
+                        In the gallery
+                      </p>
+                      <h2
+                        id="gallery-heading"
+                        className="text-2xl font-semibold tracking-tight text-ink-900"
+                      >
+                        Recent fieldwork.
+                      </h2>
+                      <p className="mt-1 text-sm text-ink-600">
+                        Real QA runs, hand-curated.
+                      </p>
+                    </div>
+                    {clips.length > 0 && (
+                      <p className="text-xs uppercase tracking-[0.16em] text-ink-500">
+                        {clips.length} clips
+                      </p>
+                    )}
                   </div>
-                  <h3 className="text-lg font-medium tracking-tight text-ink-900">
-                    {step.title}
-                  </h3>
-                  <p className="text-sm text-ink-600">{step.body}</p>
-                  {step.code && (
-                    <CodeBlock
-                      code={step.code.body}
-                      {...(step.code.prompt !== undefined ? { prompt: step.code.prompt } : {})}
-                    />
-                  )}
-                </li>
-              ))}
-            </ol>
-          </section>
-        </SlideCapture>
+                  <GalleryGrid clips={clips} />
+                </section>
+              </SlideCapture>
 
-        <SlideCapture slideId="gallery">
-          <section
-            aria-labelledby="gallery-heading"
-            className="mx-auto max-w-5xl px-6 py-16"
-          >
-            <div className="mb-10 flex items-end justify-between gap-4">
-              <div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.16em] text-vermillion-700">
-                  In the gallery
-                </p>
-                <h2
-                  id="gallery-heading"
-                  className="text-2xl font-semibold tracking-tight text-ink-900"
-                >
-                  Recent fieldwork.
-                </h2>
-                <p className="mt-1 text-sm text-ink-600">
-                  Real QA runs, hand-curated.
-                </p>
-              </div>
-              {clips.length > 0 && (
-                <p className="text-xs uppercase tracking-[0.16em] text-ink-500">
-                  {clips.length} clips
-                </p>
-              )}
+              <SlideCapture slideId="closing">
+                <section className="mx-auto max-w-3xl px-6 py-16 text-center">
+                  <p className="text-base text-ink-600">
+                    Open source. Receipts for the work agents quietly do.
+                  </p>
+                </section>
+              </SlideCapture>
+
+              <footer className="border-t border-ink-200 bg-paper-raised">
+                <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-xs uppercase tracking-[0.14em] text-ink-500">
+                  <span className="flex items-center gap-2 text-ink-700">
+                    <TicketMark size={14} className="text-vermillion-500" />
+                    AgentClip
+                  </span>
+                  <a
+                    href={GITHUB_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 text-ink-700 hover:text-ink-900"
+                  >
+                    <SiGithub aria-hidden="true" className="size-3.5" />
+                    GitHub
+                  </a>
+                </div>
+              </footer>
             </div>
-            <GalleryGrid clips={clips} />
-          </section>
-        </SlideCapture>
 
-        <SlideCapture slideId="closing">
-          <section className="mx-auto max-w-3xl px-6 py-16 text-center">
-            <p className="text-base text-ink-600">
-              Open source. Receipts for the work agents quietly do.
-            </p>
-          </section>
-        </SlideCapture>
-
-      <footer className="border-t border-ink-200 bg-paper-raised">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 py-8 text-xs uppercase tracking-[0.14em] text-ink-500">
-          <span className="flex items-center gap-2 text-ink-700">
-            <TicketMark size={14} className="text-vermillion-500" />
-            AgentClip
-          </span>
-          <a
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 text-ink-700 hover:text-ink-900"
-          >
-            <SiGithub aria-hidden="true" className="size-3.5" />
-            GitHub
-          </a>
+            {/* Side panel column — sticky-positioned alongside the screen.
+                Hidden on mobile; surfaces from xl up where the layout
+                has room for the contact-sheet strip. */}
+            <aside className="hidden xl:block">
+              <div className="sticky top-[88px]">
+                {featured && (
+                  <CaptureStack
+                    walkthroughHref={`/s/${featured.shareToken}`}
+                  />
+                )}
+              </div>
+            </aside>
+          </div>
         </div>
-      </footer>
-
-        {/* Capture stack — fixed to the right edge on xl+ screens.
-            Renders the slot strip + the dormant "Your walkthrough →"
-            CTA that activates once every section has been captured.
-            Linked to the featured clip itself (the meta clip in
-            v0.1; eventually a per-visitor capture). */}
-        {featured && (
-          <CaptureStack walkthroughHref={`/s/${featured.shareToken}`} />
-        )}
       </PageViewfinder>
     </RecordingProvider>
+  )
+}
+
+/* ── Inner viewport-frame corner brackets ────────────────────
+   Sit at the inside corners of the "screen" container, evoking
+   the cropped marks of a real camera viewfinder. */
+
+function ScreenCorner({
+  position,
+}: {
+  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+}) {
+  const placement = {
+    'top-left': 'top-3 left-3',
+    'top-right': 'top-3 right-3',
+    'bottom-left': 'bottom-3 left-3',
+    'bottom-right': 'bottom-3 right-3',
+  }[position]
+  const rotation = {
+    'top-left': 0,
+    'top-right': 90,
+    'bottom-right': 180,
+    'bottom-left': 270,
+  }[position]
+  return (
+    <span
+      aria-hidden="true"
+      className={`pointer-events-none absolute z-30 ${placement}`}
+      style={{ transform: `rotate(${rotation}deg)` }}
+    >
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <path
+          d="M2 11 V2 H11"
+          stroke="var(--color-vermillion-500, #d94824)"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+        />
+      </svg>
+    </span>
   )
 }

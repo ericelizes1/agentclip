@@ -49,8 +49,12 @@ export function NavBar({
       aria-label="Primary"
       className={cn(
         'sticky top-0 z-30 flex items-center justify-between gap-4',
-        'border-b border-ink-200 bg-paper/85 backdrop-blur-md',
-        'px-6 py-3',
+        // On the home page this navbar sits inside the "camera body"
+        // (bg-paper-raised) above the framed screen — its background
+        // matches the body so the chrome reads as one continuous shell.
+        // On other pages the navbar still falls back to plain paper.
+        'border-b border-ink-200 bg-paper-raised/85 backdrop-blur-md',
+        'px-4 py-3 sm:px-6',
         className,
       )}
     >
