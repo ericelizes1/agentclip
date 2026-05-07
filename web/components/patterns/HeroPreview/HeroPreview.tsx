@@ -70,6 +70,7 @@ export function HeroPreview({
           mediaKind={slide.mediaKind}
           alt={slide.caption}
           position={slide.position}
+          hideBadge
         />
       </button>
 

@@ -313,73 +313,7 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/*
-          Viewport-fixed bracket overlay — the "lens" of the camera.
-          Mirrors the page's grid layout so the brackets sit precisely
-          at the corners of the screen column on whatever the visitor
-          is currently looking at, regardless of scroll position.
-          Hidden below lg where the screen takes the full width and
-          brackets would compete with edge-to-edge content.
-        */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none fixed inset-0 z-30 hidden lg:block"
-        >
-          <div className="mx-auto h-full max-w-[1480px] px-7 py-7">
-            <div className="grid h-full grid-cols-[minmax(0,1fr)_220px] gap-6">
-              <div className="relative h-full">
-                <ScreenCorner position="top-left" />
-                <ScreenCorner position="top-right" />
-                <ScreenCorner position="bottom-left" />
-                <ScreenCorner position="bottom-right" />
-              </div>
-              <div />
-            </div>
-          </div>
-        </div>
       </PageViewfinder>
     </RecordingProvider>
-  )
-}
-
-/* ── Inner viewport-frame corner brackets ────────────────────
-   Sit at the inside corners of the "screen" container, evoking
-   the cropped marks of a real camera viewfinder. */
-
-function ScreenCorner({
-  position,
-}: {
-  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
-}) {
-  const placement = {
-    'top-left': 'top-2 left-2',
-    'top-right': 'top-2 right-2',
-    'bottom-left': 'bottom-2 left-2',
-    'bottom-right': 'bottom-2 right-2',
-  }[position]
-  const rotation = {
-    'top-left': 0,
-    'top-right': 90,
-    'bottom-right': 180,
-    'bottom-left': 270,
-  }[position]
-  return (
-    <span
-      aria-hidden="true"
-      className={`pointer-events-none absolute z-30 ${placement}`}
-      style={{ transform: `rotate(${rotation}deg)` }}
-    >
-      {/* Big, bold corner. 44×44 with a thick stroke reads clearly at
-          viewport scale and asserts the "lens" framing. */}
-      <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-        <path
-          d="M3 24 L3 3 L24 3"
-          stroke="var(--color-vermillion-500, #d94824)"
-          strokeWidth="2.75"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </span>
   )
 }

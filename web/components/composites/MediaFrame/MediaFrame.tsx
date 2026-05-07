@@ -17,6 +17,13 @@ export interface MediaFrameProps {
    * viewer's deck reads as "01 / 02 / 03 …" while scrolling.
    */
   position: number
+  /**
+   * When true, the corner position badge is omitted. Used by the
+   * home-page hero embed where the right-rail capture stack already
+   * carries the slide number — rendering it on the embed too is
+   * redundant.
+   */
+  hideBadge?: boolean
   className?: string
 }
 
@@ -31,6 +38,7 @@ export function MediaFrame({
   src,
   alt,
   position,
+  hideBadge,
   className,
 }: MediaFrameProps) {
   return (
@@ -40,14 +48,16 @@ export function MediaFrame({
         className,
       )}
     >
-      <Badge tone="ink" className="absolute left-3 top-3 z-10 gap-1">
-        {mediaKind === 'video' ? (
-          <Play aria-hidden="true" className="size-3" />
-        ) : (
-          <Pause aria-hidden="true" className="size-3" />
-        )}
-        {String(position).padStart(2, '0')}
-      </Badge>
+      {!hideBadge && (
+        <Badge tone="ink" className="absolute left-3 top-3 z-10 gap-1">
+          {mediaKind === 'video' ? (
+            <Play aria-hidden="true" className="size-3" />
+          ) : (
+            <Pause aria-hidden="true" className="size-3" />
+          )}
+          {String(position).padStart(2, '0')}
+        </Badge>
+      )}
 
       {mediaKind === 'video' ? (
         <video

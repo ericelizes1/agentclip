@@ -115,7 +115,10 @@ export function HeroSection({
   return (
     <section
       className={cn(
-        'mx-auto flex max-w-3xl flex-col gap-8 px-6 py-20 sm:py-24',
+        // Wider container so the hero doesn't float in dead space inside
+        // the screen card on lg+ viewports. Inner elements (sub copy,
+        // install snippet) have their own max-widths for readability.
+        'mx-auto flex max-w-4xl flex-col gap-8 px-6 py-20 sm:px-10 sm:py-24',
         className,
       )}
     >

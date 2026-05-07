@@ -77,9 +77,11 @@ export function HomeSidebar({
         <span>GitHub</span>
       </a>
 
-      {/* Viewfinder chrome — vertical stack of three lines. */}
+      {/* Viewfinder chrome — vertical stack of three lines.
+          Extra top padding visually separates the recording status
+          from the brand/identity rows above. */}
       {insideViewfinder && (
-        <div className="flex flex-col gap-1.5 text-[13px] text-ink-500">
+        <div className="flex flex-col gap-1.5 pt-3 text-[13px] text-ink-500">
           <div className="flex items-center gap-1.5">
             <span
               aria-hidden="true"
