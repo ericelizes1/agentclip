@@ -58,16 +58,37 @@ def _absolute_media_url(obj: Slide, request) -> str:
     return _build_absolute(obj.media.url, request)
 
 
+def _absolute_audio_url(obj: Slide, request) -> str | None:
+    '''Resolve the absolute URL of `obj.audio`, or None when no
+    narration has been generated. Mirrors `_absolute_media_url` but
+    returns Optional[str] so the public serializer can emit `null`
+    for un-narrated slides.'''
+    if not obj.audio:
+        return None
+    return _build_absolute(obj.audio.url, request)
+
+
 class SlidePublicSerializer(serializers.ModelSerializer):
     media_url = serializers.SerializerMethodField()
+    # Public narration URL. Null when the slide has no audio
+    # (slideshows created before narration support, or slideshows
+    # not yet processed by the `narrate` management command).
+    audio_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Slide
-        fields = ('id', 'position', 'title', 'caption', 'media_url', 'media_kind')
+        fields = (
+            'id', 'position', 'title', 'caption',
+            'media_url', 'media_kind',
+            'audio_url', 'audio_voice', 'audio_duration_ms',
+        )
         read_only_fields = fields
 
     def get_media_url(self, obj: Slide) -> str:
         return _absolute_media_url(obj, self.context.get('request'))
+
+    def get_audio_url(self, obj: Slide) -> str | None:
+        return _absolute_audio_url(obj, self.context.get('request'))
 
 
 class SlideshowPublicSerializer(serializers.ModelSerializer):

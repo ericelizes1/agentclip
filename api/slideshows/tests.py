@@ -1727,3 +1727,62 @@ class NarrateCommandTests(TestCase):
             narration.reset_client_for_tests()
             with self.assertRaises(CommandError):
                 self._run_command(self.show.share_token)
+
+
+class SlideAudioSerializerTests(TestCase):
+    '''SlidePublicSerializer surfaces audio_url, audio_voice, and
+    audio_duration_ms. Slides without audio serialize with audio_url
+    null and the metadata fields at their defaults.'''
+
+    def setUp(self):
+        self.show = Slideshow.objects.create(title='serializer-test')
+        self.slide = Slide.objects.create(
+            slideshow=self.show,
+            position=1,
+            media=_png_upload(name='shot.png'),
+            media_kind=MediaKind.IMAGE,
+            caption='caption',
+        )
+
+    def test_slide_without_audio_serializes_audio_url_as_null(self):
+        from slideshows.serializers import SlidePublicSerializer
+        data = SlidePublicSerializer(self.slide).data
+        self.assertIsNone(data['audio_url'])
+        self.assertEqual(data['audio_voice'], '')
+        self.assertEqual(data['audio_duration_ms'], 0)
+
+    def test_slide_with_audio_serializes_absolute_url(self):
+        from django.core.files.base import ContentFile
+        from slideshows.serializers import SlidePublicSerializer
+        self.slide.audio.save('1.mp3', ContentFile(b'data'), save=False)
+        self.slide.audio_voice = 'nova'
+        self.slide.audio_duration_ms = 4200
+        self.slide.save()
+
+        data = SlidePublicSerializer(self.slide).data
+        self.assertIsNotNone(data['audio_url'])
+        self.assertIn('audio', data['audio_url'])
+        self.assertEqual(data['audio_voice'], 'nova')
+        self.assertEqual(data['audio_duration_ms'], 4200)
+
+    def test_full_slideshow_response_includes_audio_url_per_slide(self):
+        '''SlideshowPublicSerializer's `slides` array carries the new
+        fields without breaking existing consumers.'''
+        from django.core.files.base import ContentFile
+        from slideshows.serializers import SlideshowPublicSerializer
+        self.slide.audio.save('1.mp3', ContentFile(b'data'), save=True)
+
+        # Add a second slide with no audio.
+        Slide.objects.create(
+            slideshow=self.show,
+            position=2,
+            media=_png_upload(name='shot2.png'),
+            media_kind=MediaKind.IMAGE,
+            caption='no audio',
+        )
+
+        data = SlideshowPublicSerializer(self.show).data
+        slides = data['slides']
+        self.assertEqual(len(slides), 2)
+        self.assertIsNotNone(slides[0]['audio_url'])
+        self.assertIsNone(slides[1]['audio_url'])

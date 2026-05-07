@@ -757,9 +757,27 @@
                         ],
                         "readOnly": true,
                         "description": "image | video; sniffed from upload Content-Type at the API boundary.\n\n* `image` - Image\n* `video` - Video"
+                    },
+                    "audio_url": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "audio_voice": {
+                        "type": "string",
+                        "readOnly": true,
+                        "description": "OpenAI TTS voice used to generate `audio` (e.g. \"nova\"). Blank when audio is unset."
+                    },
+                    "audio_duration_ms": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "description": "Duration of `audio` in milliseconds. 0 when audio is unset or duration extraction failed; the player falls back to indeterminate progress until the metadata loads."
                     }
                 },
                 "required": [
+                    "audio_duration_ms",
+                    "audio_url",
+                    "audio_voice",
                     "caption",
                     "id",
                     "media_kind",

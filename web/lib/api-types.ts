@@ -403,6 +403,11 @@ export interface components {
              *     * `video` - Video
              */
             readonly media_kind: components["schemas"]["MediaKindEnum"];
+            readonly audio_url: string | null;
+            /** @description OpenAI TTS voice used to generate `audio` (e.g. "nova"). Blank when audio is unset. */
+            readonly audio_voice: string;
+            /** @description Duration of `audio` in milliseconds. 0 when audio is unset or duration extraction failed; the player falls back to indeterminate progress until the metadata loads. */
+            readonly audio_duration_ms: number;
         };
         /**
          * @description Create + update shape for slides. Media and caption only.
