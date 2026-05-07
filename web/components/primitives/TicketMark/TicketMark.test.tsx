@@ -30,4 +30,17 @@ describe('TicketMark', () => {
     const svg = screen.getByRole('img', { name: 'AgentClip' })
     expect(svg).toBeInTheDocument()
   })
+
+  it('does not animate any circle by default', () => {
+    const { container } = render(<TicketMark />)
+    const pulses = container.querySelectorAll('circle.animate-pulse')
+    expect(pulses).toHaveLength(0)
+  })
+
+  it('pulses the bottom-most perforation when recording=true', () => {
+    const { container } = render(<TicketMark recording />)
+    const pulses = container.querySelectorAll('circle.animate-pulse')
+    expect(pulses).toHaveLength(1)
+    expect(pulses[0]?.getAttribute('cy')).toBe('16')
+  })
 })

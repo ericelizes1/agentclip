@@ -11,6 +11,7 @@ import { SiGithub } from '@icons-pack/react-simple-icons'
 
 import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
 import { NavBar } from '@/components/composites/NavBar/NavBar'
+import { RecordingProvider } from '@/components/context/RecordingProvider/RecordingProvider'
 import { TicketMark } from '@/components/primitives/TicketMark/TicketMark'
 import { GalleryGrid, type GalleryClip } from '@/components/patterns/GalleryGrid/GalleryGrid'
 import {
@@ -109,8 +110,14 @@ export default async function HomePage() {
   const featured = heroRow ? await fetchFullSlideshow(heroRow.shareToken) : null
   const clips = galleryCards
 
+  // Wrap the entire home page in RecordingProvider so the NavBar's
+  // TicketMark and the HeroSection's pill share the same state.
+  // When `featured` is null, start in 'idle' so we don't kick off the
+  // recording animation for a hero that has no real clip to show.
+  const initialRecordingState = featured ? 'recording' : 'idle'
+
   return (
-    <>
+    <RecordingProvider initial={initialRecordingState}>
       <NavBar githubUrl={GITHUB_URL} />
 
       <HeroSection githubUrl={GITHUB_URL} featured={featured} />
@@ -206,6 +213,6 @@ export default async function HomePage() {
           </a>
         </div>
       </footer>
-    </>
+    </RecordingProvider>
   )
 }

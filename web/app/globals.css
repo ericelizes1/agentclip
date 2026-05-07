@@ -63,6 +63,12 @@
   /* ---------- Typography ---------- */
   --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  /*
+   * Display serif used ONLY for the hero headline. Loaded by
+   * next/font/google in app/layout.tsx; surfaced here so Tailwind 4
+   * generates the `font-display` utility.
+   */
+  --font-display: 'Fraunces', ui-serif, Georgia, serif;
 }
 
 /* ---------- Base layer ---------- */

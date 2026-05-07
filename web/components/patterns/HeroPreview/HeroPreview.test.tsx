@@ -47,7 +47,7 @@ describe('HeroPreview', () => {
     expect(screen.getByText('Recent fieldwork section.')).toBeInTheDocument()
   })
 
-  it('renders the eyebrow with the truncated share_token + creator', () => {
+  it('shows the creator credit and title-as-aria-label without competing headings', () => {
     render(
       <HeroPreview
         shareToken="qwft4GcsyM3sVDxy"
@@ -56,9 +56,11 @@ describe('HeroPreview', () => {
         slides={SLIDES}
       />,
     )
-    expect(screen.getByText('AGENTCLIP No.QWFT4G')).toBeInTheDocument()
-    expect(screen.getByText('Filed by Eric Elizes')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Stripe checkout QA' })).toBeInTheDocument()
+    // Title is on the wrapper as aria-label so screen readers still announce it,
+    // but no h2 inside the embed competes with the page's <h1>.
+    expect(screen.getByLabelText('Preview of: Stripe checkout QA')).toBeInTheDocument()
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument()
+    expect(screen.getByText('By Eric Elizes')).toBeInTheDocument()
   })
 
   it('links Open clip to the full viewer page', () => {

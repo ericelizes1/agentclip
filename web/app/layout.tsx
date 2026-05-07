@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Fraunces, Geist, Geist_Mono } from 'next/font/google'
 import type { ReactNode } from 'react'
 import './globals.css'
 
@@ -13,6 +13,17 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
   variable: '--font-geist-mono',
   display: 'swap',
+})
+
+// Display serif used only for the hero headline. Fraunces is a free
+// Google Font with strong italic personality — pairs cleanly with
+// Geist Sans for body copy. Variable font so the headline can ride
+// optical-size + soft axes without shipping multiple weight files.
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  variable: '--font-display',
+  display: 'swap',
+  axes: ['SOFT', 'opsz'],
 })
 
 export const metadata: Metadata = {
@@ -34,7 +45,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
+    <html
+      lang="en"
+      className={`${geist.variable} ${geistMono.variable} ${fraunces.variable}`}
+    >
       <body>{children}</body>
     </html>
   )

@@ -1,8 +1,11 @@
+'use client'
+
 import { SiGithub } from '@icons-pack/react-simple-icons'
 import Link from 'next/link'
 
 import { Button } from '@/components/primitives/Button/Button'
 import { TicketMark } from '@/components/primitives/TicketMark/TicketMark'
+import { useRecording } from '@/components/context/RecordingProvider/RecordingProvider'
 import { cn } from '@/lib/utils'
 
 export interface NavBarProps {
@@ -21,6 +24,12 @@ export function NavBar({
   githubUrl = 'https://github.com/ericelizes1/agentclip',
   className,
 }: NavBarProps) {
+  // When the home page is mid-recording, the TicketMark's bottom-most
+  // perforation pulses vermillion. Outside the provider this hook
+  // returns the safe `idle` default → no pulse, current behavior.
+  const { state } = useRecording()
+  const recording = state === 'recording'
+
   return (
     <nav
       aria-label="Primary"
@@ -32,7 +41,11 @@ export function NavBar({
       )}
     >
       <Link href="/" className="flex items-center gap-2 text-ink-900">
-        <TicketMark size={18} className="text-vermillion-500" />
+        <TicketMark
+          size={18}
+          recording={recording}
+          className="text-vermillion-500"
+        />
         <span className="font-semibold tracking-tight">AgentClip</span>
       </Link>
       <Button asChild variant="ghost" size="sm">

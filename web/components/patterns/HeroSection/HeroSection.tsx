@@ -1,13 +1,16 @@
 'use client'
 
 import { motion, useReducedMotion, type Transition } from 'framer-motion'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, ArrowUp } from 'lucide-react'
 import { SiGithub } from '@icons-pack/react-simple-icons'
+import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/primitives/Button/Button'
-import { Pill } from '@/components/primitives/Pill/Pill'
 import { Tabs } from '@/components/primitives/Tabs/Tabs'
+import { Typewriter } from '@/components/primitives/Typewriter/Typewriter'
 import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
+import { RecordingPill } from '@/components/composites/RecordingPill/RecordingPill'
+import { useRecording } from '@/components/context/RecordingProvider/RecordingProvider'
 import {
   HeroPreview,
   type HeroPreviewSlide,
@@ -31,29 +34,47 @@ export interface HeroSectionProps {
   /** Hides the install card on pages that don't need it. */
   showInstall?: boolean
   /**
-   * When provided, the hero leads with an embedded mini-viewer of this
-   * clip ("show, don't tell") and demotes the headline to a caption.
-   * When absent (e.g., the API is down or no AGENTCLIP_HERO_TOKEN is
-   * set), falls back to the original headline-first layout.
+   * Real clip rendered as the punchline below the install snippet, plus
+   * the link target for the "this page recorded itself" Easter egg.
+   * When absent, the section ends at the install card.
    */
   featured?: HeroFeaturedClip | null
   className?: string
 }
+
+const HEADLINE_TEXT = 'Walkthroughs that record themselves.'
+const PUNCHLINE = 'themselves.'
+const HEADLINE_LEAD = HEADLINE_TEXT.slice(
+  0,
+  HEADLINE_TEXT.length - PUNCHLINE.length,
+) // "Walkthroughs that record "
 
 const PIP_INSTALL_DEFAULT = 'pip install agentclip'
 const AGENT_PROMPT_DEFAULT = 'Read agentclip.dev/install.md and set up AgentClip for me.'
 
 const stagger: Transition = { duration: 0.45, ease: [0.2, 0.7, 0.2, 1] }
 
+// Time budget for the recording-state machine on a fresh page load.
+// Typewriter (~1.5s for 36 chars) → punchline reveal → "Recorded ✓"
+// holds 1.4s → settles into the locked v0.1 metadata.
+const TYPEWRITER_SPEED_MS = 38
+const RECORDED_HOLD_MS = 1400
+
 /**
- * Home-page hero. Pill + headline (with the em-underline keyword) +
- * lede + primary/secondary CTAs + locked install card. Reveal cadence
- * is a 60ms cascade per the locked spec; honors prefers-reduced-motion
- * by collapsing all delays to zero.
+ * Home-page hero. Conceit: the page itself is an AgentClip recording.
  *
- * The headline emphasizes "screencast" via a `<em>` element — the CSS
- * decoration in globals.css turns it into a 5px vermillion underline,
- * matching the locked design (NOT italic, NOT colored text).
+ * On mount, the headline is typed by an agent cursor; the recording
+ * pill counts the slide; the navbar's TicketMark logo (via the shared
+ * RecordingProvider context) pulses; and once the typewriter completes
+ * the underlined punchline word reveals with a clip-path wipe. After
+ * a 1.4s "Recorded ✓" beat the pill settles into its locked metadata
+ * content and the rest of the page acts normally.
+ *
+ * Below the embedded clip, an Easter-egg note links to the featured
+ * clip itself: "↑ this page recorded itself while you read it."
+ *
+ * Reduced-motion users see the full headline + idle pill immediately;
+ * the conceit gracefully collapses to a static, accessible page.
  */
 export function HeroSection({
   githubUrl = 'https://github.com/ericelizes1/agentclip',
@@ -66,77 +87,91 @@ export function HeroSection({
   const reduce = useReducedMotion()
   const at = (i: number) =>
     reduce ? { ...stagger, delay: 0 } : { ...stagger, delay: i * 0.06 }
+  const { state, setState } = useRecording()
+  const [punchlineRevealed, setPunchlineRevealed] = useState(false)
+
+  // When the page is loaded with a "recording" initial state, drive the
+  // sequencing: typewriter completes → flip to "recorded" → after a
+  // short hold, settle into "idle". Skipping this entire block when the
+  // provider is absent (state === 'idle' from the start) keeps non-home
+  // pages quiet.
+  useEffect(() => {
+    if (reduce) {
+      // Reduced motion: collapse straight to idle, reveal punchline.
+      setPunchlineRevealed(true)
+      if (state === 'recording' || state === 'recorded') setState('idle')
+      return
+    }
+    if (state !== 'recorded') return
+    const t = setTimeout(() => setState('idle'), RECORDED_HOLD_MS)
+    return () => clearTimeout(t)
+  }, [state, setState, reduce])
+
+  const handleTypewriterDone = () => {
+    setPunchlineRevealed(true)
+    if (state === 'recording') setState('recorded')
+  }
 
   return (
-    <section className={cn('mx-auto flex max-w-3xl flex-col gap-7 px-6 py-20', className)}>
+    <section
+      className={cn(
+        'mx-auto flex max-w-3xl flex-col gap-8 px-6 py-20 sm:py-24',
+        className,
+      )}
+    >
       <motion.div
         initial={reduce ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={at(0)}
       >
-        <Pill>v0.1 · open source · MCP</Pill>
+        <RecordingPill finalContent={<>v0.1 · open source · MCP</>} />
       </motion.div>
-
-      {featured && featured.slides.length > 0 && (
-        <>
-          <motion.p
-            initial={reduce ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={at(1)}
-            className="max-w-[52ch] text-lg leading-snug tracking-tight text-ink-700 sm:text-xl"
-          >
-            An agent ran a real QA flow. This is what came back.
-          </motion.p>
-          <motion.div
-            initial={reduce ? false : { opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={at(2)}
-          >
-            <HeroPreview
-              shareToken={featured.shareToken}
-              title={featured.title}
-              {...(featured.creatorName !== undefined
-                ? { creatorName: featured.creatorName }
-                : {})}
-              slides={featured.slides}
-            />
-          </motion.div>
-        </>
-      )}
 
       <motion.h1
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={at(featured ? 3 : 1)}
+        transition={at(1)}
         className={cn(
-          'font-bold tracking-[-0.04em] leading-[1.02] text-ink-900',
-          featured
-            ? 'text-[clamp(1.75rem,1.3rem+2vw,2.75rem)]'
-            : 'text-[clamp(2.5rem,1.7rem+4.5vw,4.5rem)]',
+          // Display serif for the hero; everything else stays Geist.
+          'font-display font-semibold tracking-[-0.02em] leading-[1.05] text-ink-900',
+          'text-[clamp(2.5rem,1.6rem+4vw,4.25rem)]',
         )}
       >
-        Skip the
-        {!featured && <br />}
-        {featured ? ' ' : ''}
-        <em className="not-italic [text-decoration:underline] [text-decoration-color:var(--color-vermillion-500)] [text-decoration-thickness:5px] [text-underline-offset:0.16em]">
-          screencast.
-        </em>
+        <Typewriter
+          text={HEADLINE_LEAD}
+          speedMs={TYPEWRITER_SPEED_MS}
+          onComplete={handleTypewriterDone}
+          className="inline"
+        />
+        <span
+          className={cn(
+            'relative inline-block whitespace-nowrap italic transition-[clip-path,opacity] duration-500 ease-out',
+            punchlineRevealed
+              ? '[clip-path:inset(0_0%_-0.2em_0)] opacity-100'
+              : '[clip-path:inset(0_100%_-0.2em_0)] opacity-0',
+          )}
+        >
+          <span className="underline decoration-vermillion-500 decoration-[5px] underline-offset-[0.16em]">
+            {PUNCHLINE}
+          </span>
+        </span>
       </motion.h1>
 
       <motion.p
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={at(featured ? 4 : 2)}
-        className="max-w-[52ch] text-lg text-ink-600 sm:text-xl"
+        transition={{ ...at(2), delay: reduce ? 0 : 1.5 }}
+        className="max-w-[58ch] text-lg text-ink-600 sm:text-xl"
       >
-        QA runs, walkthroughs, bug repros — your agent records the run, narrates
-        it, and ships you a URL anyone can watch.
+        Your AI agent runs the flow. AgentClip captures the screens, narrates
+        each step, and ships back one shareable URL — drop it in a PR, a Slack
+        thread, a portfolio, a recruiter email.
       </motion.p>
 
       <motion.div
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={at(featured ? 5 : 3)}
+        transition={{ ...at(3), delay: reduce ? 0 : 1.6 }}
         className="flex flex-wrap items-center gap-3"
       >
         <Button asChild variant="primary" size="lg">
@@ -157,7 +192,7 @@ export function HeroSection({
         <motion.div
           initial={reduce ? false : { opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={at(featured ? 6 : 4)}
+          transition={{ ...at(4), delay: reduce ? 0 : 1.7 }}
           className="rounded-[14px] border border-ink-200 bg-paper shadow-[var(--shadow-whisper)]"
         >
           <Tabs.Root defaultValue="pip">
@@ -176,6 +211,48 @@ export function HeroSection({
             </Tabs.Content>
           </Tabs.Root>
         </motion.div>
+      )}
+
+      {featured && featured.slides.length > 0 && (
+        <>
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...at(5), delay: reduce ? 0 : 1.85 }}
+            className="pt-6"
+          >
+            <HeroPreview
+              shareToken={featured.shareToken}
+              title={featured.title}
+              {...(featured.creatorName !== undefined
+                ? { creatorName: featured.creatorName }
+                : {})}
+              slides={featured.slides}
+            />
+          </motion.div>
+
+          {/* Easter-egg note. The page-recorded-itself moment. */}
+          <motion.p
+            initial={reduce ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...at(6), delay: reduce ? 0 : 2.4 }}
+            className="mt-2 flex items-start gap-2 text-sm italic text-ink-500"
+          >
+            <ArrowUp
+              aria-hidden="true"
+              className="mt-0.5 size-4 shrink-0 text-vermillion-500"
+            />
+            <span>
+              This page recorded itself while you read it.{' '}
+              <a
+                href={`/s/${featured.shareToken}`}
+                className="font-medium not-italic text-vermillion-700 underline decoration-vermillion-500/30 underline-offset-2 transition-colors hover:text-vermillion-600 hover:decoration-vermillion-500"
+              >
+                Watch the clip&nbsp;→
+              </a>
+            </span>
+          </motion.p>
+        </>
       )}
     </section>
   )

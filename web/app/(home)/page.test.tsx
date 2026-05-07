@@ -68,7 +68,9 @@ describe('HomePage', () => {
       } as never)
     await renderHome()
 
-    expect(screen.getByRole('heading', { name: 'Hero pick' })).toBeInTheDocument()
+    // Hero pick lives on the embed as aria-label, not a competing heading;
+    // page <h1> is "Skip the screencast." per the locked layout.
+    expect(screen.getByLabelText('Preview of: Hero pick')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'How it works' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Recent fieldwork.' })).toBeInTheDocument()
     expect(screen.getByText('Onboarding regression')).toBeInTheDocument()
