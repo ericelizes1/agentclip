@@ -192,12 +192,6 @@ export default async function HomePage() {
 
             {/* SCREEN — the page content. */}
             <div className="relative overflow-hidden rounded-[18px] border border-ink-200 bg-paper shadow-[0_24px_60px_-30px_rgba(20,20,19,0.18),0_2px_8px_-4px_rgba(20,20,19,0.06)]">
-              {/* Inner corner brackets — the "lens" of the camera. */}
-              <ScreenCorner position="top-left" />
-              <ScreenCorner position="top-right" />
-              <ScreenCorner position="bottom-left" />
-              <ScreenCorner position="bottom-right" />
-
               <SlideCapture slideId="hero">
                 <HeroSection githubUrl={GITHUB_URL} featured={featured} />
               </SlideCapture>
@@ -316,6 +310,31 @@ export default async function HomePage() {
                 />
               </div>
             </aside>
+          </div>
+        </div>
+
+        {/*
+          Viewport-fixed bracket overlay — the "lens" of the camera.
+          Mirrors the page's grid layout so the brackets sit precisely
+          at the corners of the screen column on whatever the visitor
+          is currently looking at, regardless of scroll position.
+          Hidden below lg where the screen takes the full width and
+          brackets would compete with edge-to-edge content.
+        */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 z-30 hidden lg:block"
+        >
+          <div className="mx-auto h-full max-w-[1480px] px-7 py-7">
+            <div className="grid h-full grid-cols-[minmax(0,1fr)_220px] gap-6">
+              <div className="relative h-full">
+                <ScreenCorner position="top-left" />
+                <ScreenCorner position="top-right" />
+                <ScreenCorner position="bottom-left" />
+                <ScreenCorner position="bottom-right" />
+              </div>
+              <div />
+            </div>
           </div>
         </div>
       </PageViewfinder>
