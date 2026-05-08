@@ -87,21 +87,30 @@ _FONT_CANDIDATES_REGULAR = [
 # short enough that an empty-description clip doesn't drag.
 BOOKEND_SILENT_DURATION_S = 3.0
 
-# Hard timeouts on the ffmpeg subprocess. Per-segment timeout is generous
-# enough for a 25MB video slide encode; final concat is fast (no re-encode).
-SEGMENT_TIMEOUT_S = 120
+# Hard timeouts on the ffmpeg subprocess. Per-segment encodes need to
+# survive long-narration slides on small Fly workers; the `ultrafast`
+# preset below buys most of the budget back, but a 60s narrated slide
+# at 1080p30 is still nontrivial on shared CPU.
+SEGMENT_TIMEOUT_S = 240
 CONCAT_TIMEOUT_S = 60
 
 # ffmpeg arguments shared across every segment. libx264 baseline + yuv420p
 # pixel format is the "plays everywhere" profile. Bumping to High would
 # shave a bit of bitrate but break Safari < 11 and some mobile email
 # clients; not worth it.
+#
+# `-preset ultrafast` is intentional. The default `medium` preset on a
+# shared-CPU Fly worker takes 3-5x realtime to encode a still-image
+# 1080p slide, which blows the per-segment timeout on slides with
+# 30s+ narration. `ultrafast` produces a larger file (still well under
+# the 25MB embed budget for typical clips) but completes at 10x
+# realtime, leaving plenty of headroom on small workers.
 _VIDEO_CODEC_ARGS = [
     '-c:v', 'libx264',
     '-profile:v', 'baseline',
     '-pix_fmt', 'yuv420p',
     '-r', str(OUTPUT_FPS),
-    '-preset', 'medium',
+    '-preset', 'ultrafast',
     '-crf', '23',
 ]
 _AUDIO_CODEC_ARGS = [
