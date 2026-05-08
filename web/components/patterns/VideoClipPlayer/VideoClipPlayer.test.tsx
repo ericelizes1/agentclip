@@ -47,8 +47,24 @@ describe('VideoClipPlayer', () => {
     expect(
       screen.getByLabelText(/Play narrated walkthrough/i),
     ).toBeInTheDocument()
-    // Position dots render once per slide.
-    expect(screen.getAllByRole('tab')).toHaveLength(SLIDES.length)
+  })
+
+  it('renders one unified progress slider across the whole walkthrough', () => {
+    render(
+      <VideoClipPlayer
+        shareToken="abc123"
+        title="Login flow"
+        slides={SLIDES.map((s, i) => ({
+          ...s,
+          audioDurationMs: 5000 + i * 1000,
+        }))}
+      />,
+    )
+    const slider = screen.getByRole('slider', { name: /Walkthrough progress/i })
+    expect(slider).toBeInTheDocument()
+    // Total = 5000 + 6000 + 7000 = 18000ms
+    expect(slider).toHaveAttribute('aria-valuemax', '18000')
+    expect(slider).toHaveAttribute('aria-valuenow', '0')
   })
 
   it('exposes an Open clip link to the full viewer', () => {
@@ -63,21 +79,6 @@ describe('VideoClipPlayer', () => {
       'href',
       '/s/abc123',
     )
-  })
-
-  it('jumps directly when a position dot is clicked and pauses', () => {
-    render(
-      <VideoClipPlayer
-        shareToken="abc123"
-        title="Login flow"
-        slides={SLIDES}
-      />,
-    )
-    fireEvent.click(screen.getByLabelText('Jump to slide 3'))
-    // The button label updates to reflect "play" state (not playing).
-    expect(
-      screen.getByLabelText(/Play narrated walkthrough/i),
-    ).toBeInTheDocument()
   })
 
   it('toggles mute on the volume button', () => {

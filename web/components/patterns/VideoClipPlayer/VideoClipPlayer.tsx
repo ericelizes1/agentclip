@@ -2,7 +2,7 @@
 
 import { ArrowRight, Pause, Play, Volume2, VolumeX } from 'lucide-react'
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { CreatorChip } from '@/components/composites/CreatorChip/CreatorChip'
 import { MediaFrame, type MediaKind } from '@/components/composites/MediaFrame/MediaFrame'
@@ -19,43 +19,37 @@ export interface VideoClipSlide {
 }
 
 export interface VideoClipPlayerProps {
-  /** share_token of the slideshow being played; powers the "Open clip" link. */
   shareToken: string
-  /** Slideshow title — wrapper aria-label so screen readers announce what plays. */
   title: string
-  /** Optional creator credit; rendered as a CreatorChip beneath the player. */
   creatorName?: string
-  /**
-   * Slides with `audioUrl` set on every entry. The parent is responsible for
-   * checking `slides.every(s => s.audioUrl)` before rendering this component;
-   * we trust the contract and don't defensively skip slides at runtime.
-   */
   slides: VideoClipSlide[]
-  /**
-   * `compact` is for embedded surfaces (HeroPreview); `full` renders the
-   * caption + meta row inside the player so it reads as a self-contained
-   * video on the public viewer page.
-   */
   variant?: 'compact' | 'full'
   className?: string
 }
 
+const FALLBACK_SLIDE_MS = 6000
+
 /**
- * Audio-driven slide player. Plays the active slide's `<audio>` while
- * displaying its image; auto-advances to the next slide when audio ends;
- * supports play/pause/scrub/mute controls and direct dot-jumping.
+ * Audio-driven slide player with a unified, video-style progress bar.
+ *
+ * The player concatenates per-slide narration audio into a single
+ * continuous timeline. The progress bar reads as one bar across the
+ * whole walkthrough — not one bar per slide — with thin tick markers
+ * at slide boundaries (chapter ticks). Click anywhere to seek across
+ * any slide boundary; rAF drives the bar so motion is smooth, not the
+ * 4Hz `timeupdate` step.
  *
  * Implementation notes:
- *   - One persistent `<audio ref>` element. We swap `src` on slide change
- *     instead of mounting a new element per slide so playback continues
- *     smoothly across boundaries (Chrome restarts mid-buffer otherwise).
- *   - Autoplay does NOT begin on mount — Safari forbids audio autoplay
- *     without a user gesture. The user clicks "play" (or the centered
- *     play overlay) to start; subsequent slide advances continue without
- *     a new gesture because they're descended from the original gesture.
- *   - On the last slide's `audio.ended`, playback halts and a "Replay"
- *     affordance surfaces; visitors who've watched the whole walkthrough
- *     don't have to reset state to re-watch.
+ *   - Per-slide durations come from the API (`audioDurationMs`). When
+ *     a value is missing we probe client-side via a hidden `<audio>`
+ *     and `loadedmetadata`, so legacy slideshows without server-side
+ *     durations still get a coherent timeline.
+ *   - One persistent `<audio ref>`. We swap `src` on slide change so
+ *     playback continues across boundaries without remount churn.
+ *   - Cross-boundary seek (click lands on a different slide than the
+ *     active one) stashes the local offset in a ref; the next
+ *     `loadedmetadata` consumes it and applies the seek.
+ *   - Autoplay is gated on a user gesture (Safari requirement).
  */
 export function VideoClipPlayer({
   shareToken,
@@ -66,60 +60,156 @@ export function VideoClipPlayer({
   className,
 }: VideoClipPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const pendingSeekRef = useRef<number | null>(null)
+  const rafRef = useRef<number | null>(null)
   const [active, setActive] = useState(0)
   const [playing, setPlaying] = useState(false)
-  const [progress, setProgress] = useState(0)
   const [muted, setMuted] = useState(false)
   const [ended, setEnded] = useState(false)
+  const [globalMs, setGlobalMs] = useState(0)
+  const [probedDurations, setProbedDurations] = useState<Record<number, number>>({})
+
   const total = slides.length
   const slide = slides[active]
 
-  // Whenever the active slide changes, swap the audio element's src and
-  // (if mid-playback) keep playing. The state machine here is:
-  //   - active changed → pause, set src, reset progress
-  //   - if `playing`, call .play() once metadata is ready
-  // We rely on the browser's native loadedmetadata + play() ordering.
+  // Per-slide durations: prefer the API value, fall back to whatever
+  // we've client-side-probed via metadata load. Default to a sensible
+  // fixed slot so the bar doesn't collapse to zero on a fresh slide.
+  const durations = useMemo(
+    () =>
+      slides.map(
+        (s, i) =>
+          s.audioDurationMs ?? probedDurations[i] ?? FALLBACK_SLIDE_MS,
+      ),
+    [slides, probedDurations],
+  )
+
+  const offsets = useMemo(() => {
+    const out: number[] = [0]
+    for (let i = 0; i < durations.length - 1; i++) {
+      out.push(out[i] + durations[i])
+    }
+    return out
+  }, [durations])
+
+  const totalMs = useMemo(
+    () => durations.reduce((a, b) => a + b, 0),
+    [durations],
+  )
+
+  // Probe durations client-side for any slide missing `audioDurationMs`
+  // on the server side. One hidden Audio per missing entry; we tear
+  // them down on unmount.
+  useEffect(() => {
+    const probes: Array<[number, HTMLAudioElement, () => void]> = []
+    slides.forEach((s, i) => {
+      if (s.audioDurationMs || probedDurations[i]) return
+      const a = new Audio()
+      a.preload = 'metadata'
+      a.src = s.audioUrl
+      const onLoaded = () => {
+        if (Number.isFinite(a.duration)) {
+          setProbedDurations((prev) =>
+            prev[i] ? prev : { ...prev, [i]: Math.round(a.duration * 1000) },
+          )
+        }
+      }
+      a.addEventListener('loadedmetadata', onLoaded)
+      probes.push([i, a, () => a.removeEventListener('loadedmetadata', onLoaded)])
+    })
+    return () => {
+      probes.forEach(([, a, off]) => {
+        off()
+        a.src = ''
+      })
+    }
+  }, [slides, probedDurations])
+
+  // Active-slide swap: load src, reset local position, optionally
+  // resume playback or apply a pending cross-boundary seek.
   useEffect(() => {
     const audio = audioRef.current
     if (!audio || !slide) return
     audio.src = slide.audioUrl
     audio.currentTime = 0
-    setProgress(0)
     setEnded(false)
+
+    const consumeSeek = () => {
+      const pending = pendingSeekRef.current
+      if (pending != null && Number.isFinite(audio.duration)) {
+        audio.currentTime = Math.min(pending, audio.duration)
+        pendingSeekRef.current = null
+      }
+    }
+    audio.addEventListener('loadedmetadata', consumeSeek, { once: true })
+
     if (playing) {
-      // Catch the AbortError that fires when src changes mid-play.
       audio.play().catch(() => {})
     }
-  // We intentionally exclude `playing` from deps: switching slides
-  // shouldn't be triggered by play/pause toggles, only by `active`.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      audio.removeEventListener('loadedmetadata', consumeSeek)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active])
 
+  // Audio lifecycle wiring (auto-advance + ended state).
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
-
-    const onTimeUpdate = () => {
-      if (audio.duration && Number.isFinite(audio.duration)) {
-        setProgress(audio.currentTime / audio.duration)
-      }
-    }
     const onEnded = () => {
       if (active < total - 1) {
         setActive((i) => i + 1)
       } else {
         setPlaying(false)
         setEnded(true)
+        setGlobalMs(totalMs)
       }
     }
-
-    audio.addEventListener('timeupdate', onTimeUpdate)
     audio.addEventListener('ended', onEnded)
-    return () => {
-      audio.removeEventListener('timeupdate', onTimeUpdate)
-      audio.removeEventListener('ended', onEnded)
+    return () => audio.removeEventListener('ended', onEnded)
+  }, [active, total, totalMs])
+
+  // rAF loop: smoothly track the global playhead. We sample
+  // audio.currentTime on every animation frame instead of relying on
+  // the browser's `timeupdate` event (which fires ~4x/sec and looks
+  // step-y on a continuous bar).
+  useEffect(() => {
+    const tick = () => {
+      const audio = audioRef.current
+      if (audio && !audio.paused && Number.isFinite(audio.currentTime)) {
+        const localMs = audio.currentTime * 1000
+        setGlobalMs(offsets[active] + localMs)
+      }
+      rafRef.current = requestAnimationFrame(tick)
     }
-  }, [active, total])
+    rafRef.current = requestAnimationFrame(tick)
+    return () => {
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
+    }
+  }, [active, offsets])
+
+  // Convert a global ms target into (slide index, local seconds) and
+  // apply. Cross-slide seek goes through the pendingSeekRef pathway.
+  const seekToGlobalMs = useCallback(
+    (targetMs: number) => {
+      const clamped = Math.max(0, Math.min(targetMs, totalMs))
+      let target = 0
+      for (let i = 0; i < offsets.length; i++) {
+        if (clamped >= offsets[i]) target = i
+      }
+      const localMs = clamped - offsets[target]
+      const audio = audioRef.current
+      if (target !== active) {
+        pendingSeekRef.current = localMs / 1000
+        setActive(target)
+      } else if (audio) {
+        audio.currentTime = localMs / 1000
+      }
+      setGlobalMs(clamped)
+      setEnded(false)
+    },
+    [active, offsets, totalMs],
+  )
 
   if (!slide) return null
 
@@ -127,10 +217,11 @@ export function VideoClipPlayer({
     const audio = audioRef.current
     if (!audio) return
     if (ended) {
-      // Replay: reset to the first slide and start over.
+      pendingSeekRef.current = 0
       setActive(0)
       setEnded(false)
       setPlaying(true)
+      setGlobalMs(0)
       audio.currentTime = 0
       audio.play().catch(() => {})
       return
@@ -139,7 +230,10 @@ export function VideoClipPlayer({
       audio.pause()
       setPlaying(false)
     } else {
-      audio.play().then(() => setPlaying(true)).catch(() => {})
+      audio
+        .play()
+        .then(() => setPlaying(true))
+        .catch(() => {})
     }
   }
 
@@ -150,25 +244,17 @@ export function VideoClipPlayer({
     setMuted(audio.muted)
   }
 
-  const jumpTo = (i: number) => {
-    setActive(i)
-    setPlaying(false)
-    setEnded(false)
-    const audio = audioRef.current
-    if (audio) audio.pause()
-  }
-
   const onScrub = (event: React.MouseEvent<HTMLDivElement>) => {
-    const audio = audioRef.current
-    if (!audio || !audio.duration || !Number.isFinite(audio.duration)) return
+    if (!totalMs) return
     const rect = event.currentTarget.getBoundingClientRect()
     const fraction = Math.max(
       0,
       Math.min(1, (event.clientX - rect.left) / rect.width),
     )
-    audio.currentTime = fraction * audio.duration
-    setProgress(fraction)
+    seekToGlobalMs(fraction * totalMs)
   }
+
+  const progressFraction = totalMs > 0 ? globalMs / totalMs : 0
 
   return (
     <figure
@@ -205,8 +291,6 @@ export function VideoClipPlayer({
             position={slide.position}
             hideBadge
           />
-          {/* Centered play / pause / replay overlay. Visible when paused
-              or ended; fades on hover when actively playing. */}
           <span
             aria-hidden="true"
             className={cn(
@@ -236,66 +320,55 @@ export function VideoClipPlayer({
           </span>
         </button>
 
-        {/* Scrubber bar for the current slide's audio. Click to seek. */}
+        {/* Unified continuous timeline. One bar across the whole clip,
+            not per-slide. Tick markers (`offsets`) read as chapter
+            boundaries. Click anywhere to seek. */}
         <div
           role="slider"
           tabIndex={0}
-          aria-label="Audio progress"
+          aria-label="Walkthrough progress"
           aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(progress * 100)}
+          aria-valuemax={Math.max(1, Math.round(totalMs))}
+          aria-valuenow={Math.round(globalMs)}
           onClick={onScrub}
-          className="absolute bottom-0 left-0 h-[3px] w-full cursor-pointer bg-ink-200/40"
+          className={cn(
+            'absolute bottom-0 left-0 h-[4px] w-full cursor-pointer',
+            'bg-ink-200/40',
+          )}
         >
           <span
             aria-hidden="true"
-            className="block h-full bg-vermillion-500 transition-[width] duration-75"
-            style={{ width: `${progress * 100}%` }}
+            className="block h-full bg-vermillion-500"
+            style={{ width: `${progressFraction * 100}%` }}
           />
+          {offsets.slice(1).map((ms, i) => (
+            <span
+              key={i}
+              aria-hidden="true"
+              className="pointer-events-none absolute top-0 h-full w-px bg-paper/70"
+              style={{ left: `${(ms / totalMs) * 100}%` }}
+            />
+          ))}
         </div>
       </div>
 
-      {/* Hidden audio element. We never render visible browser controls;
-          everything funnels through our buttons + scrubber. */}
-      <audio
-        ref={audioRef}
-        preload="metadata"
-        // No `autoPlay` — Safari requires a user gesture before audio.
-      />
+      <audio ref={audioRef} preload="metadata" />
 
       {variant === 'full' && (
-        <p className="mt-5 text-base leading-relaxed text-ink-700">
+        <p
+          aria-live="polite"
+          className="mt-5 text-base leading-relaxed text-ink-700"
+        >
           {slide.caption}
         </p>
       )}
 
-      <div className="mt-5 flex items-center justify-between gap-4">
-        <div
-          className="flex items-center gap-1.5"
-          role="tablist"
-          aria-label="Slides"
-        >
-          {slides.map((s, i) => {
-            const isActive = i === active
-            return (
-              <button
-                key={s.position}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                aria-label={`Jump to slide ${s.position}`}
-                onClick={() => jumpTo(i)}
-                className={cn(
-                  'h-[3px] rounded-full transition-all',
-                  isActive
-                    ? 'w-8 bg-vermillion-500'
-                    : 'w-3 bg-ink-300 hover:bg-ink-400',
-                )}
-              />
-            )
-          })}
-        </div>
-        <div className="flex items-center gap-3 text-sm text-ink-500">
+      <div className="mt-5 flex items-center justify-between gap-4 text-sm text-ink-500">
+        <span className="font-mono tabular-nums text-xs text-ink-400">
+          {formatTime(globalMs)} <span className="text-ink-300">/</span>{' '}
+          {formatTime(totalMs)}
+        </span>
+        <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={toggleMute}
@@ -328,9 +401,14 @@ export function VideoClipPlayer({
   )
 }
 
+function formatTime(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000))
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
 function ReplayIcon({ className }: { className?: string }) {
-  // Lucide doesn't ship a "replay" glyph; this is a curved arrow that
-  // reads as "play again" without needing extra deps.
   return (
     <svg
       viewBox="0 0 24 24"

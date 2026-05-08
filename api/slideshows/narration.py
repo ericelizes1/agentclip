@@ -24,10 +24,13 @@ from __future__ import annotations
 
 import logging
 import os
+import subprocess
+import tempfile
 import time
 from dataclasses import dataclass
 from decimal import Decimal
 from io import BytesIO
+from pathlib import Path
 from typing import Optional
 
 import openai
@@ -234,6 +237,41 @@ def _stream_to_bytes(
     raise last_error
 
 
+def probe_mp3_duration_ms(mp3_bytes: bytes) -> int:
+    '''Return the playback duration of `mp3_bytes` in whole milliseconds.
+
+    Writes to a tmpfile and shells out to ffprobe (already on the PATH
+    in production for the MP4 render pipeline). Returns 0 on any
+    failure — the caller can persist 0 and the frontend falls back to
+    metadata-load probing client-side, so a duration miss is non-fatal.
+    '''
+    if not mp3_bytes:
+        return 0
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as fp:
+            fp.write(mp3_bytes)
+            tmp_path = Path(fp.name)
+        try:
+            result = subprocess.run(
+                [
+                    'ffprobe', '-v', 'error',
+                    '-show_entries', 'format=duration',
+                    '-of', 'default=noprint_wrappers=1:nokey=1',
+                    str(tmp_path),
+                ],
+                capture_output=True, text=True, timeout=10,
+            )
+            if result.returncode != 0:
+                return 0
+            seconds = float(result.stdout.strip())
+            return max(0, int(round(seconds * 1000)))
+        finally:
+            tmp_path.unlink(missing_ok=True)
+    except (subprocess.SubprocessError, ValueError, OSError) as exc:
+        logger.warning('ffprobe duration probe failed: %s', exc)
+        return 0
+
+
 def reset_client_for_tests() -> None:
     '''Test hook: clear the cached client so a fresh env-var read happens.
 
@@ -368,7 +406,7 @@ def narrate_slideshow(
             save=False,
         )
         slide.audio_voice = result.voice
-        slide.audio_duration_ms = 0  # duration extraction deferred
+        slide.audio_duration_ms = probe_mp3_duration_ms(result.mp3_bytes)
         slide.save(update_fields=['audio', 'audio_voice', 'audio_duration_ms'])
 
         outcomes.append(SlideNarrationOutcome(
