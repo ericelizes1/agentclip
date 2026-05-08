@@ -86,8 +86,10 @@ export function VideoClipPlayer({
 
   const offsets = useMemo(() => {
     const out: number[] = [0]
+    let acc = 0
     for (let i = 0; i < durations.length - 1; i++) {
-      out.push(out[i] + durations[i])
+      acc += durations[i] ?? 0
+      out.push(acc)
     }
     return out
   }, [durations])
@@ -178,7 +180,7 @@ export function VideoClipPlayer({
       const audio = audioRef.current
       if (audio && !audio.paused && Number.isFinite(audio.currentTime)) {
         const localMs = audio.currentTime * 1000
-        setGlobalMs(offsets[active] + localMs)
+        setGlobalMs((offsets[active] ?? 0) + localMs)
       }
       rafRef.current = requestAnimationFrame(tick)
     }
@@ -195,9 +197,9 @@ export function VideoClipPlayer({
       const clamped = Math.max(0, Math.min(targetMs, totalMs))
       let target = 0
       for (let i = 0; i < offsets.length; i++) {
-        if (clamped >= offsets[i]) target = i
+        if (clamped >= (offsets[i] ?? 0)) target = i
       }
-      const localMs = clamped - offsets[target]
+      const localMs = clamped - (offsets[target] ?? 0)
       const audio = audioRef.current
       if (target !== active) {
         pendingSeekRef.current = localMs / 1000
