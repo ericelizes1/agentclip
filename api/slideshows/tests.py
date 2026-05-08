@@ -1515,10 +1515,10 @@ class NarrationServiceTests(TestCase):
 
         self.assertEqual(result.mp3_bytes, b'MP3DATA')
         self.assertEqual(result.voice, 'nova')
-        self.assertEqual(result.model, 'tts-1-hd')
+        self.assertEqual(result.model, 'gpt-4o-mini-tts')
         self.assertEqual(result.input_chars, 11)
-        # 11 chars * $0.030 / 1000 = $0.00033
-        self.assertEqual(result.cost_usd, Decimal('0.000330'))
+        # 11 chars * $0.020 / 1000 = $0.00022
+        self.assertEqual(result.cost_usd, Decimal('0.000220'))
 
     def test_synthesize_uses_explicit_voice_override(self):
         from unittest.mock import patch
@@ -1618,14 +1618,14 @@ class NarrateCommandTests(TestCase):
         from decimal import Decimal
         from slideshows.narration import NarrationResult
         calls = []
-        def stub(text, *, voice=voice, model='tts-1-hd', speed=1.0):
+        def stub(text, *, voice=voice, model='gpt-4o-mini-tts', speed=1.0):
             calls.append({'text': text, 'voice': voice, 'model': model, 'speed': speed})
             return NarrationResult(
                 mp3_bytes=mp3_bytes,
                 voice=voice,
                 model=model,
                 input_chars=len(text),
-                cost_usd=(Decimal(len(text)) / Decimal(1000)) * Decimal('0.030'),
+                cost_usd=(Decimal(len(text)) / Decimal(1000)) * Decimal('0.020'),
             )
         return stub, calls
 
@@ -1819,14 +1819,14 @@ class SlideshowNarrateEndpointTests(TestCase):
         from decimal import Decimal
         from slideshows.narration import NarrationResult
         calls = []
-        def stub(text, *, voice='nova', model='tts-1-hd', speed=1.0):
+        def stub(text, *, voice='nova', model='gpt-4o-mini-tts', speed=1.0):
             calls.append({'text': text, 'voice': voice, 'model': model, 'speed': speed})
             return NarrationResult(
                 mp3_bytes=mp3_bytes,
                 voice=voice,
                 model=model,
                 input_chars=len(text),
-                cost_usd=(Decimal(len(text)) / Decimal(1000)) * Decimal('0.030'),
+                cost_usd=(Decimal(len(text)) / Decimal(1000)) * Decimal('0.020'),
             )
         return stub, calls
 

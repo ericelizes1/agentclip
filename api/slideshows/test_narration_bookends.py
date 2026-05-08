@@ -171,7 +171,7 @@ class NarrateSlideshowVoiceIntegrationTests(TestCase):
     def test_per_slide_audio_uses_run_type_voice(self) -> None:
         captured_voice = []
 
-        def fake_synth(text, *, voice, model='tts-1-hd', speed=1.0):
+        def fake_synth(text, *, voice, model='gpt-4o-mini-tts', speed=1.0):
             captured_voice.append(voice)
             return narration.NarrationResult(
                 mp3_bytes=b'MP3', voice=voice, model=model,

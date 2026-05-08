@@ -8,9 +8,9 @@ unit-testable with a mocked client.
 
 Default voice is "nova" because it's the most neutral / least
 distracting of OpenAI's stock voices for product narration. Default
-model is tts-1-hd for higher fidelity at ~$0.030/1K characters; the
-cheaper tts-1 sounds noticeably more synthetic on slide-length
-captions.
+model is gpt-4o-mini-tts — OpenAI's current-generation TTS, measurably
+more natural than tts-1-hd in independent arenas at roughly the same
+per-clip cost (~$0.020/1K characters; token-priced upstream).
 
 Caller responsibility:
 - Validate that captions are non-empty before calling synthesize().
@@ -36,7 +36,7 @@ import openai
 logger = logging.getLogger(__name__)
 
 
-DEFAULT_MODEL = 'tts-1-hd'
+DEFAULT_MODEL = 'gpt-4o-mini-tts'
 DEFAULT_VOICE = 'nova'
 DEFAULT_SPEED = 1.0
 
@@ -72,11 +72,14 @@ MAX_INPUT_CHARS = 4096
 # wrote a paragraph instead of a caption.
 WARN_INPUT_CHARS = 1500
 
-# Pricing reference: tts-1-hd is $0.030 per 1K characters (May 2026).
-# Tracked here so the management command can report cost summaries
-# without hitting the OpenAI billing API. Update when pricing
-# changes.
-HD_COST_PER_1K_CHARS = Decimal('0.030')
+# Pricing reference: gpt-4o-mini-tts is token-priced upstream
+# ($0.60/1M text-input tokens + $12/1M audio-output tokens) which
+# works out to ~$0.020 per 1K input characters at typical product
+# narration cadence (~750 chars/min spoken). Approximation kept here
+# so the management command can report cost summaries without hitting
+# the OpenAI billing API. Update when pricing or pacing assumptions
+# change.
+COST_PER_1K_CHARS = Decimal('0.020')
 
 _RETRYABLE_EXCEPTIONS: tuple[type[Exception], ...] = (
     openai.APITimeoutError,
@@ -173,7 +176,7 @@ def synthesize(
     mp3_bytes = _stream_to_bytes(
         client, text=text, voice=voice, model=model, speed=speed
     )
-    cost = (Decimal(chars) / Decimal(1000)) * HD_COST_PER_1K_CHARS
+    cost = (Decimal(chars) / Decimal(1000)) * COST_PER_1K_CHARS
 
     return NarrationResult(
         mp3_bytes=mp3_bytes,
@@ -334,7 +337,7 @@ def narrate_slideshow(
             continue
 
         chars = len(slide.caption)
-        est_cost = (Decimal(chars) / Decimal(1000)) * HD_COST_PER_1K_CHARS
+        est_cost = (Decimal(chars) / Decimal(1000)) * COST_PER_1K_CHARS
 
         if dry_run:
             outcomes.append(SlideNarrationOutcome(
