@@ -11,6 +11,7 @@
 import { SiGithub } from '@icons-pack/react-simple-icons'
 
 import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
+import { CopyInstallButton } from '@/components/composites/CopyInstallButton/CopyInstallButton'
 import { NavBar } from '@/components/composites/NavBar/NavBar'
 import { SectionHeader } from '@/components/composites/SectionHeader/SectionHeader'
 import { TrustBar, fetchStarCount } from '@/components/composites/TrustBar/TrustBar'
@@ -53,14 +54,14 @@ const STEPS: HowItWorksStep[] = [
   {
     step: '02',
     label: 'run',
-    title: 'Ask your agent to QA',
-    body: 'Point it at any flow. The agent drives the browser and captures meaningful moments in active voice.',
+    title: 'Ask your agent to walk through it',
+    body: 'Point it at the work — a PR, a flow, a release. The agent drives the browser and narrates the meaningful moments in active voice.',
   },
   {
     step: '03',
     label: 'share',
     title: 'Send the URL',
-    body: 'One shareable URL. Drop it in Slack, paste in a PR, send it cold to a recruiter. No login required.',
+    body: 'One shareable URL. Drop it in Slack, paste in a PR, attach to release notes. No login required.',
   },
 ]
 
@@ -96,7 +97,10 @@ async function fetchFullSlideshow(token: string): Promise<HeroFeaturedClip | nul
     return {
       shareToken: token,
       title: data.title || 'Untitled run',
-      ...(data.created_by ? { creatorName: data.created_by } : {}),
+      // The hero is the most-watched clip on the site — always attribute
+      // it. Falls back to the project author when the API returns no
+      // creator (older curated picks predate the created_by field).
+      creatorName: data.created_by || 'Eric Elizes',
       slides: data.slides.slice(0, HERO_PREVIEW_SLIDE_LIMIT).map((s) => ({
         position: s.position,
         ...(s.title ? { title: s.title } : {}),
@@ -294,7 +298,7 @@ export default async function HomePage() {
                 index="03"
                 eyebrow="In the gallery"
                 title="Recent fieldwork."
-                description="Real QA runs, hand-curated. Click any thumbnail to watch the run."
+                description="Real walkthroughs — PRs, onboarding flows, release notes — narrated by the agents that ran them. Click any thumbnail to watch."
                 headingId="gallery-heading"
                 meta={clips.length > 0 ? `${clips.length} clips` : undefined}
               />
@@ -324,23 +328,36 @@ export default async function HomePage() {
                 </span>{' '}
                 for the work agents quietly do.
               </p>
+              {/* Technical-depth strip — names the artifacts so a
+                  scanner clocks the dev-platform shape (SDK, CLI, MCP)
+                  rather than just inferring "there's a Python package
+                  somewhere" from the pip command. */}
+              <ul className="mx-auto mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-500">
+                {[
+                  { label: 'MIT', href: `${GITHUB_URL}/blob/main/LICENSE` },
+                  { label: 'Python SDK', href: 'https://github.com/ericelizes1/agentclip-python' },
+                  { label: 'CLI', href: 'https://github.com/ericelizes1/agentclip-python#cli' },
+                  { label: 'MCP server', href: 'https://github.com/ericelizes1/agentclip-python#mcp' },
+                  { label: 'Django + Next.js', href: GITHUB_URL },
+                ].map((chip, idx, arr) => (
+                  <li key={chip.label} className="flex items-center gap-3">
+                    <a
+                      href={chip.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-full border border-ink-200 bg-paper px-2.5 py-1 text-ink-700 transition-colors hover:border-ink-400 hover:text-ink-900"
+                    >
+                      {chip.label}
+                    </a>
+                    {idx < arr.length - 1 && (
+                      <span aria-hidden="true" className="text-ink-300">·</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
               <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
                 <Magnetic>
-                <a
-                  href="#how-it-works"
-                  className="inline-flex items-center gap-2 rounded-full bg-vermillion-500 px-5 py-2.5 text-sm font-medium tracking-tight text-paper shadow-[0_8px_22px_-12px_rgba(217,72,36,0.65)] transition-transform duration-200 ease-out hover:-translate-y-px"
-                >
-                  Install AgentClip
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                    <path
-                      d="M3 7 L11 7 M7 3 L11 7 L7 11"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </a>
+                  <CopyInstallButton />
                 </Magnetic>
                 <a
                   href={GITHUB_URL}
@@ -361,6 +378,17 @@ export default async function HomePage() {
               <span className="flex items-center gap-2 text-ink-700">
                 <TicketMark size={14} className="text-vermillion-500" />
                 AgentClip
+              </span>
+              <span className="flex items-center gap-2 normal-case tracking-normal text-ink-500">
+                Built by{' '}
+                <a
+                  href="https://github.com/ericelizes1"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-ink-700 underline decoration-ink-300 decoration-1 underline-offset-4 hover:text-ink-900 hover:decoration-ink-500"
+                >
+                  Eric Elizes
+                </a>
               </span>
               <a
                 href={GITHUB_URL}
