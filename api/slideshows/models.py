@@ -164,7 +164,7 @@ class MediaKind(models.TextChoices):
 
 
 class RunType(models.TextChoices):
-    '''Classification of what kind of QA run produced this clip.
+    '''Classification of what kind of run produced this clip.
 
     Drives the narration voice + pacing in the rendered MP4 — same
     one voice across the whole clip (intro + every slide + outro)
@@ -173,12 +173,9 @@ class RunType(models.TextChoices):
     override via the CLI's ``--type`` flag.
     '''
 
-    BUG_REPRO = 'bug_repro', 'Bug repro'
-    SMOKE_TEST = 'smoke_test', 'Smoke test'
-    DEMO = 'demo', 'Demo'
-    ONBOARDING_EVAL = 'onboarding_eval', 'Onboarding eval'
-    COMPETITIVE_TEARDOWN = 'competitive_teardown', 'Competitive teardown'
-    GENERIC = 'generic', 'Generic'
+    WALKTHROUGH = 'walkthrough', 'Walkthrough'
+    GUIDE = 'guide', 'Guide'
+    BUG = 'bug', 'Bug'
 
 
 class Slideshow(models.Model):
@@ -372,11 +369,12 @@ class Slideshow(models.Model):
     run_type = models.CharField(
         max_length=24,
         choices=RunType.choices,
-        default=RunType.GENERIC,
+        default=RunType.WALKTHROUGH,
         help_text=(
-            'What kind of QA run this clip represents. Drives the '
-            'narration voice + pacing for the whole clip; the agent '
-            'skill picks one heuristically from the trigger phrase.'
+            'What kind of clip this is — walkthrough (feature reveal), '
+            'guide (how-to), or bug (repro/evidence). Drives the '
+            'narration voice + pacing; the agent skill picks one '
+            'heuristically from the trigger phrase.'
         ),
     )
 

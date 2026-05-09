@@ -18,35 +18,25 @@ from slideshows.models import RunType, Slideshow
     CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
 )
 class RunTypeChoicesTests(TestCase):
-    def test_all_six_values_present(self) -> None:
+    def test_three_values_present(self) -> None:
         values = {choice[0] for choice in RunType.choices}
-        self.assertEqual(
-            values,
-            {
-                'bug_repro',
-                'smoke_test',
-                'demo',
-                'onboarding_eval',
-                'competitive_teardown',
-                'generic',
-            },
-        )
+        self.assertEqual(values, {'walkthrough', 'guide', 'bug'})
 
-    def test_default_run_type_is_generic(self) -> None:
+    def test_default_run_type_is_walkthrough(self) -> None:
         slideshow = Slideshow.objects.create()
-        self.assertEqual(slideshow.run_type, RunType.GENERIC)
-        self.assertEqual(slideshow.run_type, 'generic')
+        self.assertEqual(slideshow.run_type, RunType.WALKTHROUGH)
+        self.assertEqual(slideshow.run_type, 'walkthrough')
 
     def test_run_type_round_trips_via_string(self) -> None:
-        slideshow = Slideshow.objects.create(run_type='smoke_test')
+        slideshow = Slideshow.objects.create(run_type='guide')
         slideshow.refresh_from_db()
-        self.assertEqual(slideshow.run_type, RunType.SMOKE_TEST)
+        self.assertEqual(slideshow.run_type, RunType.GUIDE)
 
     def test_run_type_validates_against_choices(self) -> None:
         # Django doesn't enforce choices at the DB level, so the model
-        # itself accepts any string. The serializer (unit 5) is where
-        # validation lives. This test pins that the field accepts any of
-        # the known choices without complaint.
+        # itself accepts any string. The serializer is where validation
+        # lives. This test pins that the field accepts any of the known
+        # choices without complaint.
         for choice in RunType.values:
             slideshow = Slideshow.objects.create(run_type=choice)
             slideshow.refresh_from_db()

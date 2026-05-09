@@ -49,23 +49,20 @@ DEFAULT_SPEED = 1.0
 # consistent presenter. Speed is the OpenAI TTS `speed` parameter
 # (0.25..4.0); we stay near 1.0 for natural pacing.
 RUN_TYPE_VOICE: dict[str, tuple[str, float]] = {
-    'bug_repro': ('onyx', 1.0),               # deeper, factual
-    'smoke_test': ('nova', 1.0),              # neutral, brisk
-    'demo': ('shimmer', 0.95),                # warmer, polished, slower
-    'onboarding_eval': ('nova', 1.0),         # observational
-    'competitive_teardown': ('echo', 1.0),    # analytical
-    'generic': ('nova', 1.0),                 # default
+    'walkthrough': ('shimmer', 0.95),         # warmer, polished, slower
+    'guide': ('nova', 1.0),                   # instructional, brisk
+    'bug': ('onyx', 1.0),                     # deeper, factual
 }
 
 
 def voice_for(slideshow) -> tuple[str, float]:
     '''Return (voice, speed) for a slideshow based on its run_type.
 
-    Falls back to the GENERIC mapping for any unrecognized value, so
-    legacy rows or callers passing an unexpected string never crash.
+    Falls back to the WALKTHROUGH mapping for any unrecognized value,
+    so legacy rows or callers passing an unexpected string never crash.
     '''
-    run_type = getattr(slideshow, 'run_type', '') or 'generic'
-    return RUN_TYPE_VOICE.get(run_type, RUN_TYPE_VOICE['generic'])
+    run_type = getattr(slideshow, 'run_type', '') or 'walkthrough'
+    return RUN_TYPE_VOICE.get(run_type, RUN_TYPE_VOICE['walkthrough'])
 
 # OpenAI TTS hard limit per request (as of 2026-05).
 MAX_INPUT_CHARS = 4096

@@ -236,7 +236,7 @@ class SlideshowCreateSerializer(serializers.ModelSerializer):
             'write_token',
         )
         extra_kwargs = {
-            # run_type defaults to GENERIC at the model level; clients
+            # run_type defaults to WALKTHROUGH at the model level; clients
             # can omit it. When set, drives narration voice + pacing.
             'run_type': {'required': False},
         }

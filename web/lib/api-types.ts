@@ -464,14 +464,11 @@ export interface components {
             description?: string;
             summary?: string;
             /**
-             * @description What kind of QA run this clip represents. Drives the narration voice + pacing for the whole clip; the agent skill picks one heuristically from the trigger phrase.
+             * @description What kind of clip this is — walkthrough (feature reveal), guide (how-to), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase.
              *
-             *     * `bug_repro` - Bug repro
-             *     * `smoke_test` - Smoke test
-             *     * `demo` - Demo
-             *     * `onboarding_eval` - Onboarding eval
-             *     * `competitive_teardown` - Competitive teardown
-             *     * `generic` - Generic
+             *     * `walkthrough` - Walkthrough
+             *     * `guide` - Guide
+             *     * `bug` - Bug
              */
             run_type?: components["schemas"]["RunTypeEnum"];
             /** @description Display credit for the run, e.g. "Eric Elizes". Optional. */
@@ -483,15 +480,12 @@ export interface components {
             created_by_url?: string;
         };
         /**
-         * @description * `bug_repro` - Bug repro
-         *     * `smoke_test` - Smoke test
-         *     * `demo` - Demo
-         *     * `onboarding_eval` - Onboarding eval
-         *     * `competitive_teardown` - Competitive teardown
-         *     * `generic` - Generic
+         * @description * `walkthrough` - Walkthrough
+         *     * `guide` - Guide
+         *     * `bug` - Bug
          * @enum {string}
          */
-        RunTypeEnum: "bug_repro" | "smoke_test" | "demo" | "onboarding_eval" | "competitive_teardown" | "generic";
+        RunTypeEnum: "walkthrough" | "guide" | "bug";
         SlidePublic: {
             readonly id: number;
             readonly position: number;
@@ -581,14 +575,11 @@ export interface components {
             title?: string;
             description?: string;
             /**
-             * @description What kind of QA run this clip represents. Drives the narration voice + pacing for the whole clip; the agent skill picks one heuristically from the trigger phrase.
+             * @description What kind of clip this is — walkthrough (feature reveal), guide (how-to), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase.
              *
-             *     * `bug_repro` - Bug repro
-             *     * `smoke_test` - Smoke test
-             *     * `demo` - Demo
-             *     * `onboarding_eval` - Onboarding eval
-             *     * `competitive_teardown` - Competitive teardown
-             *     * `generic` - Generic
+             *     * `walkthrough` - Walkthrough
+             *     * `guide` - Guide
+             *     * `bug` - Bug
              */
             run_type?: components["schemas"]["RunTypeEnum"];
             /** @description Display credit for the run, e.g. "Eric Elizes". Optional. */
@@ -622,14 +613,11 @@ export interface components {
             title?: string;
             description?: string;
             /**
-             * @description What kind of QA run this clip represents. Drives the narration voice + pacing for the whole clip; the agent skill picks one heuristically from the trigger phrase.
+             * @description What kind of clip this is — walkthrough (feature reveal), guide (how-to), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase.
              *
-             *     * `bug_repro` - Bug repro
-             *     * `smoke_test` - Smoke test
-             *     * `demo` - Demo
-             *     * `onboarding_eval` - Onboarding eval
-             *     * `competitive_teardown` - Competitive teardown
-             *     * `generic` - Generic
+             *     * `walkthrough` - Walkthrough
+             *     * `guide` - Guide
+             *     * `bug` - Bug
              */
             run_type?: components["schemas"]["RunTypeEnum"];
             /** @description Display credit for the run, e.g. "Eric Elizes". Optional. */
@@ -648,14 +636,11 @@ export interface components {
             description?: string;
             summary?: string;
             /**
-             * @description What kind of QA run this clip represents. Drives the narration voice + pacing for the whole clip; the agent skill picks one heuristically from the trigger phrase.
+             * @description What kind of clip this is — walkthrough (feature reveal), guide (how-to), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase.
              *
-             *     * `bug_repro` - Bug repro
-             *     * `smoke_test` - Smoke test
-             *     * `demo` - Demo
-             *     * `onboarding_eval` - Onboarding eval
-             *     * `competitive_teardown` - Competitive teardown
-             *     * `generic` - Generic
+             *     * `walkthrough` - Walkthrough
+             *     * `guide` - Guide
+             *     * `bug` - Bug
              */
             run_type?: components["schemas"]["RunTypeEnum"];
             /** @description Display credit for the run, e.g. "Eric Elizes". Optional. */
