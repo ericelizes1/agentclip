@@ -16,8 +16,8 @@ export interface NavBarProps {
 /**
  * Sticky top nav. Renders the AgentMark brand glyph + AgentClip
  * wordmark on the left and a GitHub button on the right. The mark's
- * vermillion lens reads as a small dot of color in the chrome — the
- * only persistent brand-color element on the page when sections
+ * vermillion capture window reads as a small dot of color in the
+ * chrome — the only persistent brand-color element on the page when sections
  * alternate between paper tones.
  */
 export function NavBar({
@@ -36,7 +36,10 @@ export function NavBar({
     >
       <Link href="/" className="flex items-center gap-2 text-ink-900">
         <AgentMark size={20} className="text-vermillion-500" />
-        <span className="font-semibold tracking-tight">AgentClip</span>
+        <span className="text-[1.05rem] leading-none tracking-tight text-ink-900">
+          <span className="font-display font-semibold">Agent</span>
+          <span className="font-sans font-bold tracking-[-0.04em]">Clip</span>
+        </span>
       </Link>
 
       <Button asChild variant="ghost" size="sm">
