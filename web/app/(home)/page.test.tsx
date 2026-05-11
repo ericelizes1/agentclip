@@ -69,13 +69,17 @@ describe('HomePage', () => {
     await renderHome()
 
     // Hero pick lives on the embed as aria-label, not a competing heading;
-    // page <h1> is "Skip the screencast." per the locked layout.
+    // page <h1> carries the product promise.
     expect(screen.getByLabelText('Preview of: Hero pick')).toBeInTheDocument()
     // SectionHeader's eyebrow chip carries "How it works"; the H2 is the headline.
     expect(
-      screen.getByRole('heading', { name: 'Three steps. No screencast software.' }),
+      screen.getByRole('heading', { name: 'Three steps. No recording session.' }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Recent fieldwork.' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', {
+        name: 'What agents shipped, found, tested, and explained.',
+      }),
+    ).toBeInTheDocument()
     // The marquee band duplicates clip titles in markup for its
     // looping animation, so the gallery row plus the marquee yields
     // multiple text matches — assert at least one renders.
@@ -101,12 +105,12 @@ describe('HomePage', () => {
     await renderHome()
 
     // Closing statement is split across spans for the italic + underlined
-    // emphasis on "Receipts" — match by content instead of exact string.
+    // emphasis on "Video" — match by content instead of exact string.
     expect(
       screen.getByText(
         (_, node) =>
           node?.textContent ===
-          'Open source. Receipts for the work agents quietly do.',
+          'Open source. Video for the work agents quietly do.',
       ),
     ).toBeInTheDocument()
     expect(

@@ -33,12 +33,12 @@ export interface HeroSectionProps {
   className?: string
 }
 
-const HEADLINE_TEXT = 'Skip the demo.'
-const PUNCHLINE = 'demo.'
+const HEADLINE_TEXT = 'Your coding agent now creates shareable video walkthroughs.'
+const PUNCHLINE = 'walkthroughs.'
 const HEADLINE_LEAD = HEADLINE_TEXT.slice(
   0,
   HEADLINE_TEXT.length - PUNCHLINE.length,
-) // "Skip the "
+) // "Your coding agent now creates shareable video "
 
 const stagger: Transition = { duration: 0.45, ease: [0.2, 0.7, 0.2, 1] }
 
@@ -150,8 +150,9 @@ export function HeroSection({
         transition={{ ...at(2), delay: reduce ? 0 : 1.5 }}
         className="max-w-[58ch] text-lg text-ink-600 sm:text-xl"
       >
-        Your coding agent now makes narrated, shareable walkthroughs of
-        your work. Drop in PRs, Slack threads, release notes.
+        Your coding agent now creates shareable video walkthroughs.
+        When a chat transcript is not enough, your agent can hand you a
+        video instead.
       </motion.p>
 
       {/*

@@ -8,6 +8,10 @@ This is the platform monorepo behind <https://agentclip.dev>:
 
 The Python SDK / CLI / MCP server lives in the sister repo: <https://github.com/ericelizes1/agentclip-python>.
 
+## Core positioning
+
+Before changing home-page copy, gallery curation, or user-visible product framing, read [docs/positioning/core-differentiators.md](docs/positioning/core-differentiators.md). The load-bearing ideas are: `video`, `agent-created`, and `instantly shareable`.
+
 ## Dogfooding agentclip from inside this repo
 
 Working on the gallery, hero, render pipeline, or anything user-visible? Capturing a real clip is the fastest way to verify the whole loop works end-to-end. To do that from your session:

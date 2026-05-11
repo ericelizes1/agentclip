@@ -27,11 +27,11 @@ describe('HeroSection', () => {
       vi.advanceTimersByTime(2000)
     })
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      /Skip the.*demo\./,
+      /Your coding agent now creates shareable video walkthroughs\./,
     )
-    expect(screen.getByText('demo.')).toBeInTheDocument()
+    expect(screen.getByText('walkthroughs.')).toBeInTheDocument()
     expect(
-      screen.getByText(/Your coding agent now makes narrated, shareable/),
+      screen.getByText(/When a chat transcript is not enough/i),
     ).toBeInTheDocument()
     // GitHub demoted to a small secondary text link.
     expect(
@@ -52,7 +52,7 @@ describe('HeroSection', () => {
 
   it('renders the punchline word with a vermillion underline class', () => {
     render(<HeroSection />)
-    const punchline = screen.getByText('demo.')
+    const punchline = screen.getByText('walkthroughs.')
     expect(punchline.className).toMatch(/decoration-vermillion-500/)
   })
 

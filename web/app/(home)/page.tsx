@@ -54,14 +54,14 @@ const STEPS: HowItWorksStep[] = [
   {
     step: '02',
     label: 'run',
-    title: 'Ask your agent to walk through it',
-    body: 'Point it at the work — a PR, a flow, a release. The agent drives the browser and narrates the meaningful moments in active voice.',
+    title: 'Ask your agent to make the video',
+    body: 'Point it at the work — a feature, a tool, a bug, a release. The agent drives the browser, captures the meaningful moments, and turns them into a watchable walkthrough.',
   },
   {
     step: '03',
     label: 'share',
     title: 'Send the URL',
-    body: 'One shareable URL. Drop it in Slack, paste in a PR, attach to release notes. No login required.',
+    body: 'One shareable URL. Drop it in Slack, paste it in a PR, attach it to release notes, or send it anywhere else a chat transcript would fall short.',
   },
 ]
 
@@ -185,7 +185,7 @@ export default async function HomePage() {
                     <span className="inline-flex items-center gap-2 rounded-full border border-vermillion-500/30 bg-vermillion-500/[0.06] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-vermillion-700">
                       <span className="font-mono tabular-nums">★</span>
                       <span aria-hidden="true" className="text-vermillion-500/50">·</span>
-                      <span>Featured runs</span>
+                      <span>Featured videos</span>
                     </span>
                     <h2
                       id="marquee-heading"
@@ -214,8 +214,8 @@ export default async function HomePage() {
               <SectionHeader
                 index="02"
                 eyebrow="How it works"
-                title="Three steps. No screencast software."
-                description="First-run wires the skill and browser drivers. Point your agent at any flow."
+                title="Three steps. No recording session."
+                description="First-run wires the skill and browser drivers. Point your agent at the work and get back a video you can share immediately."
                 headingId="how-it-works-heading"
                 meta={`${STEPS.length} steps`}
               />
@@ -297,8 +297,8 @@ export default async function HomePage() {
               <SectionHeader
                 index="03"
                 eyebrow="In the gallery"
-                title="Recent fieldwork."
-                description="Real walkthroughs — PRs, onboarding flows, release notes — narrated by the agents that ran them. Click any thumbnail to watch."
+                title="What agents shipped, found, tested, and explained."
+                description="Real video walkthroughs — guides, bug repros, product flows, and useful fieldwork — created by coding agents. Click any thumbnail to watch."
                 headingId="gallery-heading"
                 meta={clips.length > 0 ? `${clips.length} clips` : undefined}
               />
@@ -324,7 +324,7 @@ export default async function HomePage() {
               <p className="font-display text-[clamp(2rem,1.2rem+3vw,3.5rem)] font-semibold leading-[1.05] tracking-[-0.015em] text-ink-900">
                 Open source.{' '}
                 <span className="italic underline decoration-vermillion-500 decoration-[4px] underline-offset-[0.14em]">
-                  Receipts
+                  Video
                 </span>{' '}
                 for the work agents quietly do.
               </p>
