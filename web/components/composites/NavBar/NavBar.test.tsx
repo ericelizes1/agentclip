@@ -7,7 +7,7 @@ describe('NavBar', () => {
     render(<NavBar githubUrl="https://github.com/ericelizes1/agentclip" />)
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeInTheDocument()
     expect(
-      screen.getByRole('link', { name: /Agent\s+Clip/i }),
+      screen.getByRole('link', { name: 'AgentClip' }),
     ).toHaveAttribute('href', '/')
     const link = screen.getByRole('link', { name: /github/i })
     expect(link).toHaveAttribute('href', 'https://github.com/ericelizes1/agentclip')

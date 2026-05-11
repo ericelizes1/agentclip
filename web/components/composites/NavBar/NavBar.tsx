@@ -34,11 +34,15 @@ export function NavBar({
         className,
       )}
     >
-      <Link href="/" className="flex items-center gap-2 text-ink-900">
+      <Link
+        href="/"
+        aria-label="AgentClip"
+        className="flex items-center gap-2 text-ink-900"
+      >
         <AgentMark size={20} className="text-vermillion-500" />
-        <span className="text-[1.05rem] leading-none tracking-tight text-ink-900">
-          <span className="font-display font-semibold">Agent</span>
-          <span className="font-sans font-bold tracking-[-0.04em]">Clip</span>
+        <span className="text-[1.02rem] font-semibold leading-none tracking-[-0.03em] text-ink-900">
+          <span className="font-sans font-medium">Agent</span>
+          <span className="font-sans font-semibold tracking-[-0.045em]">Clip</span>
         </span>
       </Link>
 
