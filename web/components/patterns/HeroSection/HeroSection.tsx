@@ -33,7 +33,7 @@ export interface HeroSectionProps {
   className?: string
 }
 
-const HEADLINE_TEXT = 'Your coding agent now creates shareable video walkthroughs.'
+const HEADLINE_TEXT = 'Your agent now creates video walkthroughs.'
 const PUNCHLINE = 'walkthroughs.'
 const HEADLINE_LEAD = HEADLINE_TEXT.slice(
   0,
@@ -150,9 +150,8 @@ export function HeroSection({
         transition={{ ...at(2), delay: reduce ? 0 : 1.5 }}
         className="max-w-[58ch] text-lg text-ink-600 sm:text-xl"
       >
-        Your coding agent now creates shareable video walkthroughs.
-        When a chat transcript is not enough, your agent can hand you a
-        video instead.
+        When a chat transcript is not enough, your agent can hand back a
+        narrated, shareable video instead.
       </motion.p>
 
       {/*

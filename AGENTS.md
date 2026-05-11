@@ -18,9 +18,9 @@ Working on the gallery, hero, render pipeline, or anything user-visible? Capturi
 
 1. **Install the SDK locally** (one-time):
    ```
-   pip install agentclip[browser]
+   pip install agentclip
    ```
-   The `[browser]` extra adds Playwright for viewport-only screenshots — required (see "Never use OS screen capture" below).
+   The package includes Playwright support for viewport-only capture. First-run setup installs Chromium automatically (see "Never use OS screen capture" below).
 
 2. **Restart your session** so the bundled skill loads. The skill lands at `~/.claude/skills/agentclip/SKILL.md` after install. Until you restart, it's invisible.
 
@@ -63,7 +63,7 @@ If you don't have access to the admin token, ask the user. **Don't try to PATCH 
 When recording clips, do **not** use `screencapture` (macOS), `scrot`, `gnome-screenshot`, or any OS-level capture. They include the IDE window, terminal panes showing the user's chat with you, system notifications, and any other open windows — all of which leak to a public URL when the clip ships. This is a privacy bug, not a stylistic one.
 
 Use viewport-only capture only:
-- `agentclip[browser]` (Playwright with controlled viewport)
+- `agentclip` built-in browser tools (Playwright with controlled viewport)
 - A browser MCP tool (Chrome / Playwright / Puppeteer)
 - Your own scripted Playwright/Puppeteer
 

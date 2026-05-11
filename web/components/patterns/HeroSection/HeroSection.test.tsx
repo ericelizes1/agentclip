@@ -27,11 +27,11 @@ describe('HeroSection', () => {
       vi.advanceTimersByTime(2000)
     })
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      /Your coding agent now creates shareable video walkthroughs\./,
+      /Your agent now creates video walkthroughs\./,
     )
     expect(screen.getByText('walkthroughs.')).toBeInTheDocument()
     expect(
-      screen.getByText(/When a chat transcript is not enough/i),
+      screen.getByText(/narrated, shareable video instead/i),
     ).toBeInTheDocument()
     // GitHub demoted to a small secondary text link.
     expect(

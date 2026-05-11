@@ -21,12 +21,12 @@ This recovers a fresh edit URL using your locally cached `write_token`. If that 
 
 You ran `agentclip clip` and got a Playwright `BrowserNotInstalled` error.
 
-**Why:** the lazy first-run install path didn't include the `[browser]` extra, so Chromium wasn't downloaded.
+**Why:** Chromium was not installed for the built-in browser runtime.
 
 **Fix:**
 
 ```bash
-pip install 'agentclip[browser]'
+pip install --upgrade agentclip
 agentclip setup --quiet
 ```
 
@@ -34,7 +34,7 @@ The explicit `setup` runs the same code path as lazy first-run, just without wai
 
 ## MCP tools don't appear in Claude Desktop / Cursor
 
-You added the config block but the four AgentClip tools aren't in the connected-tools list.
+You added the config block but the AgentClip browser and slideshow tools aren't in the connected-tools list.
 
 **Common causes:**
 
