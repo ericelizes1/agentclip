@@ -5,10 +5,23 @@ vi.mock('@/lib/api', () => ({
   api: { GET: vi.fn() },
 }))
 
+vi.mock('@/components/composites/TrustBar/TrustBar', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/components/composites/TrustBar/TrustBar')
+  >('@/components/composites/TrustBar/TrustBar')
+
+  return {
+    ...actual,
+    fetchStarCount: vi.fn(),
+  }
+})
+
 import { api } from '@/lib/api'
+import { fetchStarCount } from '@/components/composites/TrustBar/TrustBar'
 import HomePage from './page'
 
 const mockedGet = vi.mocked(api.GET)
+const mockedFetchStarCount = vi.mocked(fetchStarCount)
 
 const galleryRow = (overrides: Partial<Record<string, unknown>> = {}) => ({
   id: 'a4d5e1ce-ff43-46f8-93dd-2b4b53b13a40',
@@ -49,6 +62,8 @@ async function renderHome() {
 describe('HomePage', () => {
   beforeEach(() => {
     mockedGet.mockReset()
+    mockedFetchStarCount.mockReset()
+    mockedFetchStarCount.mockResolvedValue(1)
   })
 
   it('renders Hero + How it works + Gallery against the typed gallery feed', async () => {

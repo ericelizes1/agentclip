@@ -15,19 +15,23 @@ export interface TrustBarProps {
   className?: string
 }
 
+const MIN_VISIBLE_STARS = 25
+
 /**
  * Single horizontal row of trust signals beneath the hero. Three
  * facts, all real:
  *   - GitHub stars (live count, fetched server-side)
- *   - Free forever
+ *   - No login
  *   - Open source
  *   - Self-hosted
  *
- * The star count is omitted when null or zero so we never advertise
- * "0 stars" — that's worse than no number at all. Once a star count
- * exists the badge surfaces automatically on the next ISR rebuild.
+ * The star count is omitted until it reaches a meaningful threshold so
+ * we never advertise weak social proof. Once the repo clears that bar
+ * the badge surfaces automatically on the next ISR rebuild.
  */
 export function TrustBar({ repo, stars, className }: TrustBarProps) {
+  const visibleStars = formatVisibleStars(stars)
+
   return (
     <div
       className={cn(
@@ -36,7 +40,7 @@ export function TrustBar({ repo, stars, className }: TrustBarProps) {
         className,
       )}
     >
-      {stars !== null && stars > 0 && (
+      {visibleStars !== null && (
         <a
           href={`https://github.com/${repo}`}
           target="_blank"
@@ -45,14 +49,14 @@ export function TrustBar({ repo, stars, className }: TrustBarProps) {
         >
           <Star aria-hidden="true" className="size-3 fill-vermillion-500 text-vermillion-500" />
           <span className="font-mono tabular-nums text-ink-800">
-            {stars.toLocaleString()}
+            {visibleStars}
           </span>
           <span className="text-ink-500">on GitHub</span>
         </a>
       )}
       <span className="inline-flex items-center gap-1.5">
         <Dot />
-        Free forever
+        No login
       </span>
       <Pip />
       <span className="inline-flex items-center gap-1.5">
@@ -105,4 +109,19 @@ export async function fetchStarCount(repo: string): Promise<number | null> {
   } catch {
     return null
   }
+}
+
+function formatVisibleStars(stars: number | null): string | null {
+  if (stars === null || stars < MIN_VISIBLE_STARS) {
+    return null
+  }
+
+  if (stars >= 1000) {
+    const compact = stars / 1000
+    return Number.isInteger(compact)
+      ? `${compact.toFixed(0)}k`
+      : `${compact.toFixed(1)}k`
+  }
+
+  return stars.toLocaleString()
 }

@@ -150,8 +150,9 @@ export function HeroSection({
         transition={{ ...at(2), delay: reduce ? 0 : 1.5 }}
         className="max-w-[58ch] text-lg text-ink-600 sm:text-xl"
       >
-        When a chat transcript is not enough, your agent can hand back a
-        narrated, shareable video instead.
+        Skip the manual walkthrough. Your agent can hand back a
+        narrated, shareable video for QA, demos, release notes, bug
+        repros, and how-tos.
       </motion.p>
 
       {/*

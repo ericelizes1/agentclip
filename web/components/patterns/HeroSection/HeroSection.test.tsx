@@ -31,7 +31,7 @@ describe('HeroSection', () => {
     )
     expect(screen.getByText('walkthroughs.')).toBeInTheDocument()
     expect(
-      screen.getByText(/narrated, shareable video instead/i),
+      screen.getByText(/Skip the manual walkthrough\./i),
     ).toBeInTheDocument()
     // GitHub demoted to a small secondary text link.
     expect(
