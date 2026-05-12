@@ -27,9 +27,9 @@ describe('HeroSection', () => {
       vi.advanceTimersByTime(2000)
     })
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
-      /Your agent now creates video walkthroughs\./,
+      /Review what your agent did\./,
     )
-    expect(screen.getByText('walkthroughs.')).toBeInTheDocument()
+    expect(screen.getByText('did.')).toBeInTheDocument()
     expect(
       screen.getByText(/Skip the manual walkthrough\./i),
     ).toBeInTheDocument()
@@ -52,7 +52,7 @@ describe('HeroSection', () => {
 
   it('renders the punchline word with a vermillion underline class', () => {
     render(<HeroSection />)
-    const punchline = screen.getByText('walkthroughs.')
+    const punchline = screen.getByText('did.')
     expect(punchline.className).toMatch(/decoration-vermillion-500/)
   })
 

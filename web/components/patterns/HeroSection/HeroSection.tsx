@@ -33,12 +33,12 @@ export interface HeroSectionProps {
   className?: string
 }
 
-const HEADLINE_TEXT = 'Your agent now creates video walkthroughs.'
-const PUNCHLINE = 'walkthroughs.'
+const HEADLINE_TEXT = 'Review what your agent did.'
+const PUNCHLINE = 'did.'
 const HEADLINE_LEAD = HEADLINE_TEXT.slice(
   0,
   HEADLINE_TEXT.length - PUNCHLINE.length,
-) // "Your coding agent now creates shareable video "
+) // "Review what your agent "
 
 const stagger: Transition = { duration: 0.45, ease: [0.2, 0.7, 0.2, 1] }
 
@@ -151,8 +151,8 @@ export function HeroSection({
         className="max-w-[58ch] text-lg text-ink-600 sm:text-xl"
       >
         Skip the manual walkthrough. Your agent can hand back a
-        narrated, shareable video for QA, demos, release notes, bug
-        repros, and how-tos.
+        narrated, shareable video for QA, demos, release notes, and
+        bug repros.
       </motion.p>
 
       {/*
