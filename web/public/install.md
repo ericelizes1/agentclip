@@ -1,12 +1,12 @@
-# Install AgentClip (for AI agents)
+# Install AgentClip
 
-You're an AI assistant being asked to install AgentClip on the user's machine. Read this document, then run the steps below.
+You are an AI assistant being asked to install AgentClip on the user's machine. Read this document, then run the steps below.
 
 ## What AgentClip does
 
-AgentClip turns an agent QA run into a shareable URL. The agent drives the user's browser, captures meaningful moments with active-voice captions, and ships back a public link the user can drop in Slack or paste in a PR.
+AgentClip lets an AI agent create narrated, shareable video walkthroughs. The agent drives a controlled browser, captures meaningful screenshots or short recordings, writes captions, and returns a public URL the user can send in Slack, paste in a PR, attach to release notes, or use for QA handoff.
 
-## Install (one step)
+## Install
 
 Run this in the user's terminal:
 
@@ -14,10 +14,18 @@ Run this in the user's terminal:
 pip install agentclip
 ```
 
-Lazy first-run setup handles the rest:
-- The Claude Code skill registers automatically the first time `agentclip` is invoked.
-- Browser drivers (Playwright Chromium) install on first use of the recording tools.
-- No separate `agentclip setup` step. No config file.
+Then run setup once so the current agent runtime can discover the tools and skill:
+
+```sh
+agentclip setup
+```
+
+Setup handles the rest:
+
+- installs the bundled `agentclip` skill
+- registers the `agentclip-mcp` server
+- installs Playwright Chromium for viewport-only browser capture
+- configures Claude Code, Codex, and OpenCode when those config directories exist
 
 If pip isn't available, fall back to:
 
@@ -25,28 +33,47 @@ If pip isn't available, fall back to:
 uvx agentclip --help
 ```
 
-## Reload your session
+## Restart the agent
 
-The skill is registered into the user's Claude Code config. Reload your session so the skill becomes visible:
-- Quit and reopen the conversation, **or**
-- Run `/skills` and confirm `agentclip` appears.
+Skills and MCP tools load when the agent runtime starts. After setup, fully quit and reopen the agent runtime. Starting a new chat is not always enough.
 
-## Test against any URL
-
-Confirm the install works:
+After restart, confirm the skill appears as `agentclip`. If it does not, run the host-specific repair command and restart again:
 
 ```sh
-agentclip clip https://example.com --title "smoke test"
+agentclip setup --force --host codex
+agentclip setup --force --host opencode
+agentclip setup --force --host claude
 ```
 
-When the run finishes, surface two URLs back to the user:
-- The public **share URL** they can send to anyone.
-- The **edit URL** they should keep private (it's the only way to edit captions later).
+## Verify
+
+```sh
+agentclip version
+agentclip whoami
+```
+
+`agentclip whoami` is optional, but setting it adds the user's name and URL to the credit chip on clips they create.
+
+## Use it
+
+Once restarted, the user can ask:
+
+> QA this signup flow and post an AgentClip.
+
+or:
+
+> Record a narrated walkthrough of this bug repro.
+
+When the run finishes, return:
+
+- the public share URL the user can send to anyone
+- the private edit URL only if the user asks for it
 
 ## Notes for the agent
 
-- Don't store the share URL in a public location without confirming with the user.
-- The edit URL is a credential. Never paste it into chat logs the user can't see, never commit it to a repo.
-- `agentclip whoami "Their Name"` is optional but adds the user's name to the credit chip on every clip they make.
+- Use AgentClip's controlled browser or another viewport-only browser tool. Never use OS screen capture.
+- Capture meaningful states, not every click.
+- Write captions for the ear. They become narration.
+- The edit URL is a credential. Never commit it, log it publicly, or paste it anywhere the user did not ask for.
 
-That's it. The user can now ask you to QA flows, repro bugs, or record walkthroughs, and you'll ship them URLs.
+That is it. The user can now ask you to QA flows, repro bugs, or record walkthroughs, and you can hand back narrated video URLs.
