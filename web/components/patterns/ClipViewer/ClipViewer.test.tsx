@@ -17,13 +17,23 @@ const base: ClipViewerSlideshow = {
 }
 
 describe('ClipViewer', () => {
-  it('renders title, description, summary, and slides in order', () => {
+  it('renders title, description, summary, and slides', () => {
     render(<ClipViewer slideshow={base} />)
     expect(screen.getByRole('heading', { name: 'Onboarding regression' })).toBeInTheDocument()
     expect(screen.getByText('Post-login redirect dropped a parameter.')).toBeInTheDocument()
     expect(screen.getByText('Bug repro in 47 seconds.')).toBeInTheDocument()
     expect(screen.getByText('Step one.')).toBeInTheDocument()
     expect(screen.getByText('Step two.')).toBeInTheDocument()
+  })
+
+  it('read mode leads with the takeaway — summary precedes the first slide', () => {
+    render(<ClipViewer slideshow={base} />)
+    const takeaway = screen.getByText('Bug repro in 47 seconds.')
+    const firstSlide = screen.getByText('Step one.')
+    expect(takeaway.compareDocumentPosition(firstSlide)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+    expect(screen.getByText('Takeaway')).toBeInTheDocument()
   })
 
   it('uses an <ol> for the slide sequence (assistive-tech enumeration)', () => {
@@ -35,7 +45,7 @@ describe('ClipViewer', () => {
 
   it('omits the summary callout when summary is empty', () => {
     render(<ClipViewer slideshow={{ ...base, summary: '' }} />)
-    expect(screen.queryByText('Summary')).not.toBeInTheDocument()
+    expect(screen.queryByText('Takeaway')).not.toBeInTheDocument()
   })
 
   it('omits the creator credit when created_by is empty', () => {

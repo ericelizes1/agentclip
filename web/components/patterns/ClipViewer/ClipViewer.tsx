@@ -85,7 +85,11 @@ function formatDate(isoString: string): string {
  * Composition:
  *   NavBar
  *   Hero (title + description + MetaRow)
- *   SummaryCallout (omitted when empty)
+ *   ClipViewTabs
+ *   SummaryCallout — placement is mode-aware. Read ("scroll") mode is
+ *     an article: it leads with the takeaway, above the slides, where
+ *     a reader expects the conclusion. Watch mode keeps it after the
+ *     player as the spoken-style outro. Omitted when empty.
  *   <ol> of slides — each with eyebrow position label, optional title,
  *     MediaFrame, optional caption
  *
@@ -144,6 +148,14 @@ export function ClipViewer({
           watchAvailable={allNarrated}
         />
 
+        {/* Read mode leads with the takeaway — a reader expects the
+            conclusion up front, not after scrolling every slide. */}
+        {activeView === 'scroll' && slideshow.summary && (
+          <div className="mt-8 mb-10 sm:mt-10 sm:mb-12">
+            <SummaryCallout summary={slideshow.summary} label="Takeaway" />
+          </div>
+        )}
+
         {activeView === 'watch' && allNarrated ? (
           <VideoClipPlayer
             shareToken={shareToken}
@@ -182,7 +194,9 @@ export function ClipViewer({
           </ol>
         )}
 
-        {slideshow.summary && (
+        {/* Watch mode keeps the summary after the player — it plays
+            as the spoken outro, so the recap belongs at the end. */}
+        {activeView === 'watch' && slideshow.summary && (
           <div className="mt-8 sm:mt-10">
             <SummaryCallout summary={slideshow.summary} />
           </div>

@@ -9,6 +9,12 @@ describe('SummaryCallout', () => {
     expect(screen.getByText('Summary')).toBeInTheDocument()
   })
 
+  it('uses a custom eyebrow label when given one', () => {
+    render(<SummaryCallout summary="Bug repro in 47s." label="Takeaway" />)
+    expect(screen.getByText('Takeaway')).toBeInTheDocument()
+    expect(screen.queryByText('Summary')).not.toBeInTheDocument()
+  })
+
   it('renders nothing when summary is empty', () => {
     const { container } = render(<SummaryCallout summary="" />)
     expect(container.firstChild).toBeNull()
