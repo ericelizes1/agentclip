@@ -62,6 +62,39 @@ RUN_TYPE_VOICE: dict[str, tuple[str, float]] = {
 }
 
 
+# RunType -> delivery instructions for gpt-4o-mini-tts. `voice` picks
+# *who* speaks; `instructions` steers *how* they speak — pacing, tone,
+# emphasis, energy. Without it the model defaults to a flat, announcer-
+# ish read; with it the narration matches the run-type's voice arc
+# (the same arc the SKILL.md tells the agent to write captions in).
+# Keep the keys in sync with RUN_TYPE_VOICE.
+_DEMO_INSTRUCTIONS = (
+    'Speak like someone casually showing a friend something they just '
+    'built — warm, relaxed, and conversational, with natural pacing and '
+    'a little genuine enthusiasm. Not polished, not an announcer.'
+)
+RUN_TYPE_INSTRUCTIONS: dict[str, str] = {
+    'demo': _DEMO_INSTRUCTIONS,
+    'qa': (
+        'Speak briskly and matter-of-factly, like an engineer reading a '
+        'checklist out loud — clear, even, and efficient, with no '
+        'dramatization or rising excitement.'
+    ),
+    'guide': (
+        'Speak like a friendly tech YouTuber explaining something to one '
+        'person — warm and conversational, with an easy, unhurried pace and '
+        'natural emphasis on the words that matter. Engaged, never an '
+        'announcer.'
+    ),
+    'bug': (
+        'Speak plainly and factually, like a senior engineer walking a '
+        'colleague through a bug repro — calm, measured, and low-key, with '
+        'no drama.'
+    ),
+    'walkthrough': _DEMO_INSTRUCTIONS,        # legacy synonym for demo
+}
+
+
 def voice_for(slideshow) -> tuple[str, float]:
     '''Return (voice, speed) for a slideshow based on its run_type.
 
@@ -70,6 +103,17 @@ def voice_for(slideshow) -> tuple[str, float]:
     '''
     run_type = getattr(slideshow, 'run_type', '') or 'demo'
     return RUN_TYPE_VOICE.get(run_type, RUN_TYPE_VOICE['demo'])
+
+
+def instructions_for(slideshow) -> str:
+    '''Return the gpt-4o-mini-tts delivery instructions for a slideshow.
+
+    Same run_type -> demo fallback as voice_for(), so an unknown
+    run_type still gets a sensible conversational read rather than the
+    model's flat default.
+    '''
+    run_type = getattr(slideshow, 'run_type', '') or 'demo'
+    return RUN_TYPE_INSTRUCTIONS.get(run_type, RUN_TYPE_INSTRUCTIONS['demo'])
 
 # OpenAI TTS hard limit per request (as of 2026-05).
 MAX_INPUT_CHARS = 4096
@@ -151,12 +195,16 @@ def synthesize(
     voice: str = DEFAULT_VOICE,
     model: str = DEFAULT_MODEL,
     speed: float = DEFAULT_SPEED,
+    instructions: str = '',
 ) -> NarrationResult:
     '''Synthesize speech from `text` via OpenAI TTS.
 
     Validates input length, retries once on transient errors, returns
     the full MP3 body plus accounting metadata. Does not write to
     disk, the DB, or any storage backend.
+
+    `instructions` steers delivery (pacing, tone, energy) on
+    gpt-4o-mini-tts; empty string means the model's default read.
 
     Raises:
         ValueError: caption is empty or exceeds MAX_INPUT_CHARS.
@@ -181,7 +229,8 @@ def synthesize(
 
     client = _get_client()
     mp3_bytes = _stream_to_bytes(
-        client, text=text, voice=voice, model=model, speed=speed
+        client, text=text, voice=voice, model=model, speed=speed,
+        instructions=instructions,
     )
     cost = (Decimal(chars) / Decimal(1000)) * COST_PER_1K_CHARS
 
@@ -201,6 +250,7 @@ def _stream_to_bytes(
     voice: str,
     model: str,
     speed: float = DEFAULT_SPEED,
+    instructions: str = '',
     max_retries: int = 1,
 ) -> bytes:
     '''Call the OpenAI TTS streaming endpoint and accumulate the body.
@@ -209,7 +259,12 @@ def _stream_to_bytes(
     SDK already retries some categories internally; this wrapper adds
     a single application-level retry so we don't fight the SDK's own
     retry budget.
+
+    `instructions` is forwarded to the create() call only when set —
+    omitting it entirely keeps the request shape unchanged for any
+    model that predates the steerable-TTS parameter.
     '''
+    extra = {'instructions': instructions} if instructions else {}
     attempt = 0
     last_error: Exception | None = None
     while attempt <= max_retries:
@@ -220,6 +275,7 @@ def _stream_to_bytes(
                 voice=voice,
                 input=text,
                 speed=speed,
+                **extra,
             ) as response:
                 for chunk in response.iter_bytes():
                     buffer.write(chunk)
@@ -348,6 +404,9 @@ def narrate_slideshow(
     resolved_voice, speed = voice_for(slideshow)
     if voice is not None:
         resolved_voice = voice
+    # Delivery instructions stay run_type-driven even when the caller
+    # pins a different voice — they steer pacing/tone, not who speaks.
+    instructions = instructions_for(slideshow)
 
     outcomes: list[SlideNarrationOutcome] = []
     total_chars = 0
@@ -394,7 +453,10 @@ def narrate_slideshow(
             continue
 
         try:
-            result = synthesize(slide.caption, voice=resolved_voice, speed=speed)
+            result = synthesize(
+                slide.caption, voice=resolved_voice, speed=speed,
+                instructions=instructions,
+            )
         except ValueError as exc:
             outcomes.append(SlideNarrationOutcome(
                 position=position,
@@ -478,7 +540,10 @@ def synthesize_intro(slideshow) -> BookendNarrationResult:
         return BookendNarrationResult(
             mp3_bytes=None, voice=voice, cost_usd=Decimal('0'), chars=0,
         )
-    result = synthesize(text, voice=voice, speed=speed)
+    result = synthesize(
+        text, voice=voice, speed=speed,
+        instructions=instructions_for(slideshow),
+    )
     return BookendNarrationResult(
         mp3_bytes=result.mp3_bytes,
         voice=result.voice,
@@ -500,7 +565,10 @@ def synthesize_outro(slideshow) -> BookendNarrationResult:
         return BookendNarrationResult(
             mp3_bytes=None, voice=voice, cost_usd=Decimal('0'), chars=0,
         )
-    result = synthesize(text, voice=voice, speed=speed)
+    result = synthesize(
+        text, voice=voice, speed=speed,
+        instructions=instructions_for(slideshow),
+    )
     return BookendNarrationResult(
         mp3_bytes=result.mp3_bytes,
         voice=result.voice,

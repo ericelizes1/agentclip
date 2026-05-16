@@ -67,6 +67,64 @@ class VoiceForTests(TestCase):
 @override_settings(
     CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
 )
+class InstructionsForTests(TestCase):
+    def test_each_run_type_has_distinct_nonempty_instructions(self) -> None:
+        guide = Slideshow.objects.create(run_type=RunType.GUIDE)
+        bug = Slideshow.objects.create(run_type=RunType.BUG)
+        qa = Slideshow.objects.create(run_type=RunType.QA)
+        for s in (guide, bug, qa):
+            self.assertTrue(narration.instructions_for(s).strip())
+        # Different run types steer delivery differently.
+        self.assertNotEqual(
+            narration.instructions_for(guide), narration.instructions_for(bug)
+        )
+
+    def test_walkthrough_legacy_shares_demo_instructions(self) -> None:
+        demo = Slideshow.objects.create(run_type=RunType.DEMO)
+        legacy = Slideshow.objects.create(run_type=RunType.WALKTHROUGH)
+        self.assertEqual(
+            narration.instructions_for(demo), narration.instructions_for(legacy)
+        )
+
+    def test_unknown_run_type_falls_back_to_demo_instructions(self) -> None:
+        slideshow = Slideshow.objects.create()
+        slideshow.run_type = 'nonsense'
+        self.assertEqual(
+            narration.instructions_for(slideshow),
+            narration.RUN_TYPE_INSTRUCTIONS['demo'],
+        )
+
+    def test_every_run_type_has_instructions(self) -> None:
+        # Pin: keep RUN_TYPE_INSTRUCTIONS in sync with the RunType enum.
+        for value in RunType.values:
+            self.assertIn(value, narration.RUN_TYPE_INSTRUCTIONS)
+
+    def test_instructions_reach_the_tts_call(self) -> None:
+        # End-to-end: the run_type's delivery instructions must be
+        # forwarded to _stream_to_bytes, or the voice stays flat.
+        slideshow = Slideshow.objects.create(
+            description='A short how-to for the signup flow.',
+            run_type=RunType.GUIDE,
+        )
+        captured = {}
+
+        def fake_stream(
+            client, *, text, voice, model, speed=1.0, instructions='', max_retries=1
+        ):
+            captured['instructions'] = instructions
+            return b'MP3'
+
+        with mock.patch('slideshows.narration._stream_to_bytes', side_effect=fake_stream):
+            with mock.patch('slideshows.narration._get_client'):
+                narration.synthesize_intro(slideshow)
+        self.assertEqual(
+            captured['instructions'], narration.RUN_TYPE_INSTRUCTIONS['guide']
+        )
+
+
+@override_settings(
+    CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
+)
 class SynthesizeIntroTests(TestCase):
     def setUp(self) -> None:
         cache.clear()
@@ -103,7 +161,9 @@ class SynthesizeIntroTests(TestCase):
         )
         captured = {}
 
-        def fake_stream(client, *, text, voice, model, speed=1.0, max_retries=1):
+        def fake_stream(
+            client, *, text, voice, model, speed=1.0, instructions='', max_retries=1
+        ):
             captured['voice'] = voice
             captured['speed'] = speed
             return b'MP3'
@@ -146,7 +206,9 @@ class SynthesizeOutroTests(TestCase):
         )
         voices: list[str] = []
 
-        def fake_stream(client, *, text, voice, model, speed=1.0, max_retries=1):
+        def fake_stream(
+            client, *, text, voice, model, speed=1.0, instructions='', max_retries=1
+        ):
             voices.append(voice)
             return b'MP3'
 
@@ -180,7 +242,7 @@ class NarrateSlideshowVoiceIntegrationTests(TestCase):
     def test_per_slide_audio_uses_run_type_voice(self) -> None:
         captured_voice = []
 
-        def fake_synth(text, *, voice, model='gpt-4o-mini-tts', speed=1.0):
+        def fake_synth(text, *, voice, model='gpt-4o-mini-tts', speed=1.0, instructions=''):
             captured_voice.append(voice)
             return narration.NarrationResult(
                 mp3_bytes=b'MP3', voice=voice, model=model,
