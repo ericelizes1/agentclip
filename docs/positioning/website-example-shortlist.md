@@ -24,9 +24,11 @@ They also widen the visible category beyond PRs and releases without making the 
 
 Use this copy when curating the public site.
 
+Titles are noun phrases, not "How to X" sentences, and captions are present-tense — both per the `guide` voice rules in the agentclip-python SKILL.md. Keep new examples in that shape.
+
 ### Hero
 
-- **Title:** `Guide: How to inspect internet traffic with Cloudflare Radar`
+- **Title:** `Internet traffic shifts on Cloudflare Radar`
 - **One-line summary:** `An agent uses Cloudflare Radar to explain a real internet traffic shift in a shareable video.`
 - **Card/hero description:** `Public data, one useful chart, one clear takeaway. This is the cleanest proof that AgentClip turns agent work into a video someone can forward immediately.`
 
@@ -34,25 +36,25 @@ Use this copy when curating the public site.
 
 #### 1. Google Trends
 
-- **Title:** `Guide: How to see if an AI tool is actually trending`
+- **Title:** `Real demand vs hype on Google Trends`
 - **One-line summary:** `An agent compares search demand across tools, time windows, and geographies to test whether the hype is real.`
 - **Card description:** `This is a strong AI-native example because the agent is doing judgment work, not just reading a chart.`
 
 #### 2. OpenRouter Rankings
 
-- **Title:** `Guide: How to see which AI models people actually use`
+- **Title:** `Real model usage on OpenRouter`
 - **One-line summary:** `An agent opens live model rankings and explains which models are winning on real usage, not just brand awareness.`
 - **Card description:** `This gives the set a second AI-native example and makes AgentClip feel closer to real model and agent workflows.`
 
 #### 3. urlscan.io
 
-- **Title:** `Guide: How to inspect what a website loads behind the scenes`
+- **Title:** `Third-party calls behind a website, via urlscan.io`
 - **One-line summary:** `An agent opens a public scan and explains the third-party calls, redirects, and domains a site actually loads.`
 - **Card description:** `A good investigation clip: visual evidence, one surprising detail, and a clear reason the video is easier to share than the scan output alone.`
 
 #### 4. PageSpeed Insights
 
-- **Title:** `Guide: How to check if a site is actually fast`
+- **Title:** `A site-speed diagnosis with PageSpeed Insights`
 - **One-line summary:** `An agent runs a public speed report and turns the biggest performance issue into a short, understandable video diagnosis.`
 - **Card description:** `Familiar, credible, and broadly legible. This proves the agent can verify a claim and communicate the result clearly.`
 
@@ -69,7 +71,7 @@ It does **not** rely on private enterprise setups, fake business data, or contri
 
 ## 1. Cloudflare Radar Data Explorer
 
-- **Final title:** `Guide: How to inspect internet traffic with Cloudflare Radar`
+- **Final title:** `Internet traffic shifts on Cloudflare Radar`
 - **Use case:** Show how an agent can explain a public internet trend or traffic shift.
 - **Opening frame:** Cloudflare Radar already open on a meaningful country or category view.
 - **What the clip shows:** The agent switches views, compares time ranges, narrows to one chart, and explains what changed and why it matters.
@@ -95,7 +97,7 @@ It does **not** rely on private enterprise setups, fake business data, or contri
 
 #### Exact headline + metadata
 
-- **Clip title:** `Guide: How to inspect internet traffic with Cloudflare Radar`
+- **Clip title:** `Internet traffic shifts on Cloudflare Radar`
 - **One-line summary:** `An agent uses Cloudflare Radar to explain a real internet traffic shift in a shareable video.`
 - **End takeaway:** `Cloudflare Radar lets an agent turn internet-scale traffic data into a quick, shareable explanation.`
 
@@ -125,30 +127,30 @@ It does **not** rely on private enterprise setups, fake business data, or contri
 
 Use these as starting points, then tighten to whatever the actual chart shows.
 
-1. `Opened Cloudflare Radar on a live traffic view so we can start with the signal, not the dashboard.`
-2. `Switched the comparison once to see whether this traffic pattern holds across another geography or category.`
-3. `Changed the time range to check whether this is a short spike or a more durable shift.`
-4. `Held on the clearest chart once the pattern was obvious. This is the frame the viewer should actually remember.`
-5. `Ended on the takeaway: Cloudflare Radar gives an agent a fast way to explain a real internet trend in a video someone can immediately share.`
+1. `This is Cloudflare Radar on a live traffic view — start on the signal, not the dashboard tour.`
+2. `Switch the comparison once and you can see whether the pattern holds in another geography or category.`
+3. `Change the time range and the real question gets answered — a short spike, or a durable shift.`
+4. `Hold on the clearest chart. This is the frame worth remembering — and the one you'd actually forward.`
+5. `The takeaway: Cloudflare Radar turns an internet-scale traffic signal into a quick explanation anyone can watch and share.`
 
 #### Narration script
 
 Use this as the default spoken script, then swap in the actual geography, category, or traffic signal once the final chart is chosen.
 
-1. `Opened Cloudflare Radar on a live traffic view so we can start with the signal instead of the dashboard.`
-2. `I changed one comparison to see whether this traffic pattern holds across another geography or category.`
-3. `Then I changed the time range once to check whether this is a short spike or a more durable shift.`
-4. `At this point the pattern is clear, so this is the chart I would actually send to someone else.`
-5. `That is the useful part: an agent can turn a public internet trend into a narrated, shareable explanation instead of a transcript.`
+1. `Start on a live Cloudflare Radar traffic view — the signal first, not the dashboard tour.`
+2. `Change one comparison and you see whether the pattern holds across another geography or category.`
+3. `Change the time range once and the spike-versus-shift question answers itself.`
+4. `Now the pattern is clear — this is the chart you'd actually forward to someone.`
+5. `That's the point: an agent turns a public internet trend into a narrated explanation you can share, not a transcript.`
 
 #### Tighter alt script
 
 Use this version if the final clip needs to land closer to `30-40 seconds`.
 
-1. `Started on the chart that matters so we can skip the dashboard tour.`
-2. `Changed one comparison to see whether the same pattern holds elsewhere.`
-3. `Changed the time range once to tell the difference between a spike and a shift.`
-4. `Held on the clearest chart once the result was obvious.`
+1. `Open on the chart that matters — skip the dashboard tour.`
+2. `Change one comparison to see whether the same pattern holds elsewhere.`
+3. `Change the time range once to separate a spike from a real shift.`
+4. `Hold on the clearest chart once the result is obvious.`
 5. `Cloudflare Radar gives an agent a fast way to explain a real traffic trend in a video someone can share immediately.`
 
 #### Recording notes
@@ -169,7 +171,7 @@ Use this version if the final clip needs to land closer to `30-40 seconds`.
 
 ## 2. Google Trends
 
-- **Final title:** `Guide: How to see if an AI tool is actually trending`
+- **Final title:** `Real demand vs hype on Google Trends`
 - **Use case:** Show how an agent can validate whether an AI tool has real demand.
 - **Opening frame:** A comparison query already loaded.
 - **What the clip shows:** The agent compares two or three tools, switches the time window, narrows by geography, and explains the trend.
@@ -187,7 +189,7 @@ Use this version if the final clip needs to land closer to `30-40 seconds`.
 
 ## 3. OpenRouter Rankings
 
-- **Final title:** `Guide: How to see which AI models people actually use`
+- **Final title:** `Real model usage on OpenRouter`
 - **Use case:** Show how an agent can compare real model usage instead of hand-wavy reputation.
 - **Opening frame:** Rankings already loaded on a meaningful default view.
 - **What the clip shows:** The agent opens the rankings, compares a few leading models, changes the sort or time window once, and explains what the leaderboard actually says.
@@ -205,7 +207,7 @@ Use this version if the final clip needs to land closer to `30-40 seconds`.
 
 ## 4. urlscan.io
 
-- **Final title:** `Guide: How to inspect what a website loads behind the scenes`
+- **Final title:** `Third-party calls behind a website, via urlscan.io`
 - **Use case:** Show how an agent can inspect a site before trusting it or researching a competitor.
 - **Opening frame:** The URL already entered or a completed public scan already open.
 - **What the clip shows:** The agent runs or opens a scan, shows the page screenshot, then highlights third-party requests, domains, and redirects.
@@ -223,7 +225,7 @@ Use this version if the final clip needs to land closer to `30-40 seconds`.
 
 ## 5. PageSpeed Insights
 
-- **Final title:** `Guide: How to check if a site is actually fast`
+- **Final title:** `A site-speed diagnosis with PageSpeed Insights`
 - **Use case:** Show how an agent can verify performance claims on a landing page or product site.
 - **Opening frame:** The URL field and the finished report, with mobile results ready first.
 - **What the clip shows:** The agent runs the report, highlights the score, scrolls to Core Web Vitals, and points to the biggest issue or opportunity.
