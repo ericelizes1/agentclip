@@ -18,14 +18,16 @@ from slideshows.models import RunType, Slideshow
     CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
 )
 class RunTypeChoicesTests(TestCase):
-    def test_three_values_present(self) -> None:
+    def test_five_values_present(self) -> None:
+        # demo + qa + guide + bug are the canonical four. walkthrough
+        # remains as a deprecated-legacy value so existing rows validate.
         values = {choice[0] for choice in RunType.choices}
-        self.assertEqual(values, {'walkthrough', 'guide', 'bug'})
+        self.assertEqual(values, {'demo', 'qa', 'guide', 'bug', 'walkthrough'})
 
-    def test_default_run_type_is_walkthrough(self) -> None:
+    def test_default_run_type_is_demo(self) -> None:
         slideshow = Slideshow.objects.create()
-        self.assertEqual(slideshow.run_type, RunType.WALKTHROUGH)
-        self.assertEqual(slideshow.run_type, 'walkthrough')
+        self.assertEqual(slideshow.run_type, RunType.DEMO)
+        self.assertEqual(slideshow.run_type, 'demo')
 
     def test_run_type_round_trips_via_string(self) -> None:
         slideshow = Slideshow.objects.create(run_type='guide')
@@ -41,6 +43,14 @@ class RunTypeChoicesTests(TestCase):
             slideshow = Slideshow.objects.create(run_type=choice)
             slideshow.refresh_from_db()
             self.assertEqual(slideshow.run_type, choice)
+
+    def test_legacy_walkthrough_still_valid(self) -> None:
+        # walkthrough rows pre-date the demo/qa split. Keep them
+        # readable + mutable so the operator can manually recategorize
+        # hero clips later without a forced data migration.
+        slideshow = Slideshow.objects.create(run_type='walkthrough')
+        slideshow.refresh_from_db()
+        self.assertEqual(slideshow.run_type, 'walkthrough')
 
 
 @override_settings(

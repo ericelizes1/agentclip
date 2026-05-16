@@ -464,11 +464,13 @@ export interface components {
             description?: string;
             summary?: string;
             /**
-             * @description What kind of clip this is — walkthrough (feature reveal), guide (how-to), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase.
+             * @description What kind of clip this is — demo (showcase/feature reveal), qa (smoke/regression/verification), guide (how-to/investigation), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase. walkthrough is a deprecated legacy value retained for existing rows.
              *
-             *     * `walkthrough` - Walkthrough
+             *     * `demo` - Demo
+             *     * `qa` - QA
              *     * `guide` - Guide
              *     * `bug` - Bug
+             *     * `walkthrough` - Walkthrough (legacy)
              */
             run_type?: components["schemas"]["RunTypeEnum"];
             /** @description Display credit for the run, e.g. "Eric Elizes". Optional. */
@@ -480,12 +482,14 @@ export interface components {
             created_by_url?: string;
         };
         /**
-         * @description * `walkthrough` - Walkthrough
+         * @description * `demo` - Demo
+         *     * `qa` - QA
          *     * `guide` - Guide
          *     * `bug` - Bug
+         *     * `walkthrough` - Walkthrough (legacy)
          * @enum {string}
          */
-        RunTypeEnum: "walkthrough" | "guide" | "bug";
+        RunTypeEnum: "demo" | "qa" | "guide" | "bug" | "walkthrough";
         SlidePublic: {
             readonly id: number;
             readonly position: number;
@@ -575,11 +579,13 @@ export interface components {
             title?: string;
             description?: string;
             /**
-             * @description What kind of clip this is — walkthrough (feature reveal), guide (how-to), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase.
+             * @description What kind of clip this is — demo (showcase/feature reveal), qa (smoke/regression/verification), guide (how-to/investigation), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase. walkthrough is a deprecated legacy value retained for existing rows.
              *
-             *     * `walkthrough` - Walkthrough
+             *     * `demo` - Demo
+             *     * `qa` - QA
              *     * `guide` - Guide
              *     * `bug` - Bug
+             *     * `walkthrough` - Walkthrough (legacy)
              */
             run_type?: components["schemas"]["RunTypeEnum"];
             /** @description Display credit for the run, e.g. "Eric Elizes". Optional. */
@@ -613,11 +619,13 @@ export interface components {
             title?: string;
             description?: string;
             /**
-             * @description What kind of clip this is — walkthrough (feature reveal), guide (how-to), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase.
+             * @description What kind of clip this is — demo (showcase/feature reveal), qa (smoke/regression/verification), guide (how-to/investigation), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase. walkthrough is a deprecated legacy value retained for existing rows.
              *
-             *     * `walkthrough` - Walkthrough
+             *     * `demo` - Demo
+             *     * `qa` - QA
              *     * `guide` - Guide
              *     * `bug` - Bug
+             *     * `walkthrough` - Walkthrough (legacy)
              */
             run_type?: components["schemas"]["RunTypeEnum"];
             /** @description Display credit for the run, e.g. "Eric Elizes". Optional. */
@@ -636,11 +644,13 @@ export interface components {
             description?: string;
             summary?: string;
             /**
-             * @description What kind of clip this is — walkthrough (feature reveal), guide (how-to), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase.
+             * @description What kind of clip this is — demo (showcase/feature reveal), qa (smoke/regression/verification), guide (how-to/investigation), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase. walkthrough is a deprecated legacy value retained for existing rows.
              *
-             *     * `walkthrough` - Walkthrough
+             *     * `demo` - Demo
+             *     * `qa` - QA
              *     * `guide` - Guide
              *     * `bug` - Bug
+             *     * `walkthrough` - Walkthrough (legacy)
              */
             run_type?: components["schemas"]["RunTypeEnum"];
             /** @description Display credit for the run, e.g. "Eric Elizes". Optional. */

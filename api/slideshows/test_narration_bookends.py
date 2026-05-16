@@ -22,12 +22,18 @@ from slideshows.models import RunType, Slide, Slideshow
     CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
 )
 class VoiceForTests(TestCase):
-    def test_walkthrough_uses_shimmer_slightly_slower(self) -> None:
-        slideshow = Slideshow.objects.create(run_type=RunType.WALKTHROUGH)
+    def test_demo_uses_shimmer_slightly_slower(self) -> None:
+        slideshow = Slideshow.objects.create(run_type=RunType.DEMO)
         voice, speed = narration.voice_for(slideshow)
         self.assertEqual(voice, 'shimmer')
         self.assertLess(speed, 1.0)
         self.assertGreaterEqual(speed, 0.9)
+
+    def test_qa_uses_nova_brisk(self) -> None:
+        slideshow = Slideshow.objects.create(run_type=RunType.QA)
+        voice, speed = narration.voice_for(slideshow)
+        self.assertEqual(voice, 'nova')
+        self.assertGreater(speed, 1.0)
 
     def test_guide_uses_nova(self) -> None:
         slideshow = Slideshow.objects.create(run_type=RunType.GUIDE)
@@ -37,9 +43,16 @@ class VoiceForTests(TestCase):
         slideshow = Slideshow.objects.create(run_type=RunType.BUG)
         self.assertEqual(narration.voice_for(slideshow), ('onyx', 1.0))
 
-    def test_unknown_run_type_falls_back_to_walkthrough(self) -> None:
-        # Defensive: legacy rows or callers passing an unexpected
-        # string should not crash. Falls back to the walkthrough mapping.
+    def test_walkthrough_legacy_maps_to_demo_voice(self) -> None:
+        # walkthrough rows pre-date the demo/qa split. The renderer treats
+        # the legacy value as a synonym for demo so existing clips sound
+        # the same after the taxonomy change.
+        slideshow = Slideshow.objects.create(run_type=RunType.WALKTHROUGH)
+        self.assertEqual(narration.voice_for(slideshow), ('shimmer', 0.95))
+
+    def test_unknown_run_type_falls_back_to_demo(self) -> None:
+        # Defensive: an unexpected string should not crash. Falls back
+        # to the demo mapping (the new default).
         slideshow = Slideshow.objects.create()
         slideshow.run_type = 'nonsense'  # bypass model save so we can test
         self.assertEqual(narration.voice_for(slideshow), ('shimmer', 0.95))

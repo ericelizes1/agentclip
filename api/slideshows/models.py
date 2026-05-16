@@ -171,11 +171,28 @@ class RunType(models.TextChoices):
     so the listener hears one consistent presenter. The agent skill
     picks a value heuristically from the trigger phrase; humans
     override via the CLI's ``--type`` flag.
+
+    The four current types each have one voice:
+    - ``demo`` — feature reveal / showcase / first-impression. Presenter
+      voice, present-tense.
+    - ``qa`` — smoke test / regression / verification. Checklist voice,
+      blunt pass/fail.
+    - ``guide`` — how-to / investigation / comparative analysis.
+      Analyst voice.
+    - ``bug`` — reproduction / evidence. Terse factual, stack-trace-
+      adjacent.
+
+    ``walkthrough`` is retained as a deprecated legacy value so existing
+    rows continue to validate; new clips should pick ``demo`` (showcase)
+    or ``qa`` (verification) instead. The renderer treats ``walkthrough``
+    as a synonym for ``demo`` for voice-mapping purposes.
     '''
 
-    WALKTHROUGH = 'walkthrough', 'Walkthrough'
+    DEMO = 'demo', 'Demo'
+    QA = 'qa', 'QA'
     GUIDE = 'guide', 'Guide'
     BUG = 'bug', 'Bug'
+    WALKTHROUGH = 'walkthrough', 'Walkthrough (legacy)'
 
 
 class Slideshow(models.Model):
@@ -369,12 +386,14 @@ class Slideshow(models.Model):
     run_type = models.CharField(
         max_length=24,
         choices=RunType.choices,
-        default=RunType.WALKTHROUGH,
+        default=RunType.DEMO,
         help_text=(
-            'What kind of clip this is — walkthrough (feature reveal), '
-            'guide (how-to), or bug (repro/evidence). Drives the '
+            'What kind of clip this is — demo (showcase/feature reveal), '
+            'qa (smoke/regression/verification), guide (how-to/'
+            'investigation), or bug (repro/evidence). Drives the '
             'narration voice + pacing; the agent skill picks one '
-            'heuristically from the trigger phrase.'
+            'heuristically from the trigger phrase. walkthrough is '
+            'a deprecated legacy value retained for existing rows.'
         ),
     )
 

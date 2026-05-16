@@ -48,21 +48,28 @@ DEFAULT_SPEED = 1.0
 # clip (intro + every slide + outro) so the listener hears one
 # consistent presenter. Speed is the OpenAI TTS `speed` parameter
 # (0.25..4.0); we stay near 1.0 for natural pacing.
+#
+# walkthrough is treated as a synonym for demo here: legacy rows
+# pre-date the demo/qa split and were almost all showcase-shaped, so
+# mapping them to the demo voice keeps existing clips sounding the
+# same after the taxonomy change.
 RUN_TYPE_VOICE: dict[str, tuple[str, float]] = {
-    'walkthrough': ('shimmer', 0.95),         # warmer, polished, slower
-    'guide': ('nova', 1.0),                   # instructional, brisk
+    'demo': ('shimmer', 0.95),                # warmer, polished, presenter
+    'qa': ('nova', 1.05),                     # brisk, checklist cadence
+    'guide': ('nova', 1.0),                   # instructional, analytical
     'bug': ('onyx', 1.0),                     # deeper, factual
+    'walkthrough': ('shimmer', 0.95),         # legacy synonym for demo
 }
 
 
 def voice_for(slideshow) -> tuple[str, float]:
     '''Return (voice, speed) for a slideshow based on its run_type.
 
-    Falls back to the WALKTHROUGH mapping for any unrecognized value,
-    so legacy rows or callers passing an unexpected string never crash.
+    Falls back to the DEMO mapping for any unrecognized value so legacy
+    rows or callers passing an unexpected string never crash.
     '''
-    run_type = getattr(slideshow, 'run_type', '') or 'walkthrough'
-    return RUN_TYPE_VOICE.get(run_type, RUN_TYPE_VOICE['walkthrough'])
+    run_type = getattr(slideshow, 'run_type', '') or 'demo'
+    return RUN_TYPE_VOICE.get(run_type, RUN_TYPE_VOICE['demo'])
 
 # OpenAI TTS hard limit per request (as of 2026-05).
 MAX_INPUT_CHARS = 4096

@@ -849,7 +849,7 @@
                                 "$ref": "#/components/schemas/RunTypeEnum"
                             }
                         ],
-                        "description": "What kind of clip this is — walkthrough (feature reveal), guide (how-to), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase.\n\n* `walkthrough` - Walkthrough\n* `guide` - Guide\n* `bug` - Bug"
+                        "description": "What kind of clip this is — demo (showcase/feature reveal), qa (smoke/regression/verification), guide (how-to/investigation), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase. walkthrough is a deprecated legacy value retained for existing rows.\n\n* `demo` - Demo\n* `qa` - QA\n* `guide` - Guide\n* `bug` - Bug\n* `walkthrough` - Walkthrough (legacy)"
                     },
                     "created_by": {
                         "type": "string",
@@ -866,12 +866,14 @@
             },
             "RunTypeEnum": {
                 "enum": [
-                    "walkthrough",
+                    "demo",
+                    "qa",
                     "guide",
-                    "bug"
+                    "bug",
+                    "walkthrough"
                 ],
                 "type": "string",
-                "description": "* `walkthrough` - Walkthrough\n* `guide` - Guide\n* `bug` - Bug"
+                "description": "* `demo` - Demo\n* `qa` - QA\n* `guide` - Guide\n* `bug` - Bug\n* `walkthrough` - Walkthrough (legacy)"
             },
             "SlidePublic": {
                 "type": "object",
@@ -1021,7 +1023,7 @@
                                 "$ref": "#/components/schemas/RunTypeEnum"
                             }
                         ],
-                        "description": "What kind of clip this is — walkthrough (feature reveal), guide (how-to), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase.\n\n* `walkthrough` - Walkthrough\n* `guide` - Guide\n* `bug` - Bug"
+                        "description": "What kind of clip this is — demo (showcase/feature reveal), qa (smoke/regression/verification), guide (how-to/investigation), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase. walkthrough is a deprecated legacy value retained for existing rows.\n\n* `demo` - Demo\n* `qa` - QA\n* `guide` - Guide\n* `bug` - Bug\n* `walkthrough` - Walkthrough (legacy)"
                     },
                     "created_by": {
                         "type": "string",
@@ -1086,7 +1088,7 @@
                                 "$ref": "#/components/schemas/RunTypeEnum"
                             }
                         ],
-                        "description": "What kind of clip this is — walkthrough (feature reveal), guide (how-to), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase.\n\n* `walkthrough` - Walkthrough\n* `guide` - Guide\n* `bug` - Bug"
+                        "description": "What kind of clip this is — demo (showcase/feature reveal), qa (smoke/regression/verification), guide (how-to/investigation), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase. walkthrough is a deprecated legacy value retained for existing rows.\n\n* `demo` - Demo\n* `qa` - QA\n* `guide` - Guide\n* `bug` - Bug\n* `walkthrough` - Walkthrough (legacy)"
                     },
                     "created_by": {
                         "type": "string",
@@ -1126,7 +1128,7 @@
                                 "$ref": "#/components/schemas/RunTypeEnum"
                             }
                         ],
-                        "description": "What kind of clip this is — walkthrough (feature reveal), guide (how-to), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase.\n\n* `walkthrough` - Walkthrough\n* `guide` - Guide\n* `bug` - Bug"
+                        "description": "What kind of clip this is — demo (showcase/feature reveal), qa (smoke/regression/verification), guide (how-to/investigation), or bug (repro/evidence). Drives the narration voice + pacing; the agent skill picks one heuristically from the trigger phrase. walkthrough is a deprecated legacy value retained for existing rows.\n\n* `demo` - Demo\n* `qa` - QA\n* `guide` - Guide\n* `bug` - Bug\n* `walkthrough` - Walkthrough (legacy)"
                     },
                     "created_by": {
                         "type": "string",
