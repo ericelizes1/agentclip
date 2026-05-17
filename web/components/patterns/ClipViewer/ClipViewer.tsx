@@ -1,4 +1,4 @@
-import { ClipShareExport } from '@/components/composites/ClipShareExport/ClipShareExport'
+import { ClipShareButton } from '@/components/composites/ClipShareButton/ClipShareButton'
 import {
   ClipViewTabs,
   type ClipView,
@@ -142,11 +142,25 @@ export function ClipViewer({
           />
         </header>
 
-        <ClipViewTabs
-          shareToken={shareToken}
-          current={activeView}
-          watchAvailable={allNarrated}
-        />
+        {/* Tab row: view toggle on the left, one share icon on the
+            right. The icon hands off to the OS share sheet on mobile. */}
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <ClipViewTabs
+            shareToken={shareToken}
+            current={activeView}
+            watchAvailable={allNarrated}
+            className="mb-0"
+          />
+          {artifacts && (
+            <ClipShareButton
+              title={slideshow.title || 'Untitled run'}
+              shareUrl={artifacts.shareUrl}
+              clipMp4Url={artifacts.clipMp4Url}
+              clipPdfUrl={artifacts.clipPdfUrl}
+              embedUrl={artifacts.embedUrl}
+            />
+          )}
+        </div>
 
         {/* Read mode leads with the takeaway — a reader expects the
             conclusion up front, not after scrolling every slide. */}
@@ -202,16 +216,6 @@ export function ClipViewer({
           </div>
         )}
 
-        {artifacts && (
-          <div className="mt-8 sm:mt-10">
-            <ClipShareExport
-              shareUrl={artifacts.shareUrl}
-              clipMp4Url={artifacts.clipMp4Url}
-              clipPdfUrl={artifacts.clipPdfUrl}
-              embedUrl={artifacts.embedUrl}
-            />
-          </div>
-        )}
       </main>
     </div>
   )

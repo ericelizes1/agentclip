@@ -113,7 +113,7 @@ describe('ClipViewer', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('renders the share/export panel when artifacts are provided', () => {
+  it('renders the share button when artifacts are provided', () => {
     render(
       <ClipViewer
         slideshow={base}
@@ -125,9 +125,12 @@ describe('ClipViewer', () => {
         }}
       />,
     )
-    expect(screen.getByLabelText('Share or export this clip')).toBeInTheDocument()
-    expect(screen.getByText('Copy MP4 URL')).toBeInTheDocument()
-    expect(screen.getByText('Download PDF')).toBeInTheDocument()
+    expect(screen.getByLabelText('Share this clip')).toBeInTheDocument()
+  })
+
+  it('omits the share button when no artifacts are provided', () => {
+    render(<ClipViewer slideshow={base} />)
+    expect(screen.queryByLabelText('Share this clip')).not.toBeInTheDocument()
   })
 
   it('falls back to silent <ol> when even one slide lacks audio_url', () => {
