@@ -97,10 +97,10 @@ async function fetchFullSlideshow(token: string): Promise<HeroFeaturedClip | nul
     return {
       shareToken: token,
       title: data.title || 'Untitled run',
-      // The hero is the most-watched clip on the site — always attribute
-      // it. Falls back to the project author when the API returns no
-      // creator (older curated picks predate the created_by field).
-      creatorName: data.created_by || 'Eric Elizes',
+      // Clips are posted by named agent personas (Demo Dex, Sleuth
+      // Sage, …). Fall back to a generic "an agent" if the API ever
+      // returns no creator — never a person's name.
+      creatorName: data.created_by || 'an agent',
       slides: data.slides.slice(0, HERO_PREVIEW_SLIDE_LIMIT).map((s) => ({
         position: s.position,
         ...(s.title ? { title: s.title } : {}),

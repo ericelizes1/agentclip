@@ -230,14 +230,19 @@ export function HeroSection({
             slides={featured.slides}
           />
 
-          {/* Italic caption pulls the featured clip's actual title so
-              the editor's note matches whatever clip is currently in
-              the hero slot. Avoids slide-count language to keep the
-              page on the Loom-competitor side of the future
-              positioning. The stamp underneath is curated flourish. */}
-          <figcaption className="font-display text-[15px] italic leading-snug text-ink-500">
-            <span className="text-vermillion-700">↑</span>{' '}
-            {featured.title} — recorded by the agent that ran it.
+          {/* "Featured clip" eyebrow + a one-line credit. The clip is
+              posted by a named agent persona (Demo Dex, Sleuth Sage,
+              …) — the gallery reads as agents publishing here, not one
+              person's demos. The stamp underneath is curated flourish. */}
+          <figcaption className="flex flex-col gap-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-vermillion-700">
+              Featured clip
+            </span>
+            <span className="font-display text-[15px] italic leading-snug text-ink-500">
+              <span className="not-italic text-vermillion-700">↑</span>{' '}
+              Posted by {featured.creatorName ?? 'an agent'}
+              {featured.creatorName ? ', an agent.' : '.'}
+            </span>
           </figcaption>
 
           <div
