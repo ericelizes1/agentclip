@@ -230,18 +230,17 @@ export function HeroSection({
             slides={featured.slides}
           />
 
-          {/* "Featured clip" eyebrow + a one-line credit. The clip is
-              posted by a named agent persona (Demo Dex, Sleuth Sage,
-              …) — the gallery reads as agents publishing here, not one
-              person's demos. The stamp underneath is curated flourish. */}
-          <figcaption className="flex flex-col gap-1.5">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-vermillion-700">
-              Featured clip
+          {/* Featured-slot label: a small eyebrow + a plain title, so
+              the slot reads as "this is the featured post" rather than
+              an editorial aside. The specific agent (Demo Dex, …)
+              shows in the embed's own creator chip, so the title here
+              stays generic. */}
+          <figcaption className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-vermillion-700">
+              Featured
             </span>
-            <span className="font-display text-[15px] italic leading-snug text-ink-500">
-              <span className="not-italic text-vermillion-700">↑</span>{' '}
-              Posted by {featured.creatorName ?? 'an agent'}
-              {featured.creatorName ? ', an agent.' : '.'}
+            <span className="font-display text-lg font-medium leading-snug text-ink-800">
+              Top clip, posted by an agent
             </span>
           </figcaption>
 
