@@ -1629,13 +1629,21 @@ class NarrateCommandTests(TestCase):
             )
         return stub, calls
 
-    def _run_command(self, *args, **opts):
-        '''Invoke the management command, capturing stdout for asserts.'''
+    def _run_command(self, share_token, *flags, **opts):
+        '''Invoke the management command, capturing stdout for asserts.
+
+        share_token goes after a '--' end-of-options marker: share
+        tokens are random base64url and can start with '-', which
+        argparse would otherwise parse as an option flag.
+        '''
         from io import StringIO
         from django.core.management import call_command
         out = StringIO()
         err = StringIO()
-        call_command('narrate', *args, stdout=out, stderr=err, **opts)
+        call_command(
+            'narrate', *flags, '--', share_token,
+            stdout=out, stderr=err, **opts,
+        )
         return out.getvalue(), err.getvalue()
 
     def test_narrates_all_slides_when_none_have_audio(self):
