@@ -101,6 +101,13 @@ export function Typewriter({
           )}
         />
       )}
+      {/* Untyped remainder, rendered transparent — it still takes up
+          space, so the element reserves the full text's footprint from
+          first paint. Without this the headline grows line by line as
+          it types and reflows everything below it. */}
+      <span aria-hidden="true" className="opacity-0">
+        {text.slice(count)}
+      </span>
     </span>
   )
 }
