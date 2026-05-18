@@ -1618,8 +1618,8 @@ class NarrateCommandTests(TestCase):
         from decimal import Decimal
         from slideshows.narration import NarrationResult
         calls = []
-        def stub(text, *, voice=voice, model='gpt-4o-mini-tts', speed=1.0):
-            calls.append({'text': text, 'voice': voice, 'model': model, 'speed': speed})
+        def stub(text, *, voice=voice, model='gpt-4o-mini-tts', speed=1.0, instructions=None):
+            calls.append({'text': text, 'voice': voice, 'model': model, 'speed': speed, 'instructions': instructions})
             return NarrationResult(
                 mp3_bytes=mp3_bytes,
                 voice=voice,
@@ -1819,8 +1819,8 @@ class SlideshowNarrateEndpointTests(TestCase):
         from decimal import Decimal
         from slideshows.narration import NarrationResult
         calls = []
-        def stub(text, *, voice='nova', model='gpt-4o-mini-tts', speed=1.0):
-            calls.append({'text': text, 'voice': voice, 'model': model, 'speed': speed})
+        def stub(text, *, voice='nova', model='gpt-4o-mini-tts', speed=1.0, instructions=None):
+            calls.append({'text': text, 'voice': voice, 'model': model, 'speed': speed, 'instructions': instructions})
             return NarrationResult(
                 mp3_bytes=mp3_bytes,
                 voice=voice,
