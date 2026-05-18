@@ -1,11 +1,11 @@
 'use client'
 
 import { motion, useReducedMotion, type Transition } from 'framer-motion'
-import { SiGithub } from '@icons-pack/react-simple-icons'
 import { useEffect, useState } from 'react'
 
 import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
 import { CreatorChip } from '@/components/composites/CreatorChip/CreatorChip'
+import { TrustBar } from '@/components/composites/TrustBar/TrustBar'
 import { Tabs } from '@/components/primitives/Tabs/Tabs'
 import { Typewriter } from '@/components/primitives/Typewriter/Typewriter'
 import { useRecording } from '@/components/context/RecordingProvider/RecordingProvider'
@@ -26,14 +26,14 @@ export interface HeroFeaturedClip {
 }
 
 export interface HeroSectionProps {
-  /** GitHub URL the primary CTA points at. */
-  githubUrl?: string
   /**
-   * Real clip rendered as the punchline below the headline + CTA.
-   * Headline leads; embed is the payoff. When absent, the hero ends
-   * at the View on GitHub button.
+   * Real clip rendered as the proof below the headline. Headline
+   * leads; the embed is the payoff. When absent, the hero ends at
+   * the install block + trust bar.
    */
   featured?: HeroFeaturedClip | null
+  /** Live GitHub star count for the inline trust bar. */
+  stars?: number | null
   className?: string
 }
 
@@ -69,8 +69,8 @@ const RECORDED_HOLD_MS = 1400
  * the conceit gracefully collapses to a static, accessible page.
  */
 export function HeroSection({
-  githubUrl = 'https://github.com/ericelizes1/agentclip',
   featured,
+  stars = null,
   className,
 }: HeroSectionProps) {
   const reduce = useReducedMotion()
@@ -192,20 +192,16 @@ export function HeroSection({
         </Tabs.Root>
       </motion.div>
 
+      {/* Trust bar — legitimacy signals (incl. the live GitHub star
+          link) sit with the CTA, inside the hero grid, instead of
+          orphaned in a band below it. */}
       <motion.div
         initial={reduce ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ ...at(4), delay: reduce ? 0 : 0.55 }}
+        className="mt-1"
       >
-        <a
-          href={githubUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm text-ink-600 underline decoration-ink-300 decoration-1 underline-offset-4 transition-colors hover:text-ink-900 hover:decoration-ink-500"
-        >
-          <SiGithub aria-hidden="true" className="size-3.5" />
-          View source on GitHub
-        </a>
+        <TrustBar repo="ericelizes1/agentclip" stars={stars} />
       </motion.div>
       </div>
 
@@ -219,10 +215,7 @@ export function HeroSection({
           initial={reduce ? false : { opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...at(5), delay: reduce ? 0 : 0.5 }}
-          className={cn(
-            'relative flex flex-col gap-4 self-start',
-            'lg:sticky lg:top-24',
-          )}
+          className="relative flex flex-col gap-4 self-start"
         >
           <span className="inline-flex w-fit items-center rounded-full bg-vermillion-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-vermillion-700">
             Featured

@@ -81,7 +81,7 @@ export function ClipCard({
             <p className="line-clamp-2 text-sm text-ink-600">{description}</p>
           )}
           {creatorName && (
-            <div className="flex items-center gap-1.5 pt-1.5 text-xs text-ink-500">
+            <div className="flex items-center gap-1.5 pt-1.5 text-xs text-ink-600">
               <CreatorChip name={creatorName} size="sm" />
               {date && <span aria-hidden="true">·</span>}
               {date && <span>{date}</span>}

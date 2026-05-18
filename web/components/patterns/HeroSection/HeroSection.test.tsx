@@ -17,7 +17,7 @@ describe('HeroSection', () => {
   })
 
   it('renders the headline, lede, and CTA', () => {
-    render(<HeroSection githubUrl="https://github.com/ericelizes1/agentclip" />)
+    render(<HeroSection />)
     // Brand mark moved to the AgentWidget; hero leads with the headline.
     expect(
       screen.queryByRole('link', { name: /^AgentClip$/ }),
@@ -33,10 +33,6 @@ describe('HeroSection', () => {
     expect(
       screen.getByText(/records its work as a narrated video/i),
     ).toBeInTheDocument()
-    // GitHub demoted to a small secondary text link.
-    expect(
-      screen.getByRole('link', { name: /view source on github/i }),
-    ).toHaveAttribute('href', 'https://github.com/ericelizes1/agentclip')
     // Install Tabs are now the primary action.
     expect(
       screen.getByRole('tab', { name: /install yourself/i }),

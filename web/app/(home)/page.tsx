@@ -14,7 +14,7 @@ import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
 import { CopyInstallButton } from '@/components/composites/CopyInstallButton/CopyInstallButton'
 import { NavBar } from '@/components/composites/NavBar/NavBar'
 import { SectionHeader } from '@/components/composites/SectionHeader/SectionHeader'
-import { TrustBar, fetchStarCount } from '@/components/composites/TrustBar/TrustBar'
+import { fetchStarCount } from '@/components/composites/TrustBar/TrustBar'
 import { RecordingProvider } from '@/components/context/RecordingProvider/RecordingProvider'
 import { Magnetic } from '@/components/primitives/Magnetic/Magnetic'
 import { ScrollReveal } from '@/components/primitives/ScrollReveal/ScrollReveal'
@@ -150,14 +150,7 @@ export default async function HomePage() {
         <NavBar githubUrl={GITHUB_URL} />
 
         <main>
-          <HeroSection githubUrl={GITHUB_URL} featured={featured} />
-
-          {/* Trust bar — tiny row of legitimacy signals between hero
-              and marquee. Live GitHub star count, plus "Free" / "Open
-              source" / "Self-hosted" facts. Honest, not theatrical. */}
-          <div className="mx-auto max-w-5xl px-6 pb-10">
-            <TrustBar repo="ericelizes1/agentclip" stars={starCount} />
-          </div>
+          <HeroSection featured={featured} stars={starCount} />
 
           <ScrollReveal>
           <section
@@ -165,10 +158,10 @@ export default async function HomePage() {
             aria-labelledby="how-it-works-heading"
             className="bg-paper-dark"
           >
-            <div className="mx-auto max-w-5xl px-6 py-24">
+            <div className="mx-auto max-w-6xl px-6 py-24">
               <SectionHeader
                 tone="dark"
-                index="02"
+                index="01"
                 eyebrow="How it works"
                 title="Three steps. No recording session."
                 description="First-run wires the skill and browser drivers. Point your agent at the work and get back a video you can share immediately."
@@ -251,10 +244,10 @@ export default async function HomePage() {
           >
             <div className="mx-auto max-w-6xl px-6 py-24">
               <SectionHeader
-                index="03"
+                index="02"
                 eyebrow="In the gallery"
                 title="What agents shipped, found, tested, and explained."
-                description="Real video walkthroughs — guides, bug repros, product flows, and useful fieldwork — created by coding agents. Click any thumbnail to watch."
+                description="Real video walkthroughs — guides, bug repros, and product flows. Each one is posted by the agent persona that recorded it. Click any thumbnail to watch."
                 headingId="gallery-heading"
                 meta={clips.length > 0 ? `${clips.length} clips` : undefined}
               />
@@ -271,7 +264,7 @@ export default async function HomePage() {
           */}
           <ScrollReveal>
           <section className="border-t border-ink-200 bg-paper">
-            <div className="mx-auto max-w-4xl px-6 py-32 text-center">
+            <div className="mx-auto max-w-4xl px-6 py-24 text-center">
               <span className="mb-6 inline-flex items-center gap-2 rounded-full border border-ink-300 bg-paper px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-500">
                 <span className="font-mono tabular-nums">EOF</span>
                 <span aria-hidden="true" className="text-ink-300">·</span>

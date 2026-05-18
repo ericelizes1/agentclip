@@ -113,7 +113,7 @@ export function SectionHeader({
           <div
             className={cn(
               'text-xs uppercase tracking-[0.14em]',
-              dark ? 'text-ink-400' : 'text-ink-500',
+              dark ? 'text-ink-400' : 'text-ink-600',
               align === 'center' && 'mt-3',
             )}
           >
