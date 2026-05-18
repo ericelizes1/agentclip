@@ -118,21 +118,6 @@ body::after {
 }
 
 /*
- * Marquee keyframe — drives MarqueeBand's auto-scrolling clip strip.
- * The list is duplicated in the markup; translating exactly -50%
- * over one cycle wraps seamlessly because the second half mirrors
- * the first. Speed is set per-instance via --marquee-speed.
- */
-@keyframes marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-/*
  * Spark-out — small confetti particles radiating from the CodeBlock
  * copy indicator on each successful copy. Uses CSS custom properties
  * (--spark-x / --spark-y) so the JS only owns the destination, not

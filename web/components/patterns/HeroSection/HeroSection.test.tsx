@@ -31,7 +31,7 @@ describe('HeroSection', () => {
     )
     expect(screen.getByText('did.')).toBeInTheDocument()
     expect(
-      screen.getByText(/Skip the manual walkthrough\./i),
+      screen.getByText(/records its work as a narrated video/i),
     ).toBeInTheDocument()
     // GitHub demoted to a small secondary text link.
     expect(

@@ -24,10 +24,6 @@ import {
   HeroSection,
   type HeroFeaturedClip,
 } from '@/components/patterns/HeroSection/HeroSection'
-import {
-  MarqueeBand,
-  type MarqueeClip,
-} from '@/components/patterns/MarqueeBand/MarqueeBand'
 import { api } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
@@ -142,19 +138,6 @@ export default async function HomePage() {
   const featured = heroRow ? await fetchFullSlideshow(heroRow.shareToken) : null
   const clips = galleryCards
 
-  // Marquee uses every available clip (hero + gallery cards). With
-  // only a handful of curated clips today, this still loops cleanly
-  // because MarqueeBand duplicates the sequence internally. As the
-  // gallery grows the band gets richer for free.
-  const marqueeClips: MarqueeClip[] = galleryRows.map((row) => ({
-    shareToken: row.shareToken,
-    title: row.title,
-    description: row.description,
-    coverImageUrl: row.coverImageUrl,
-    ...(row.creatorName ? { creatorName: row.creatorName } : {}),
-    createdAt: row.createdAt,
-  }))
-
   // RecordingProvider is still wrapped on the home page to drive the
   // hero's typewriter sequence. The "page-recording" conceit and its
   // viewfinder/sidebar machinery are gone — what's left is just the
@@ -175,40 +158,6 @@ export default async function HomePage() {
           <div className="mx-auto max-w-5xl px-6 pb-10">
             <TrustBar repo="ericelizes1/agentclip" stars={starCount} />
           </div>
-
-          {marqueeClips.length > 0 && (
-            <ScrollReveal>
-            <section
-              aria-labelledby="marquee-heading"
-              className="border-y border-ink-200 bg-paper-raised pb-12 pt-12"
-            >
-              {/* Constrained eyebrow row — left-aligned to the page
-                  grid so the marquee strip itself can run edge-to-edge
-                  beneath. Magazine "Featured Runs" framing. */}
-              <div className="mx-auto mb-7 max-w-6xl px-6">
-                <div className="flex items-end justify-between gap-4">
-                  <div>
-                    <span className="inline-flex items-center gap-2 rounded-full border border-vermillion-500/30 bg-vermillion-500/[0.06] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-vermillion-700">
-                      <span className="font-mono tabular-nums">★</span>
-                      <span aria-hidden="true" className="text-vermillion-500/50">·</span>
-                      <span>Featured videos</span>
-                    </span>
-                    <h2
-                      id="marquee-heading"
-                      className="mt-3 text-2xl font-semibold tracking-tight text-ink-900 sm:text-[28px]"
-                    >
-                      What agents made this week.
-                    </h2>
-                  </div>
-                  <p className="hidden text-xs uppercase tracking-[0.14em] text-ink-500 sm:block">
-                    Hover to pause
-                  </p>
-                </div>
-              </div>
-              <MarqueeBand clips={marqueeClips} />
-            </section>
-            </ScrollReveal>
-          )}
 
           <ScrollReveal>
           <section

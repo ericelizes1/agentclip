@@ -151,12 +151,12 @@ export function HeroSection({
       <motion.p
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ ...at(2), delay: reduce ? 0 : 1.5 }}
+        transition={{ ...at(2), delay: reduce ? 0 : 0.35 }}
         className="max-w-[58ch] text-lg text-ink-600 sm:text-xl"
       >
-        Skip the manual walkthrough. Your agent can hand back a
-        narrated, shareable video for QA, demos, release notes, and
-        bug repros.
+        Your coding agent records its work as a narrated video and
+        hands you a URL to share. QA, demos, release notes, bug
+        repros — no recording session.
       </motion.p>
 
       {/*
@@ -169,7 +169,7 @@ export function HeroSection({
       <motion.div
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ ...at(3), delay: reduce ? 0 : 1.6 }}
+        transition={{ ...at(3), delay: reduce ? 0 : 0.45 }}
         className="max-w-[640px]"
       >
         <Tabs.Root defaultValue="pip">
@@ -195,7 +195,7 @@ export function HeroSection({
       <motion.div
         initial={reduce ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ ...at(4), delay: reduce ? 0 : 1.7 }}
+        transition={{ ...at(4), delay: reduce ? 0 : 0.55 }}
       >
         <a
           href={githubUrl}
@@ -218,7 +218,7 @@ export function HeroSection({
         <motion.figure
           initial={reduce ? false : { opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ ...at(5), delay: reduce ? 0 : 1.85 }}
+          transition={{ ...at(5), delay: reduce ? 0 : 0.5 }}
           className={cn(
             'relative flex flex-col gap-4 self-start',
             'lg:sticky lg:top-24',
@@ -240,7 +240,7 @@ export function HeroSection({
           {/* The clip's real title / description / agent / date —
               identical vocabulary to a ClipCard. */}
           <figcaption className="flex flex-col gap-2">
-            <h2 className="font-display text-xl font-semibold leading-snug tracking-[-0.01em] text-ink-900">
+            <h2 className="text-xl font-semibold leading-snug tracking-[-0.01em] text-ink-900">
               {featured.title}
             </h2>
             {featured.description && (

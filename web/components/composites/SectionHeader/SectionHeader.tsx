@@ -76,7 +76,7 @@ export function SectionHeader({
           </span>
           <h2
             id={headingId}
-            className="mt-3 text-3xl font-semibold tracking-tight text-ink-900 sm:text-4xl"
+            className="mt-3 font-display text-3xl font-medium tracking-[-0.01em] text-ink-900 sm:text-4xl"
           >
             {title}
           </h2>
