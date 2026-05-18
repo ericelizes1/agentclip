@@ -10,7 +10,6 @@
 
 import { SiGithub } from '@icons-pack/react-simple-icons'
 
-import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
 import { CopyInstallButton } from '@/components/composites/CopyInstallButton/CopyInstallButton'
 import { NavBar } from '@/components/composites/NavBar/NavBar'
 import { SectionHeader } from '@/components/composites/SectionHeader/SectionHeader'
@@ -36,7 +35,12 @@ interface HowItWorksStep {
   label: string
   title: string
   body: string
-  code?: { prompt?: string; body: string }
+  /**
+   * The concrete artifact at this step — a command, a prompt, a URL.
+   * Rendered as a uniform monospace chip pinned to the card bottom so
+   * all three steps read as equal siblings regardless of body length.
+   */
+  artifact: { glyph: string; text: string; aria: string }
 }
 
 const STEPS: HowItWorksStep[] = [
@@ -45,19 +49,29 @@ const STEPS: HowItWorksStep[] = [
     label: 'install',
     title: 'pip install',
     body: 'First run wires the skill and browser drivers automatically — no separate setup step.',
-    code: { prompt: '$', body: 'pip install agentclip' },
+    artifact: { glyph: '$', text: 'pip install agentclip', aria: 'Terminal command' },
   },
   {
     step: '02',
     label: 'run',
     title: 'Ask your agent to make the video',
     body: 'Point it at the work — a feature, a tool, a bug, a release. The agent drives the browser, captures the meaningful moments, and turns them into a watchable walkthrough.',
+    artifact: {
+      glyph: '›',
+      text: 'Record the new onboarding flow',
+      aria: 'What you tell your agent',
+    },
   },
   {
     step: '03',
     label: 'share',
     title: 'Send the URL',
     body: 'One shareable URL. Drop it in Slack, paste it in a PR, attach it to release notes, or send it anywhere else a chat transcript would fall short.',
+    artifact: {
+      glyph: '↗',
+      text: 'agentclip.dev/s/dv-env-9f2',
+      aria: 'Shareable clip URL',
+    },
   },
 ]
 
@@ -202,14 +216,21 @@ export default async function HomePage() {
                     <p className="text-sm leading-relaxed text-ink-300">
                       {step.body}
                     </p>
-                    {step.code && (
-                      <CodeBlock
-                        code={step.code.body}
-                        {...(step.code.prompt !== undefined
-                          ? { prompt: step.code.prompt }
-                          : {})}
-                      />
-                    )}
+                    {/* Artifact chip — pinned to the card bottom with
+                        mt-auto so all three cards close on the same
+                        line and read as equal siblings. */}
+                    <div
+                      className="mt-auto flex items-center gap-2.5 overflow-hidden rounded-[10px] border border-ink-700 bg-ink-900/70 px-3 py-2.5 font-mono text-[12px] text-ink-300"
+                      aria-label={step.artifact.aria}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="shrink-0 text-vermillion-500"
+                      >
+                        {step.artifact.glyph}
+                      </span>
+                      <span className="truncate">{step.artifact.text}</span>
+                    </div>
                     {/* Vermillion arrow pip between cards on lg+. Sits
                         on the right edge of every card except the last. */}
                     {idx < STEPS.length - 1 && (

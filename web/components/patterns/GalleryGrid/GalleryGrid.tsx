@@ -13,10 +13,12 @@ export interface GalleryGridProps {
 }
 
 /**
- * Responsive 1/2/3-column gallery. Empty array renders the dashed
- * placeholder mirroring the pre-pivot Django home — the user
- * facing message is "No clips yet" rather than nothing at all so
- * an empty deploy reads as intentional, not broken.
+ * Responsive 1/2-column gallery. A two-up grid keeps the curated set
+ * balanced (no orphan card stranded in a half-empty third column) and
+ * gives each clip a larger, more cinematic 16:9 thumbnail. Empty array
+ * renders the dashed placeholder mirroring the pre-pivot Django home —
+ * the user-facing message is "No clips yet" rather than nothing at all
+ * so an empty deploy reads as intentional, not broken.
  */
 export function GalleryGrid({ clips, className }: GalleryGridProps) {
   if (clips.length === 0) {
@@ -37,8 +39,8 @@ export function GalleryGrid({ clips, className }: GalleryGridProps) {
   return (
     <ul
       className={cn(
-        'grid gap-5',
-        'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3',
+        'grid gap-5 lg:gap-6',
+        'grid-cols-1 sm:grid-cols-2',
         className,
       )}
     >

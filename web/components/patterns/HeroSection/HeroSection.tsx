@@ -160,11 +160,12 @@ export function HeroSection({
       </motion.p>
 
       {/*
-        Install — the primary action. Tabs sit as plain text-style
-        toggles directly above the CodeBlock with no outer card chrome
-        wrapping them, so we don't end up with three nested rectangles
-        (outer card → tab strip → snippet box). Two visible boxes
-        max: the tab strip (transparent) and the code block.
+        Install — the primary action. A real segmented control picks
+        the path (install it yourself vs. hand the job to your agent):
+        a tinted track with the active option lifted on a raised pill,
+        so it reads as a toggle, not two stray bits of text. The chosen
+        command sits in the CodeBlock directly below — two boxes total,
+        the control and the snippet.
       */}
       <motion.div
         initial={reduce ? false : { opacity: 0, y: 12 }}
@@ -173,9 +174,19 @@ export function HeroSection({
         className="max-w-[640px]"
       >
         <Tabs.Root defaultValue="pip">
-          <Tabs.List className="mb-3 h-auto gap-4 rounded-none border-0 bg-transparent p-0">
-            <Tabs.Trigger value="pip">Install yourself</Tabs.Trigger>
-            <Tabs.Trigger value="agent">Have your agent do it</Tabs.Trigger>
+          <Tabs.List className="mb-3 bg-paper-dark">
+            <Tabs.Trigger
+              value="pip"
+              className="px-3.5 font-medium data-[state=active]:shadow-[0_1px_2px_rgba(20,20,19,0.12)] data-[state=active]:ring-1 data-[state=active]:ring-ink-200"
+            >
+              Install yourself
+            </Tabs.Trigger>
+            <Tabs.Trigger
+              value="agent"
+              className="px-3.5 font-medium data-[state=active]:shadow-[0_1px_2px_rgba(20,20,19,0.12)] data-[state=active]:ring-1 data-[state=active]:ring-ink-200"
+            >
+              Have your agent do it
+            </Tabs.Trigger>
           </Tabs.List>
           <Tabs.Content value="pip" className="mt-0">
             <CodeBlock prompt="$" code="pip install agentclip" />
