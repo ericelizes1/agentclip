@@ -51,10 +51,10 @@
   --radius-cta: 0px 0px 8px 8px;
 
   /* ---------- Shadows ---------- */
+  /* Resting elevation for cards — visible at rest, not just on hover. */
   --shadow-whisper:
-    rgba(0, 0, 0, 0.01) 0px 4px 12px 0px,
-    rgba(0, 0, 0, 0.05) 0px 2px 6px 0px,
-    rgba(0, 0, 0, 0.10) 0px 1px 3px 0px;
+    rgba(20, 20, 19, 0.06) 0px 1px 2px 0px,
+    rgba(20, 20, 19, 0.10) 0px 10px 24px -12px;
 
   /* ---------- Motion ---------- */
   --ease-brand: cubic-bezier(0.2, 0.7, 0.2, 1);

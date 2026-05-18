@@ -163,10 +163,11 @@ export default async function HomePage() {
           <section
             id="how-it-works"
             aria-labelledby="how-it-works-heading"
-            className="bg-paper"
+            className="bg-paper-dark"
           >
             <div className="mx-auto max-w-5xl px-6 py-24">
               <SectionHeader
+                tone="dark"
                 index="02"
                 eyebrow="How it works"
                 title="Three steps. No recording session."
@@ -187,7 +188,7 @@ export default async function HomePage() {
                   <li
                     key={step.step}
                     className={cn(
-                      'relative flex flex-col gap-4 rounded-[16px] border border-ink-200 bg-paper-raised p-7',
+                      'relative flex flex-col gap-4 rounded-[16px] border border-ink-700 bg-ink-800 p-7',
                       // On lg+ the cards live in a connected row: square
                       // off the inner edges and overlap the borders so a
                       // single hairline runs the length of the flow.
@@ -198,14 +199,14 @@ export default async function HomePage() {
                       <span className="font-display text-5xl font-semibold leading-none text-vermillion-500">
                         {step.step}
                       </span>
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-500">
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-400">
                         {step.label}
                       </span>
                     </div>
-                    <h3 className="text-lg font-semibold tracking-tight text-ink-900">
+                    <h3 className="text-lg font-semibold tracking-tight text-paper">
                       {step.title}
                     </h3>
-                    <p className="text-sm leading-relaxed text-ink-600">
+                    <p className="text-sm leading-relaxed text-ink-300">
                       {step.body}
                     </p>
                     {step.code && (
@@ -223,7 +224,7 @@ export default async function HomePage() {
                         aria-hidden="true"
                         className="absolute top-1/2 -right-3 hidden -translate-y-1/2 lg:block"
                       >
-                        <span className="flex size-6 items-center justify-center rounded-full border border-ink-200 bg-paper text-vermillion-500">
+                        <span className="flex size-6 items-center justify-center rounded-full border border-ink-700 bg-ink-800 text-vermillion-500">
                           <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
                             <path
                               d="M2 2 L7 5 L2 8"

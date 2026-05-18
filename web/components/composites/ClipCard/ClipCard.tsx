@@ -42,7 +42,7 @@ export function ClipCard({
   const date = createdAt ? formatClipDate(createdAt) : ''
   return (
     <Card
-      elevation="flat"
+      elevation="raised"
       className={cn(
         'group/clip overflow-hidden transition-all duration-200 ease-out',
         'hover:-translate-y-0.5 hover:border-ink-300 hover:shadow-[0_18px_40px_-22px_rgba(20,20,19,0.18)]',
