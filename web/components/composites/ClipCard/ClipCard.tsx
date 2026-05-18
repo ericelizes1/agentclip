@@ -1,8 +1,9 @@
 import Link from 'next/link'
 
+import { CreatorChip } from '@/components/composites/CreatorChip/CreatorChip'
 import { Badge } from '@/components/primitives/Badge/Badge'
 import { Card } from '@/components/primitives/Card/Card'
-import { cn } from '@/lib/utils'
+import { cn, formatClipDate } from '@/lib/utils'
 
 export interface ClipCardProps {
   /** Public share token (the URL-safe slug). */
@@ -13,16 +14,20 @@ export interface ClipCardProps {
   description?: string
   /** Cover image URL — usually the first slide. May be missing. */
   coverImageUrl?: string | null
-  /** Pretty rendering hint, e.g. "7 clips · Mar 14". */
+  /** Pretty rendering hint, e.g. "3 clips". Shown as a thumbnail badge. */
   meta?: string
+  /** Posting agent — the "channel" credit shown under the title. */
+  creatorName?: string
+  /** ISO timestamp — rendered as the upload date next to the agent. */
+  createdAt?: string
   className?: string
 }
 
 /**
- * Gallery item. Renders a thumbnail-on-paper card that links to
- * `/s/<share_token>/`. Mirrors the curation feed shape exposed by
- * the API (`GallerySlideshowSerializer`) so a slideshow row maps
- * cleanly without an intermediate adapter on the consumer side.
+ * Gallery item — one consistent video card: 16:9 thumbnail, title,
+ * description, then the posting agent (as a "channel") + upload date.
+ * The same title/agent/date vocabulary the hero uses, so every clip
+ * on the site reads the same way.
  */
 export function ClipCard({
   shareToken,
@@ -30,8 +35,11 @@ export function ClipCard({
   description,
   coverImageUrl,
   meta,
+  creatorName,
+  createdAt,
   className,
 }: ClipCardProps) {
+  const date = createdAt ? formatClipDate(createdAt) : ''
   return (
     <Card
       elevation="flat"
@@ -64,65 +72,23 @@ export function ClipCard({
               {meta}
             </Badge>
           )}
-          {/*
-            Hover-only camera-corner ticks — small vermillion L-marks
-            at the four inner corners of the cover image, fading in
-            on hover. Callback to the AgentMark / camera identity:
-            hovering a clip "frames" it through the lens.
-          */}
-          <CornerTick position="top-left" />
-          <CornerTick position="top-right" />
-          <CornerTick position="bottom-left" />
-          <CornerTick position="bottom-right" />
         </div>
-        <div className="space-y-1 p-4">
-          <h3 className="line-clamp-1 text-base font-medium tracking-tight text-ink-900 transition-colors group-hover/clip:text-vermillion-700">
+        <div className="space-y-1.5 p-4">
+          <h3 className="line-clamp-2 text-base font-medium tracking-tight text-ink-900 transition-colors group-hover/clip:text-vermillion-700">
             {title || 'Untitled'}
           </h3>
           {description && (
             <p className="line-clamp-2 text-sm text-ink-600">{description}</p>
           )}
+          {creatorName && (
+            <div className="flex items-center gap-1.5 pt-1.5 text-xs text-ink-500">
+              <CreatorChip name={creatorName} size="sm" />
+              {date && <span aria-hidden="true">·</span>}
+              {date && <span>{date}</span>}
+            </div>
+          )}
         </div>
       </Link>
     </Card>
-  )
-}
-
-function CornerTick({
-  position,
-}: {
-  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
-}) {
-  const placement = {
-    'top-left': 'top-2 left-2',
-    'top-right': 'top-2 right-2',
-    'bottom-left': 'bottom-2 left-2',
-    'bottom-right': 'bottom-2 right-2',
-  }[position]
-  const rotation = {
-    'top-left': 0,
-    'top-right': 90,
-    'bottom-right': 180,
-    'bottom-left': 270,
-  }[position]
-  return (
-    <span
-      aria-hidden="true"
-      style={{ transform: `rotate(${rotation}deg)` }}
-      className={cn(
-        'pointer-events-none absolute z-10 opacity-0 transition-opacity duration-200',
-        'group-hover/clip:opacity-100',
-        placement,
-      )}
-    >
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-        <path
-          d="M2 8 L2 2 L8 2"
-          stroke="var(--color-vermillion-500, #d94824)"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-      </svg>
-    </span>
   )
 }

@@ -79,6 +79,8 @@ async function fetchGallery(): Promise<CuratedRow[]> {
       description: row.description ?? '',
       coverImageUrl: row.cover_image_url ?? null,
       meta: `${row.slide_count} clips`,
+      ...(row.created_by ? { creatorName: row.created_by } : {}),
+      createdAt: row.created_at,
       isHero: row.is_hero ?? false,
     }))
   } catch {
@@ -97,6 +99,8 @@ async function fetchFullSlideshow(token: string): Promise<HeroFeaturedClip | nul
     return {
       shareToken: token,
       title: data.title || 'Untitled run',
+      description: data.description ?? '',
+      ...(data.created_at ? { createdAt: data.created_at } : {}),
       // Clips are posted by named agent personas (Demo Dex, Sleuth
       // Sage, …). Fall back to a generic "an agent" if the API ever
       // returns no creator — never a person's name.
@@ -145,8 +149,10 @@ export default async function HomePage() {
   const marqueeClips: MarqueeClip[] = galleryRows.map((row) => ({
     shareToken: row.shareToken,
     title: row.title,
+    description: row.description,
     coverImageUrl: row.coverImageUrl,
-    meta: row.meta,
+    ...(row.creatorName ? { creatorName: row.creatorName } : {}),
+    createdAt: row.createdAt,
   }))
 
   // RecordingProvider is still wrapped on the home page to drive the

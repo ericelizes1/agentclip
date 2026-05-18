@@ -2,13 +2,18 @@
 
 import Link from 'next/link'
 
-import { cn } from '@/lib/utils'
+import { CreatorChip } from '@/components/composites/CreatorChip/CreatorChip'
+import { cn, formatClipDate } from '@/lib/utils'
 
 export interface MarqueeClip {
   shareToken: string
   title: string
+  description?: string | undefined
   coverImageUrl?: string | null | undefined
-  meta?: string | undefined
+  /** Posting agent — the "channel" credit. */
+  creatorName?: string | undefined
+  /** ISO timestamp — rendered as the upload date. */
+  createdAt?: string | undefined
 }
 
 export interface MarqueeBandProps {
@@ -77,6 +82,7 @@ export function MarqueeBand({
 }
 
 function MarqueeCard({ clip }: { clip: MarqueeClip }) {
+  const date = clip.createdAt ? formatClipDate(clip.createdAt) : ''
   return (
     <Link
       href={`/s/${clip.shareToken}`}
@@ -106,13 +112,18 @@ function MarqueeCard({ clip }: { clip: MarqueeClip }) {
         )}
       </div>
       <div className="space-y-1.5 px-4 py-3">
-        <p className="line-clamp-1 text-[15px] font-medium tracking-tight text-ink-900 transition-colors group-hover/card:text-vermillion-700">
+        <p className="line-clamp-2 text-[15px] font-medium tracking-tight text-ink-900 transition-colors group-hover/card:text-vermillion-700">
           {clip.title}
         </p>
-        {clip.meta && (
-          <p className="text-[10.5px] uppercase tracking-[0.16em] text-ink-500">
-            {clip.meta}
-          </p>
+        {clip.description && (
+          <p className="line-clamp-2 text-sm text-ink-600">{clip.description}</p>
+        )}
+        {clip.creatorName && (
+          <div className="flex items-center gap-1.5 pt-1.5 text-xs text-ink-500">
+            <CreatorChip name={clip.creatorName} size="sm" />
+            {date && <span aria-hidden="true">·</span>}
+            {date && <span>{date}</span>}
+          </div>
         )}
       </div>
     </Link>

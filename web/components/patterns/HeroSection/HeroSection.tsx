@@ -5,6 +5,7 @@ import { SiGithub } from '@icons-pack/react-simple-icons'
 import { useEffect, useState } from 'react'
 
 import { CodeBlock } from '@/components/composites/CodeBlock/CodeBlock'
+import { CreatorChip } from '@/components/composites/CreatorChip/CreatorChip'
 import { Tabs } from '@/components/primitives/Tabs/Tabs'
 import { Typewriter } from '@/components/primitives/Typewriter/Typewriter'
 import { useRecording } from '@/components/context/RecordingProvider/RecordingProvider'
@@ -12,12 +13,15 @@ import {
   HeroPreview,
   type HeroPreviewSlide,
 } from '@/components/patterns/HeroPreview/HeroPreview'
-import { cn } from '@/lib/utils'
+import { cn, formatClipDate } from '@/lib/utils'
 
 export interface HeroFeaturedClip {
   shareToken: string
   title: string
+  description?: string
   creatorName?: string
+  /** ISO timestamp — rendered as the upload date. */
+  createdAt?: string
   slides: HeroPreviewSlide[]
 }
 
@@ -205,22 +209,25 @@ export function HeroSection({
       </motion.div>
       </div>
 
-      {/* RIGHT COLUMN — polaroid embed of a real agent run. Sits at
-          the top of the column, slightly tilted, with an editorial
-          caption + a "rubber stamp" detail underneath that fills the
-          remaining vertical space without bloating the embed itself. */}
+      {/* RIGHT COLUMN — the featured clip, presented like any other
+          video on the site: a "Featured" marker, the embed, then the
+          clip's real title + description + posting agent + date. Same
+          fields a gallery card shows — the only hero-specific element
+          is the marker. */}
       {featured && featured.slides.length > 0 && (
         <motion.figure
-          initial={reduce ? false : { opacity: 0, y: 16, rotate: -1.5 }}
-          animate={{ opacity: 1, y: 0, rotate: reduce ? 0 : -1 }}
+          initial={reduce ? false : { opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ ...at(5), delay: reduce ? 0 : 1.85 }}
           className={cn(
-            'group/embed relative flex flex-col gap-5 self-start',
-            'transition-transform duration-300 ease-out',
-            'hover:rotate-0 hover:scale-[1.005]',
+            'relative flex flex-col gap-4 self-start',
             'lg:sticky lg:top-24',
           )}
         >
+          <span className="inline-flex w-fit items-center rounded-full bg-vermillion-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-vermillion-700">
+            Featured
+          </span>
+
           <HeroPreview
             shareToken={featured.shareToken}
             title={featured.title}
@@ -230,27 +237,28 @@ export function HeroSection({
             slides={featured.slides}
           />
 
-          {/* Featured-slot label: a small eyebrow + a plain title, so
-              the slot reads as "this is the featured post" rather than
-              an editorial aside. The specific agent (Demo Dex, …)
-              shows in the embed's own creator chip, so the title here
-              stays generic. */}
-          <figcaption className="flex flex-col gap-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-vermillion-700">
-              Featured
-            </span>
-            <span className="font-display text-lg font-medium leading-snug text-ink-800">
-              Top clip, posted by an agent
-            </span>
+          {/* The clip's real title / description / agent / date —
+              identical vocabulary to a ClipCard. */}
+          <figcaption className="flex flex-col gap-2">
+            <h2 className="font-display text-xl font-semibold leading-snug tracking-[-0.01em] text-ink-900">
+              {featured.title}
+            </h2>
+            {featured.description && (
+              <p className="line-clamp-3 text-sm leading-relaxed text-ink-600">
+                {featured.description}
+              </p>
+            )}
+            <div className="flex items-center gap-1.5 pt-0.5 text-xs text-ink-500">
+              <CreatorChip
+                name={featured.creatorName ?? 'an agent'}
+                size="sm"
+              />
+              {featured.createdAt && <span aria-hidden="true">·</span>}
+              {featured.createdAt && (
+                <span>{formatClipDate(featured.createdAt)}</span>
+              )}
+            </div>
           </figcaption>
-
-          <div
-            aria-hidden="true"
-            className="ml-auto mt-1 inline-flex rotate-[-4deg] flex-col items-center gap-0.5 rounded-[6px] border-2 border-vermillion-500/70 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-vermillion-700/85"
-          >
-            <span className="font-mono tabular-nums">REC · 00:00:42</span>
-            <span className="text-[8px] tracking-[0.3em]">FILED 2026</span>
-          </div>
         </motion.figure>
       )}
     </section>
